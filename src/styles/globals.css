@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+.rotate-45 {
+  transform: rotate(45deg);
+}
+
+@media print {
+  body, html {
+    margin: 0;
+    padding: 0;
+  }
+  
+  .invoice-container {
+    width: 210mm !important;
+    height: 297mm !important;
+    margin: 0 !important;
+    padding: 10mm !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+/* Mantendo estilos originais */
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 300;
+  line-height: 1.5;
+  color: #212529;
+  background-color: transparent;
+  background-clip: padding-box;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control-sm {
+  min-height: calc(1.5em + 0.5rem + 2px);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 0.2rem;
+}
+
+.bg-amber-50 {
+  background-color: #fffbeb;
+}
+
+.border-primary {
+  border-color: #0d6efd;
+}
+
+.fw-light {
+  font-weight: 300;
+}
+
+/* Wizard steps */
+.wizard-steps {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 0.25rem;
+}
+
+.wizard-step {
+  flex: 1;
+  text-align: center;
+  position: relative;
+}
+
+.wizard-step::after {
+  content: "";
+  position: absolute;
+  top: 20px;
+  right: -50%;
+  width: 100%;
+  height: 2px;
+  background-color: #ccc;
+  z-index: 0;
+}
+
+.wizard-step:last-child::after {
+  display: none;
+}
+
+.wizard-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #ccc;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 5px;
+  position: relative;
+  z-index: 1;
+}
+
+.wizard-step.active .wizard-circle {
+  background-color: #0d6efd;
+}
+
+.wizard-label {
+  font-size: 13px;
+  color: #666;
+}
+
+.wizard-step.active .wizard-label {
+  color: #000;
+  font-weight: 500;
+}
+
+/* Garante que o iframe não cause layout shifts */
+iframe {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+iframe[srcDoc] {
+  visibility: visible;
+}
+
+/* Suaviza o redimensionamento */
+.relative {
+  transition: all 0.3s ease;
+}
+.scale-container {
+  transform-origin: 0 0;
+  transition: transform 0.3s ease;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}

@@ -1,0 +1,40 @@
+// No seu frontend (usando o Supabase JS Client)
+const { data, error } = await supabase.rpc('criar_fatura_completa', {
+  p_emitente: {
+    nomeEmpresa: "Minha Empresa",
+    documento: "12345678901",
+    pais: "Brasil",
+    cidade: "São Paulo",
+    bairro: "Centro",
+    email: "empresa@exemplo.com",
+    telefone: "11999999999"
+  },
+  p_destinatario: {
+    nomeCompleto: "Cliente Exemplo",
+    email: "cliente@exemplo.com",
+    telefone: "11988888888"
+  },
+  p_fatura: {
+    faturaNumero: "2023-001",
+    dataFatura: "2023-11-01",
+    dataVencimento: "2023-11-30",
+    termos: "Pagamento em 10 dias",
+    moeda: "BRL"
+  },
+  p_itens: [
+    {
+      id: 1,
+      quantidade: 2,
+      descricao: "Produto A",
+      precoUnitario: 100,
+      taxas: [
+        {
+          nome: "ICMS",
+          valor: 18,
+          tipo: "percent",
+          categoria: "imposto"
+        }
+      ]
+    }
+  ]
+});

@@ -1,0 +1,221 @@
+CREATE OR REPLACE FUNCTION create_complete_invoice_v2(
+  user_id UUID,
+  invoice_data JSONB
+)
+RETURNS TABLE (
+  invoice_id UUID,
+  invoice_number TEXT,
+  issuer_id UUID,
+  recipient_id UUID,
+  status TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  new_invoice invoices%ROWTYPE;
+  issuer_id UUID;
+  recipient_id UUID;
+  item_record JSONB;
+  tax_record JSONB;
+  invoice_items_count INT := 0;
+  invoice_taxes_count INT := 0;
+BEGIN
+  -- Validação inicial dos dados
+  IF invoice_data->'formData' IS NULL OR invoice_data->'totais' IS NULL OR invoice_data->'items' IS NULL THEN
+    RAISE EXCEPTION 'Dados da fatura incompletos';
+  END IF;
+
+  -- 1. Criar ou obter emissor com tratamento melhorado
+  INSERT INTO issuers (
+    company_name, document, country, city, district,
+    contact_person, email, phone, user_id
+  )
+  VALUES (
+    COALESCE(invoice_data->'formData'->'emitente'->>'nomeEmpresa', ''),
+    COALESCE(invoice_data->'formData'->'emitente'->>'documento', ''),
+    COALESCE(invoice_data->'formData'->'emitente'->>'pais', ''),
+    COALESCE(invoice_data->'formData'->'emitente'->>'cidade', ''),
+    COALESCE(invoice_data->'formData'->'emitente'->>'bairro', ''),
+    NULLIF(invoice_data->'formData'->'emitente'->>'pessoaContato', ''),
+    COALESCE(invoice_data->'formData'->'emitente'->>'email', ''),
+    COALESCE(invoice_data->'formData'->'emitente'->>'telefone', ''),
+    user_id
+  )
+  ON CONFLICT (document, user_id) 
+  DO UPDATE SET
+    company_name = EXCLUDED.company_name,
+    email = EXCLUDED.email,
+    phone = EXCLUDED.phone,
+    updated_at = NOW()
+  RETURNING id INTO issuer_id;
+
+  -- 2. Criar destinatário com validação
+  IF invoice_data->'formData'->'destinatario'->>'nomeCompleto' IS NULL OR
+     invoice_data->'formData'->'destinatario'->>'email' IS NULL OR
+     invoice_data->'formData'->'destinatario'->>'telefone' IS NULL THEN
+    RAISE EXCEPTION 'Dados do destinatário incompletos';
+  END IF;
+
+  INSERT INTO recipients (
+    full_name, document, country, city, district,
+    email, phone, user_id
+  )
+  VALUES (
+    invoice_data->'formData'->'destinatario'->>'nomeCompleto',
+    NULLIF(invoice_data->'formData'->'destinatario'->>'documento', ''),
+    NULLIF(invoice_data->'formData'->'destinatario'->>'pais', ''),
+    NULLIF(invoice_data->'formData'->'destinatario'->>'cidade', ''),
+    NULLIF(invoice_data->'formData'->'destinatario'->>'bairro', ''),
+    invoice_data->'formData'->'destinatario'->>'email',
+    invoice_data->'formData'->'destinatario'->>'telefone',
+    user_id
+  )
+  RETURNING id INTO recipient_id;
+
+  -- 3. Validar e criar fatura
+  IF invoice_data->'formData'->>'faturaNumero' IS NULL OR
+     invoice_data->'formData'->>'dataFatura' IS NULL OR
+     invoice_data->'formData'->>'dataVencimento' IS NULL THEN
+    RAISE EXCEPTION 'Dados obrigatórios da fatura faltando';
+  END IF;
+
+  -- Verificar se data de vencimento é posterior à data de emissão
+  IF (invoice_data->'formData'->>'dataVencimento')::DATE <= (invoice_data->'formData'->>'dataFatura')::DATE THEN
+    RAISE EXCEPTION 'Data de vencimento deve ser posterior à data de emissão';
+  END IF;
+
+  INSERT INTO invoices (
+    invoice_number, issue_date, due_date, purchase_order,
+    terms, currency, subtotal, total_tax, total_amount,
+    logo_url, signature_url, user_id, status
+  )
+  VALUES (
+    invoice_data->'formData'->>'faturaNumero',
+    (invoice_data->'formData'->>'dataFatura')::DATE,
+    (invoice_data->'formData'->>'dataVencimento')::DATE,
+    NULLIF(invoice_data->'formData'->>'ordemCompra', ''),
+    NULLIF(invoice_data->'formData'->>'termos', ''),
+    COALESCE(invoice_data->'formData'->>'moeda', 'MT'),
+    (invoice_data->'totais'->>'subtotal')::NUMERIC,
+    (invoice_data->'totais'->>'totalTaxas')::NUMERIC,
+    (invoice_data->'totais'->>'totalFinal')::NUMERIC,
+    NULLIF(invoice_data->>'logo', ''),
+    NULLIF(invoice_data->>'assinatura', ''),
+    user_id,
+    'draft'
+  )
+  RETURNING * INTO new_invoice;
+
+  -- 4. Relacionar partes com verificação
+  IF issuer_id IS NULL OR recipient_id IS NULL THEN
+    RAISE EXCEPTION 'Emissor ou destinatário não criado corretamente';
+  END IF;
+
+  INSERT INTO invoice_parties (
+    invoice_id, issuer_id, recipient_id
+  )
+  VALUES (
+    new_invoice.id, issuer_id, recipient_id
+  );
+
+  -- 5. Adicionar itens e taxas com contagem e validação
+  IF jsonb_array_length(invoice_data->'items') = 0 THEN
+    RAISE EXCEPTION 'A fatura deve conter pelo menos um item';
+  END IF;
+
+  FOR item_record IN SELECT * FROM jsonb_array_elements(invoice_data->'items')
+  LOOP
+    DECLARE
+      item_id UUID;
+      item_taxes_count INT := 0;
+    BEGIN
+      -- Validação básica do item
+      IF item_record->>'descricao' IS NULL OR 
+         item_record->>'quantidade' IS NULL OR
+         item_record->>'precoUnitario' IS NULL THEN
+        RAISE EXCEPTION 'Item incompleto: descrição, quantidade ou preço faltando';
+      END IF;
+
+      INSERT INTO invoice_items (
+        invoice_id, description, quantity,
+        unit_price, total_price, position
+      )
+      VALUES (
+        new_invoice.id,
+        item_record->>'descricao',
+        (item_record->>'quantidade')::NUMERIC,
+        (item_record->>'precoUnitario')::NUMERIC,
+        (item_record->>'totalItem')::NUMERIC,
+        (item_record->>'id')::INTEGER
+      )
+      RETURNING id INTO item_id;
+
+      invoice_items_count := invoice_items_count + 1;
+
+      -- Processar taxas do item
+      FOR tax_record IN SELECT * FROM jsonb_array_elements(item_record->'taxas')
+      LOOP
+        IF tax_record->>'nome' IS NULL OR 
+           tax_record->>'valor' IS NULL OR
+           tax_record->>'tipo' IS NULL THEN
+          CONTINUE; -- Pular taxas inválidas em vez de falhar
+        END IF;
+
+        INSERT INTO item_taxes (
+          item_id, name, rate, amount,
+          tax_type, category
+        )
+        VALUES (
+          item_id,
+          tax_record->>'nome',
+          CASE WHEN tax_record->>'tipo' = 'percent' 
+               THEN (tax_record->>'valor')::NUMERIC ELSE NULL END,
+          (tax_record->>'valor')::NUMERIC,
+          tax_record->>'tipo',
+          COALESCE(tax_record->>'categoria', 'outros')
+        );
+
+        item_taxes_count := item_taxes_count + 1;
+      END LOOP;
+
+      invoice_taxes_count := invoice_taxes_count + item_taxes_count;
+    END;
+  END LOOP;
+
+  -- 6. Adicionar resumo de taxas (se existirem)
+  IF invoice_data->'totais'->'taxasDetalhadas' IS NOT NULL AND 
+     jsonb_array_length(invoice_data->'totais'->'taxasDetalhadas') > 0 THEN
+    FOR tax_record IN SELECT * FROM jsonb_array_elements(invoice_data->'totais'->'taxasDetalhadas')
+    LOOP
+      INSERT INTO invoice_tax_summary (
+        invoice_id, tax_name, tax_amount
+      )
+      VALUES (
+        new_invoice.id,
+        tax_record->>'nome',
+        (tax_record->>'valor')::NUMERIC
+      );
+    END LOOP;
+  END IF;
+
+  -- 7. Registrar histórico com mais informações
+  INSERT INTO invoice_status_history (
+    invoice_id, status, changed_by, notes
+  )
+  VALUES (
+    new_invoice.id, 
+    'draft', 
+    user_id, 
+    'Fatura criada com ' || invoice_items_count || ' itens e ' || invoice_taxes_count || ' taxas'
+  );
+
+  -- Retornar informações úteis para o cliente
+  RETURN QUERY 
+  SELECT 
+    new_invoice.id AS invoice_id,
+    new_invoice.invoice_number,
+    issuer_id,
+    recipient_id,
+    new_invoice.status;
+END;
+$$;

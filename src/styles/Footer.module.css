@@ -1,0 +1,51 @@
+.simpleFooter {
+  background-color: #0f172a;
+  padding: 1.5rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.copyrightContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.copyrightText {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.legalLinks {
+  display: flex;
+  gap: 1rem;
+  margin-left: 1rem;
+}
+
+.legalLink {
+  color: #cbd5e1;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.legalLink:hover {
+  color: #4f46e5;
+  text-decoration: underline;
+}
+
+@media (max-width: 576px) {
+  .copyrightText {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .legalLinks {
+    margin-left: 0;
+  }
+}

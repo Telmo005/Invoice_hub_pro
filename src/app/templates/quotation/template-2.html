@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <!-- Meta viewport correta para mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fatura Simplificada</title>
+    <style>
+        /* Reset e base */
+        .invoice-template * {
+            border: 0;
+            box-sizing: content-box;
+            font-family: inherit;
+            font-size: inherit;
+            font-style: inherit;
+            font-weight: inherit;
+            line-height: inherit;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            text-decoration: none;
+            vertical-align: top;
+            color: inherit;
+        }
+
+        .payment-terms {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px dashed #7f8c8d;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+
+        /* Container principal com largura fixa para A4 */
+        .invoice-template {
+            font: 14px/1.4 'Open Sans', sans-serif;
+            width: 210mm;
+            /* Largura de uma folha A4 */
+            min-height: 297mm;
+            /* Altura de uma folha A4 */
+            margin: 0 auto;
+            /* Centraliza a fatura na tela */
+            padding: 0.4in;
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .invoice-container header {
+            margin: 0 0 1.2em;
+            padding: 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        /* Cabeçalho dark apenas no H1 */
+        .invoice-container header h1 {
+            background: #2c3e50;
+            color: #fff;
+            margin: 0 0 0.6em;
+            padding: 0.6em 0;
+            font-size: 1.4em;
+            border-radius: 4px 4px 0 0;
+            text-align: center;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+        }
+
+        .invoice-container header address {
+            font-size: 85%;
+            font-style: normal;
+            line-height: 1.4;
+            margin: 0;
+            color: #34495e;
+        }
+
+        .invoice-container header address p {
+            margin: 0 0 0.3em;
+        }
+
+        /* Conteúdo principal */
+        .invoice-container article,
+        .invoice-container article address,
+        .invoice-container table.meta,
+        .invoice-container table.inventory {
+            margin: 0 0 1.2em;
+        }
+
+        .invoice-container article:after {
+            clear: both;
+            content: "";
+            display: table;
+        }
+
+        .invoice-container article h1 {
+            font-size: 1.2em;
+            color: #2c3e50;
+            margin-bottom: 0.5em;
+            letter-spacing: 0.1em;
+        }
+
+        .invoice-container article address {
+            font-size: 110%;
+            font-weight: bold;
+            color: #34495e;
+            margin-bottom: 0.8em;
+        }
+
+        /* Tabelas */
+        .invoice-container table {
+            font-size: 75%;
+            table-layout: fixed;
+            width: 100%;
+            margin-bottom: 1em;
+            border-collapse: separate;
+            border-spacing: 2px;
+        }
+
+        .invoice-container th,
+        .invoice-container td {
+            border-width: 1px;
+            padding: 0.5em;
+            position: relative;
+            text-align: left;
+            border-radius: 0.25em;
+            border-style: solid;
+        }
+
+        .invoice-container th {
+            background: #EEE;
+            border-color: #BBB;
+        }
+
+        .invoice-container td {
+            border-color: #DDD;
+        }
+
+        /* Tabela de itens */
+        .invoice-container table.inventory {
+            clear: both;
+            width: 100%;
+        }
+
+        .invoice-container table.inventory th {
+            font-weight: bold;
+            text-align: center;
+            background: #34495e;
+            color: white;
+        }
+
+        .invoice-container table.inventory td:nth-child(1) {
+            width: 10%;
+        }
+
+        .invoice-container table.inventory td:nth-child(2) {
+            width: 40%;
+        }
+
+        .invoice-container table.inventory td:nth-child(3),
+        .invoice-container table.inventory td:nth-child(4),
+        .invoice-container table.inventory td:nth-child(5) {
+            text-align: right;
+        }
+
+        .invoice-container table.inventory td:nth-child(3),
+        .invoice-container table.inventory td:nth-child(4) {
+            width: 15%;
+        }
+
+        .invoice-container table.inventory td:nth-child(5) {
+            width: 20%;
+        }
+
+        /* Tabela de totais */
+        .invoice-container table.balance {
+            float: right;
+            width: 40%;
+        }
+
+        .invoice-container table.balance:after {
+            clear: both;
+            content: "";
+            display: table;
+        }
+
+        .invoice-container table.balance th,
+        .invoice-container table.balance td {
+            width: 50%;
+        }
+
+        .invoice-container table.balance td {
+            text-align: right;
+        }
+
+        .invoice-container table.balance tr:last-child td {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 110%;
+        }
+
+        /* Observações */
+        .invoice-container aside h1 {
+            border: none;
+            border-width: 0 0 1px;
+            margin: 0 0 0.6em;
+            font-size: 1.1em;
+            color: #2c3e50;
+            padding-bottom: 0.3em;
+            border-bottom: 1px solid #bbb;
+        }
+
+        .invoice-container aside div {
+            font-size: 90%;
+            line-height: 1.5;
+            color: #555;
+            padding: 0.8em;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+
+        /* Impressão em A4 */
+        @media print {
+            .invoice-template {
+                background: #fff;
+                padding: 0;
+                height: auto;
+                width: 210mm;
+                min-height: 297mm;
+            }
+
+            .invoice-container {
+                box-shadow: none;
+                margin: 0;
+                height: auto;
+                width: 100%;
+                padding: 0.2in;
+            }
+
+            @page {
+                margin: 0.5in;
+                size: A4 portrait;
+            }
+        }
+
+        /* Estilos específicos para mobile - APENAS para o template */
+        @media screen and (max-width: 768px) {
+            body {
+                /* Remove qualquer alteração no body */
+                overflow-x: auto;
+                width: 100%;
+                margin: 0;
+                padding: 10px;
+            }
+
+            .invoice-template {
+                /* Mantém o tamanho original do template */
+                width: 210mm;
+                min-height: 297mm;
+                /* Centralização horizontal que funciona com zoom */
+                margin: 0 auto;
+                position: relative;
+                left: 50%;
+                transform: translateX(-50%);
+                /* Permite zoom sem perder centralização */
+                transform-origin: center top;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="invoice-template">
+        <div class="invoice-container">
+            <header>
+                <h1>Cotação</h1>
+                <br />
+                <address>
+                    <p id="emitente-nomeEmpresa">Carregando...</p>
+                    <p id="emitente-bairro">Carregando...</p>
+                    <p id="emitente-Cidade-pais">Carregando...</p>
+                    <p id="emitente-documento">Carregando...</p>
+                    <p id="emitente-contato">Carregando...</p>
+                </address>
+                <br />
+            </header>
+            <article>
+                <h1>Destinatário</h1>
+                <address>
+                    <p id="destinatario-nomeCompleto">Carregando...</p>
+                    <p id="destinatario-contato">Carregando...</p>
+                </address>
+                <table class="balance">
+                    <tr>
+                        <th>Nº da Cotação</th>
+                        <td id="cotacao-numero-display">Carregando...</td>
+                    </tr>
+                    <tr>
+                        <th>Data de Emissão</th>
+                        <td id="data-documento">Carregando...</td>
+                    </tr>
+                    <tr>
+                        <th>Data de Vencimento</th>
+                        <td id="data-vencimento">Carregando...</td>
+                    </tr>
+                    <tr>
+                        <th>Valor Devido</th>
+                        <td><span id="total-final">0 MZN</span></td>
+                    </tr>
+                </table>
+                <table class="inventory">
+                    <thead>
+                        <tr>
+                            <th>Qtd</th>
+                            <th>Descrição</th>
+                            <th>Preço Unitário</th>
+                            <th>Taxas</th>
+                            <th>Preço Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-tbody">
+                        <tr>
+                            <td colspan="5" style="text-align:center;">Carregando itens...</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table class="balance">
+                    <tr>
+                        <th>Subtotal</th>
+                        <td id="subtotal">0 MZN</td>
+                    </tr>
+                    <tr>
+                        <th>Total Taxas</th>
+                        <td id="taxas-total">0 MZN</td>
+                    </tr>
+                    <tr>
+                        <th>Total Final</th>
+                        <td id="total-final-balance">0 MZN</td>
+                    </tr>
+                </table>
+            </article>
+            <aside>
+                <h1>Metodos de pagamentos</h1>
+                <div id="metodo-pagamento" style="font-size: 10px; white-space: pre-line;">Carregando termos de pagamento...</div>
+            </aside>
+            <div class="payment-terms">
+                <strong id="termos-pagamento">Carregando...</strong>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

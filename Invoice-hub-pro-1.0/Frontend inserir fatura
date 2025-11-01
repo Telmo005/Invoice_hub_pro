@@ -1,0 +1,26 @@
+const saveCompleteInvoice = async (invoiceData: InvoiceData) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error('Usuário não autenticado');
+
+  const { data, error } = await supabase.rpc('create_complete_invoice', {
+    invoice_data: {
+      faturaNumero: invoiceData.formData.faturaNumero,
+      dataFatura: invoiceData.formData.dataFatura,
+      dataVencimento: invoiceData.formData.dataVencimento,
+      ordemCompra: invoiceData.formData.ordemCompra,
+      termos: invoiceData.formData.termos,
+      moeda: invoiceData.formData.moeda,
+      totais: invoiceData.totais,
+      logo: invoiceData.logo,
+      assinatura: invoiceData.assinatura
+    },
+    issuer_data: invoiceData.formData.emitente,
+    recipient_data: invoiceData.formData.destinatario,
+    items_data: invoiceData.items,
+    user_id: user.id
+  });
+
+  if (error) throw error;
+  return data;
+};

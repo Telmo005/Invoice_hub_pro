@@ -1,0 +1,158 @@
+-- Políticas para a tabela invoices
+CREATE POLICY "Users can view their own invoices" 
+ON invoices FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own invoices" 
+ON invoices FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own invoices" 
+ON invoices FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own invoices" 
+ON invoices FOR DELETE USING (auth.uid() = user_id);
+
+-- Políticas para a tabela issuers
+CREATE POLICY "Users can view their own issuers" 
+ON issuers FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own issuers" 
+ON issuers FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own issuers" 
+ON issuers FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own issuers" 
+ON issuers FOR DELETE USING (auth.uid() = user_id);
+
+-- Políticas para a tabela recipients
+CREATE POLICY "Users can view their own recipients" 
+ON recipients FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own recipients" 
+ON recipients FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own recipients" 
+ON recipients FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own recipients" 
+ON recipients FOR DELETE USING (auth.uid() = user_id);
+
+-- Políticas para a tabela invoice_parties
+CREATE POLICY "Users can view their own invoice parties" 
+ON invoice_parties FOR SELECT USING (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_parties.invoice_id AND invoices.user_id = auth.uid())
+);
+
+CREATE POLICY "Users can insert their own invoice parties" 
+ON invoice_parties FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_parties.invoice_id AND invoices.user_id = auth.uid()) AND
+  (invoice_parties.issuer_id IS NULL OR 
+   EXISTS (SELECT 1 FROM issuers WHERE issuers.id = invoice_parties.issuer_id AND issuers.user_id = auth.uid())) AND
+  (invoice_parties.recipient_id IS NULL OR 
+   EXISTS (SELECT 1 FROM recipients WHERE recipients.id = invoice_parties.recipient_id AND recipients.user_id = auth.uid()))
+);
+
+CREATE POLICY "Users can update their own invoice parties" 
+ON invoice_parties FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_parties.invoice_id AND invoices.user_id = auth.uid())
+) WITH CHECK (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_parties.invoice_id AND invoices.user_id = auth.uid()) AND
+  (invoice_parties.issuer_id IS NULL OR 
+   EXISTS (SELECT 1 FROM issuers WHERE issuers.id = invoice_parties.issuer_id AND issuers.user_id = auth.uid())) AND
+  (invoice_parties.recipient_id IS NULL OR 
+   EXISTS (SELECT 1 FROM recipients WHERE recipients.id = invoice_parties.recipient_id AND recipients.user_id = auth.uid()))
+);
+
+CREATE POLICY "Users can delete their own invoice parties" 
+ON invoice_parties FOR DELETE USING (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_parties.invoice_id AND invoices.user_id = auth.uid())
+);
+
+-- Políticas para a tabela invoice_items
+CREATE POLICY "Users can view their own invoice items" 
+ON invoice_items FOR SELECT USING (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_items.invoice_id AND invoices.user_id = auth.uid())
+);
+
+CREATE POLICY "Users can insert their own invoice items" 
+ON invoice_items FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_items.invoice_id AND invoices.user_id = auth.uid())
+);
+
+CREATE POLICY "Users can update their own invoice items" 
+ON invoice_items FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_items.invoice_id AND invoices.user_id = auth.uid())
+) WITH CHECK (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_items.invoice_id AND invoices.user_id = auth.uid())
+);
+
+CREATE POLICY "Users can delete their own invoice items" 
+ON invoice_items FOR DELETE USING (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_items.invoice_id AND invoices.user_id = auth.uid())
+);
+
+-- Políticas para a tabela item_taxes
+CREATE POLICY "Users can view their own item taxes" 
+ON item_taxes FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM invoice_items 
+    JOIN invoices ON invoices.id = invoice_items.invoice_id
+    WHERE invoice_items.id = item_taxes.item_id AND invoices.user_id = auth.uid()
+  )
+);
+
+CREATE POLICY "Users can insert their own item taxes" 
+ON item_taxes FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM invoice_items 
+    JOIN invoices ON invoices.id = invoice_items.invoice_id
+    WHERE invoice_items.id = item_taxes.item_id AND invoices.user_id = auth.uid()
+  )
+);
+
+CREATE POLICY "Users can update their own item taxes" 
+ON item_taxes FOR UPDATE USING (
+  EXISTS (
+    SELECT 1 FROM invoice_items 
+    JOIN invoices ON invoices.id = invoice_items.invoice_id
+    WHERE invoice_items.id = item_taxes.item_id AND invoices.user_id = auth.uid()
+  )
+) WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM invoice_items 
+    JOIN invoices ON invoices.id = invoice_items.invoice_id
+    WHERE invoice_items.id = item_taxes.item_id AND invoices.user_id = auth.uid()
+  )
+);
+
+CREATE POLICY "Users can delete their own item taxes" 
+ON item_taxes FOR DELETE USING (
+  EXISTS (
+    SELECT 1 FROM invoice_items 
+    JOIN invoices ON invoices.id = invoice_items.invoice_id
+    WHERE invoice_items.id = item_taxes.item_id AND invoices.user_id = auth.uid()
+  )
+);
+
+-- Políticas para a tabela invoice_tax_summary
+CREATE POLICY "Users can view their own tax summaries" 
+ON invoice_tax_summary FOR SELECT USING (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_tax_summary.invoice_id AND invoices.user_id = auth.uid())
+);
+
+CREATE POLICY "Users can insert their own tax summaries" 
+ON invoice_tax_summary FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_tax_summary.invoice_id AND invoices.user_id = auth.uid())
+);
+
+CREATE POLICY "Users can update their own tax summaries" 
+ON invoice_tax_summary FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_tax_summary.invoice_id AND invoices.user_id = auth.uid())
+) WITH CHECK (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_tax_summary.invoice_id AND invoices.user_id = auth.uid())
+);
+
+CREATE POLICY "Users can delete their own tax summaries" 
+ON invoice_tax_summary FOR DELETE USING (
+  EXISTS (SELECT 1 FROM invoices WHERE invoices.id = invoice_tax_summary.invoice_id AND invoices.user_id = auth.uid())
+);

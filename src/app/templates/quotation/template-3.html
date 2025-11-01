@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Cotação Comercial - Documento comercial oficial">
+  <title>Cotação Comercial</title>
+  <style>
+    /* ======= BASE ISOLADA ======= */
+    .t3-isolated {
+      all: initial;
+      display: block !important;
+      width: 297mm !important;
+      height: 210mm !important;
+      margin: 0 auto !important;
+      background: #fff !important;
+      padding: 15px !important;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1) !important;
+      overflow: hidden !important;
+      box-sizing: border-box !important;
+      position: relative !important;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+      font-size: 12px !important;
+      color: #333 !important;
+      line-height: 1.4 !important;
+    }
+
+    /* Reset específico apenas para elementos dentro do template */
+    .t3-isolated * {
+      margin: 0 !important;
+      padding: 0 !important;
+      box-sizing: border-box !important;
+      font-family: inherit !important;
+      font-size: inherit !important;
+      color: inherit !important;
+      line-height: inherit !important;
+    }
+
+    /* ======= LAYOUT ======= */
+    .t3-isolated .invoice-container {
+      display: flex !important;
+      justify-content: center !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .t3-isolated .invoice {
+      width: 100% !important;
+      height: 100% !important;
+      background: #fff !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+    }
+
+    /* ======= CABEÇALHO ======= */
+    .t3-isolated .invoice-header {
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: flex-start !important;
+      margin-bottom: 15px !important;
+    }
+
+    .t3-isolated .invoice-title {
+      font-size: 20px !important;
+      font-weight: bold !important;
+    }
+
+    .t3-isolated .invoice-meta {
+      font-size: 12px !important;
+      color: #555 !important;
+    }
+
+    .t3-isolated .invoice-meta p {
+      margin: 2px 0 !important;
+    }
+
+    /* ======= CARTÕES ======= */
+    .t3-isolated .card {
+      border: 1px solid #ddd !important;
+      border-radius: 4px !important;
+      margin-bottom: 10px !important;
+      font-size: 12px !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .t3-isolated .card-header {
+      padding: 8px 12px !important;
+      border-bottom: 1px solid #ddd !important;
+      font-weight: bold !important;
+      background: #f9fafb !important;
+    }
+
+    .t3-isolated .card-content {
+      padding: 12px !important;
+    }
+
+    .t3-isolated .card-content p {
+      margin: 4px 0 !important;
+    }
+
+    /* ======= GRID ======= */
+    .t3-isolated .grid {
+      display: flex !important;
+      gap: 10px !important;
+      margin-bottom: 15px !important;
+    }
+
+    .t3-isolated .grid--2 {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 10px !important;
+    }
+
+    .t3-isolated .grid--3 {
+      display: grid !important;
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 10px !important;
+    }
+
+    /* ======= TABELA DE ITENS ======= */
+    .t3-isolated .items-table {
+      width: 100% !important;
+      border-collapse: collapse !important;
+      margin-bottom: 15px !important;
+      font-size: 12px !important;
+    }
+
+    .t3-isolated .items-table th,
+    .t3-isolated .items-table td {
+      padding: 6px !important;
+      border: 1px solid #ddd !important;
+    }
+
+    .t3-isolated .items-table th {
+      background: #f9fafb !important;
+      font-weight: bold !important;
+    }
+
+    .t3-isolated .text-right {
+      text-align: right !important;
+    }
+
+    .t3-isolated .text-center {
+      text-align: center !important;
+    }
+
+    .t3-isolated .text-muted {
+      color: #888 !important;
+      font-size: 10px !important;
+    }
+
+    .t3-isolated .mono {
+      font-family: 'Courier New', monospace !important;
+    }
+
+    .t3-isolated .colfix {
+      width: 100px !important;
+    }
+
+    .t3-isolated .bigfont {
+      font-size: 1.7rem !important;
+      font-weight: bold !important;
+    }
+
+    .t3-isolated .summary-row {
+      font-weight: bold !important;
+      background: #f9fafb !important;
+    }
+
+    /* ======= RODAPÉ ======= */
+    .t3-isolated .invoice-footer {
+      margin-top: 20px !important;
+      text-align: center !important;
+      font-size: 10px !important;
+      color: #888 !important;
+    }
+
+    /* ======= IMPRESSÃO ======= */
+    @media print {
+      @page {
+        size: A4 landscape !important;
+        margin: 10mm !important;
+      }
+
+      .t3-isolated {
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        position: static !important;
+        transform: none !important;
+        padding: 0 !important;
+      }
+
+      .t3-isolated .no-print {
+        display: none !important;
+      }
+
+      .t3-isolated .grid,
+      .t3-isolated .card,
+      .t3-isolated .items-table {
+        page-break-inside: avoid !important;
+      }
+      
+      /* Esconde outros elementos da página durante a impressão */
+      body > *:not(.t3-isolated) {
+        display: none !important;
+      }
+    }
+
+    /* ======= MOBILE ======= */
+    @media screen and (max-width: 768px) {
+      .t3-isolated {
+        width: 297mm !important;
+        height: 210mm !important;
+        margin: 0 auto !important;
+        position: relative !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        transform-origin: center top !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Container isolado para evitar conflitos -->
+  <div class="t3-isolated">
+    <div class="invoice-container">
+      <main class="invoice" role="document" aria-label="Cotação Comercial">
+
+        <!-- Cabeçalho -->
+        <header class="invoice-header">
+          <div>
+            <h1 class="invoice-title">COTAÇÃO</h1>
+            <div class="invoice-meta">
+              <p><strong>Nº:</strong> <span id="cotacao-numero">Carregando...</span></p>
+              <p><strong>Data:</strong> <span id="data-documento">Carregando...</span></p>
+              <p><strong>Vencimento:</strong> <span id="data-vencimento">Carregando...</span></p>
+            </div>
+          </div>
+          <div class="invoice-meta">
+            <p><strong id="emitente-nomeEmpresa">Carregando...</strong></p>
+            <p id="emitente-endereco">Carregando...</p>
+            <p id="emitente-contato">Carregando...</p>
+            <p id="emitente-documento">Carregando...</p>
+          </div>
+        </header>
+
+        <!-- Empresa e Cliente -->
+        <div class="grid grid--2">
+          <article class="card">
+            <div class="card-header">Detalhes da Empresa</div>
+            <div class="card-content">
+              <p><strong>Nome:</strong> <span id="emitente-nomeEmpresa-card">Carregando...</span></p>
+              <p><strong>Endereço:</strong> <span id="emitente-endereco-card">Carregando...</span></p>
+              <p><strong>Telefone:</strong> <span id="emitente-contato-card">Carregando...</span></p>
+              <p><strong>Email:</strong> <span id="emitente-email">Carregando...</span></p>
+              <p><strong>Documento:</strong> <span id="emitente-documento-card">Carregando...</span></p>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-header">Detalhes do Cliente</div>
+            <div class="card-content">
+              <p><strong>Nome:</strong> <span id="destinatario-nomeCompleto">Carregando...</span></p>
+              <p><strong>Endereço:</strong> <span id="destinatario-endereco">Carregando...</span></p>
+              <p><strong>Telefone:</strong> <span id="destinatario-contato">Carregando...</span></p>
+              <p><strong>Email:</strong> <span id="destinatario-email">Carregando...</span></p>
+              <p><strong>Documento:</strong> <span id="destinatario-documento">Carregando...</span></p>
+            </div>
+          </article>
+        </div>
+
+        <!-- Itens -->
+        <section>
+          <div class="card">
+            <div class="card-header">Itens da Cotação</div>
+            <div class="card-content">
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Qtd</th>
+                    <th>Descrição</th>
+                    <th class="text-right">Preço Unitário</th>
+                    <th class="text-right">Taxas</th>
+                    <th class="text-right">Preço Total</th>
+                  </tr>
+                </thead>
+                <tbody id="items-tbody">
+                  <tr>
+                    <td colspan="5">Carregando itens...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Pagamento / Total / Observações -->
+        <div class="grid grid--3">
+          <article class="card">
+            <div class="card-header">Detalhes de Pagamento</div>
+            <div id="metodo-pagamento" class="card-content" style="white-space: pre-line;"></div>
+          </article>
+
+          <article class="card">
+            <div class="card-header text-center">Valor Total</div>
+            <div class="card-content text-center">
+              <p class="bigfont"><span id="total-final-card">0 MZN</span></p>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-header text-right">Observações</div>
+            <div class="card-content">
+              <p id="termos-pagamento" class="text-right">Carregando termos de pagamento...</p>
+            </div>
+          </article>
+        </div>
+
+        <!-- Resumo Financeiro -->
+        <div class="card">
+          <div class="card-header">Resumo Financeiro</div>
+          <div class="card-content">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+              <div style="text-align: center left;">
+                <p><strong>Total Taxa:</strong> <span id="taxas-total" class="mono">0 MZN</span></p>
+                <p><strong>Subtotal:</strong> <span id="subtotal" class="mono">0 MZN</span></p>
+              </div>
+              <div class="text-right">
+                <p class="bigfont">Total: <span id="total-final" class="mono">0 MZN</span></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rodapé -->
+        <footer class="invoice-footer no-print">
+          <p>Emitido eletronicamente por <text id="emitente-nomeEmpresa">Carregando...</text></p>
+        </footer>
+
+      </main>
+    </div>
+  </div>
+</body>
+
+</html>
