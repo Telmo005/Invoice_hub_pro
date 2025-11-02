@@ -132,16 +132,19 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     houveModificacoes: false
   });
 
-  // Função para atualizar termos automaticamente
+  // Função para atualizar termos automaticamente - MELHORADA
   const atualizarTermosAutomaticamente = useCallback((currentFormData: FormDataFatura) => {
     const dias = currentFormData.tipo === 'cotacao' 
       ? parseInt(currentFormData.validezCotacao) || 15
       : parseInt(currentFormData.validezFatura) || 15;
     
-    return `Este ${currentFormData.tipo === 'cotacao' ? 'cotação' : 'fatura'} é válida por ${dias} ${dias === 1 ? 'dia' : 'dias'} a partir da data de emissão.`;
+    const tipoDocumento = currentFormData.tipo === 'cotacao' ? 'cotação' : 'fatura';
+    const palavraValidade = currentFormData.tipo === 'cotacao' ? 'válida' : 'válida';
+    
+    return `Este ${tipoDocumento} é ${palavraValidade} por ${dias} ${dias === 1 ? 'dia' : 'dias'} a partir da data de emissão.`;
   }, []);
 
-  // Effect para cálculos automáticos de datas e termos
+  // Effect para cálculos automáticos de datas e termos - CORRIGIDO
   useEffect(() => {
     let shouldUpdate = false;
     const updates: Partial<FormDataFatura> = {};
@@ -159,9 +162,9 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       }
     }
 
-    // Para ambos: atualizar termos se necessário
+    // PARA AMBOS: SEMPRE atualizar termos quando a validade mudar
     const novosTermos = atualizarTermosAutomaticamente(formData);
-    if (formData.termos !== novosTermos && !formData.termos.includes('válida por')) {
+    if (formData.termos !== novosTermos) {
       updates.termos = novosTermos;
       shouldUpdate = true;
     }
