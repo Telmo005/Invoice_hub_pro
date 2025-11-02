@@ -1,6 +1,7 @@
 // app/api/document/invoice/create/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
+import { logger } from '@/lib/logger';
 
 // Interfaces para tipagem consistente
 interface ApiResponse<T = any> {
@@ -69,13 +70,28 @@ async function checkExistingDocument(
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let invoiceId: string | null = null;
+  let user: any = null;
+  let documentData: InvoiceData | null = null;
+
   try {
     const supabase = await supabaseServer();
     
     // Verificar autenticação
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
     
-    if (authError || !user) {
+    if (authError || !authUser) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Tentativa de acesso não autorizado à API de criação de fatura',
+        details: { 
+          endpoint: '/api/document/invoice/create',
+          error: authError?.message 
+        }
+      });
+
       const errorResponse: ApiResponse = {
         success: false,
         error: {
@@ -87,11 +103,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 401 });
     }
 
+    user = authUser;
+
     // Validar e parsear corpo da requisição
     let body: RequestBody;
     try {
       body = await request.json();
     } catch (parseError) {
+      await logger.logError(parseError as Error, 'parse_invoice_request_body', {
+        endpoint: '/api/document/invoice/create',
+        method: 'POST',
+        user: user.id
+      });
+
       const errorResponse: ApiResponse = {
         success: false,
         error: {
@@ -103,10 +127,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    const { documentData } = body;
+    documentData = body.documentData;
 
     // Validar dados obrigatórios
     if (!documentData) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Dados da fatura não fornecidos',
+        details: { 
+          user: user.id,
+          endpoint: '/api/document/invoice/create'
+        }
+      });
+
       const errorResponse: ApiResponse = {
         success: false,
         error: {
@@ -123,13 +157,21 @@ export async function POST(request: NextRequest) {
 
     const { formData, items, totais, logo, assinatura } = documentData;
 
-    console.log('📝 [API Invoice] Dados recebidos:', {
-      user: user.id,
-      tipo: 'fatura',
-      numero: formData?.faturaNumero,
-      emitente: formData?.emitente?.nomeEmpresa,
-      destinatario: formData?.destinatario?.nomeCompleto,
-      totalItens: items?.length
+    // Log de tentativa de criação
+    await logger.log({
+      action: 'document_create',
+      level: 'info',
+      message: `Tentativa de criação de fatura: ${formData?.faturaNumero}`,
+      details: {
+        user: user.id,
+        tipo: 'fatura',
+        numero: formData?.faturaNumero,
+        emitente: formData?.emitente?.nomeEmpresa,
+        destinatario: formData?.destinatario?.nomeCompleto,
+        totalItens: items?.length,
+        valorTotal: totais?.totalFinal,
+        dataVencimento: formData?.dataVencimento
+      }
     });
 
     // Validar dados obrigatórios específicos
@@ -139,6 +181,18 @@ export async function POST(request: NextRequest) {
     if (!formData?.destinatario) missingFields.push('destinatario');
 
     if (missingFields.length > 0) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Dados obrigatórios faltando para criação de fatura',
+        details: {
+          user: user.id,
+          missingFields,
+          required: ['faturaNumero', 'emitente', 'destinatario'],
+          numero: formData?.faturaNumero
+        }
+      });
+
       const errorResponse: ApiResponse = {
         success: false,
         error: {
@@ -155,6 +209,16 @@ export async function POST(request: NextRequest) {
 
     // Validar items
     if (!items || !Array.isArray(items) || items.length === 0) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Lista de itens vazia para fatura',
+        details: {
+          user: user.id,
+          numero: formData.faturaNumero
+        }
+      });
+
       const errorResponse: ApiResponse = {
         success: false,
         error: {
@@ -175,9 +239,15 @@ export async function POST(request: NextRequest) {
     );
 
     if (documentExists) {
-      console.warn('⚠️ [API Invoice] Tentativa de criar documento duplicado:', {
-        userId: user.id,
-        numero: formData.faturaNumero
+      await logger.log({
+        action: 'document_create',
+        level: 'warn',
+        message: `Tentativa de criar fatura duplicada: ${formData.faturaNumero}`,
+        details: {
+          user: user.id,
+          numero: formData.faturaNumero,
+          tipo: 'fatura'
+        }
       });
 
       const errorResponse: ApiResponse = {
@@ -217,8 +287,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (functionError) {
-      console.error('❌ [API Invoice] Erro na função criar_fatura_completa:', functionError);
-      
+      await logger.logError(functionError, 'create_invoice_database', {
+        user: user.id,
+        numero: formData.faturaNumero,
+        databaseError: functionError.message,
+        databaseCode: functionError.code,
+        databaseHint: functionError.hint
+      });
+
       // Tratamento específico para erro de documento duplicado
       if (functionError.code === 'P0001' && functionError.message.includes('Já existe um documento')) {
         const errorResponse: ApiResponse = {
@@ -252,8 +328,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (!result) {
-      console.error('❌ [API Invoice] Resultado vazio da função');
-      
+      await logger.log({
+        action: 'error',
+        level: 'error',
+        message: 'Resultado vazio da função de criação de fatura',
+        details: {
+          user: user.id,
+          numero: formData.faturaNumero
+        }
+      });
+
       const errorResponse: ApiResponse = {
         success: false,
         error: {
@@ -265,9 +349,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 500 });
     }
 
-    console.log('✅ [API Invoice] Fatura criada com sucesso:', {
-      faturaId: result,
-      numero: formData.faturaNumero
+    invoiceId = result;
+
+    // Log de sucesso da criação
+    await logger.logDocumentCreation('fatura', result, {
+      numero: formData.faturaNumero,
+      totais: totais,
+      items: { length: items.length },
+      emitente: formData.emitente,
+      destinatario: formData.destinatario,
+      dataVencimento: formData.dataVencimento
     });
 
     // Resposta de sucesso
@@ -282,8 +373,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(successResponse, { status: 201 });
 
   } catch (error) {
-    console.error('💥 [API Invoice] Erro inesperado:', error);
+    const duration = Date.now() - startTime;
     
+    await logger.logError(error as Error, 'create_invoice_unexpected', {
+      user: user?.id,
+      invoiceId,
+      durationMs: duration,
+      endpoint: '/api/document/invoice/create',
+      numero: documentData?.formData?.faturaNumero
+    });
+
     const errorResponse: ApiResponse = {
       success: false,
       error: {
@@ -296,5 +395,15 @@ export async function POST(request: NextRequest) {
     };
     
     return NextResponse.json(errorResponse, { status: 500 });
+  } finally {
+    const duration = Date.now() - startTime;
+    
+    // Log de performance da API
+    await logger.logApiCall(
+      '/api/document/invoice/create',
+      'POST',
+      duration,
+      invoiceId !== null // Sucesso se invoiceId foi definido
+    );
   }
 }
