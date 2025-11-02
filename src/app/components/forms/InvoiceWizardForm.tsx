@@ -776,7 +776,7 @@ const ItensStep = memo(({
               value={isCotacao ? (formData.cotacaoNumero || '') : formData.faturaNumero}
               onChange={handleDocumentNumberChange}
               onBlur={handleBlur}
-              placeholder={isCotacao ? "Ex: COT-202504-100" : "Ex: FTR-202504-100"}
+              placeholder={isCotacao ? "Ex: COT-100" : "Ex: FTR-100"}
               required
               maxLength={20}
             />
@@ -1245,6 +1245,38 @@ const InvoiceWizardForm: React.FC<InvoiceWizardFormProps> = ({ tipo = 'fatura' }
   // Combinar estados de loading
   const loading = empresasLoading || empresaPadraoLoading;
   const error = empresasError || empresaPadraoError;
+
+  // NOVO: Efeito para controlar o botão "Voltar" do navegador
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      event.preventDefault();
+      
+      if (currentStep > 0) {
+        setIsNavigating(true);
+        setTimeout(() => {
+          setCurrentStep(prev => prev - 1);
+          setIsNavigating(false);
+        }, 300);
+      } else {
+        // Se está no primeiro step, permite voltar para página anterior
+        window.history.back();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [currentStep]);
+
+  // NOVO: Efeito para atualizar o histórico quando o step muda
+  useEffect(() => {
+    window.history.pushState({ 
+      step: currentStep,
+      form: 'invoice-wizard' 
+    }, '', window.location.href);
+  }, [currentStep]);
 
   // NOVO: Reset do documentExists quando o usuário muda o número
   const handleDocumentNumberChange = useCallback(() => {
