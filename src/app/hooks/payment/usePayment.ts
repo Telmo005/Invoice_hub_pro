@@ -55,7 +55,7 @@ export interface UsePaymentReturn {
 const PAYMENT_METHODS: PaymentMethod[] = [
   {
     id: 'Mpeza',
-    name: 'Mpeza',
+    name: 'M-Pesa',
     description: 'Confirmação imediata',
     requiresContact: true,
     imagePath: '/m-pesa-seeklogo.png'
@@ -98,7 +98,7 @@ const getDocumentDisplayInfo = (documentType: TipoDocumento) => {
   };
 };
 
-// Cliente API simplificado
+// Cliente API
 class ApiError extends Error {
   constructor(
     public code: string,
@@ -111,7 +111,7 @@ class ApiError extends Error {
   }
 }
 
-// Função para criar documento - SEGURA (sem HTML no estado)
+// Função para criar documento
 const createDocumentDirect = async (documentData: InvoiceData): Promise<{
   id: string;
   numero: string;
@@ -141,7 +141,59 @@ const createDocumentDirect = async (documentData: InvoiceData): Promise<{
   return data.data!;
 };
 
-// Template PDF otimizado
+// ✅ FUNÇÃO REAL DE PAGAMENTO - INTEGRAÇÃO COM API
+const processRealPayment = async (
+  method: string, 
+  contact: string, 
+  amount: number, 
+  currency: string,
+  documentId: string
+): Promise<{ success: boolean; paymentId?: string; message?: string }> => {
+  try {
+    const response = await fetch('/api/payments/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        paymentMethod: method,
+        contactNumber: contact,
+        amount,
+        currency,
+        documentId,
+        timestamp: new Date().toISOString()
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new ApiError(
+        data.error?.code || 'PAYMENT_ERROR',
+        data.error?.message || 'Erro ao processar pagamento',
+        data.error?.details,
+        response.status
+      );
+    }
+
+    return {
+      success: data.success,
+      paymentId: data.paymentId,
+      message: data.message
+    };
+
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    
+    throw new ApiError(
+      'NETWORK_ERROR',
+      'Erro de conexão. Verifique sua internet e tente novamente.',
+      { originalError: error }
+    );
+  }
+};
+
+// Template PDF
 const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?: string): string => {
   return `
 <!DOCTYPE html>
@@ -293,13 +345,57 @@ export const usePayment = ({
     }
   }, [invoiceData, dynamicDocumentData.id]);
 
-  // Simulação de pagamento
-  const simulatePayment = useCallback(async (method: string, contact: string): Promise<boolean> => {
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    return Math.random() > 0.05; // 95% success rate
-  }, []);
+  // ✅ PROCESSAMENTO REAL DE PAGAMENTO - ATUALIZADO
+  const processRealPaymentCallback = useCallback(async (
+    method: string, 
+    contact: string
+  ): Promise<boolean> => {
+    try {
+      const paymentResult = await processRealPayment(
+        method,
+        contact,
+        LIBERATION_FEE,
+        CURRENCY,
+        dynamicDocumentData.id
+      );
 
-  // Processamento principal SEGURO
+      if (!paymentResult.success) {
+        throw new ApiError(
+          'PAYMENT_FAILED',
+          paymentResult.message || 'Pagamento não foi autorizado pelo provedor'
+        );
+      }
+
+      return true;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        // Tratamento específico por tipo de erro
+        switch (error.code) {
+          case 'INSUFFICIENT_FUNDS':
+            throw new Error('Saldo insuficiente. Por favor, recarregue sua conta e tente novamente.');
+          
+          case 'INVALID_NUMBER':
+            throw new Error('Número de telefone inválido. Verifique o número e tente novamente.');
+          
+          case 'NETWORK_ERROR':
+            throw new Error('Erro de conexão. Verifique sua internet e tente novamente.');
+          
+          case 'PAYMENT_TIMEOUT':
+            throw new Error('Tempo limite excedido. O pagamento demorou muito para processar.');
+          
+          case 'PROVIDER_ERROR':
+            throw new Error('Serviço de pagamento temporariamente indisponível. Tente novamente em alguns minutos.');
+          
+          default:
+            throw new Error(error.message || 'Erro ao processar pagamento. Tente novamente.');
+        }
+      }
+      
+      throw new Error('Erro inesperado ao processar pagamento. Tente novamente.');
+    }
+  }, [dynamicDocumentData.id]);
+
+  // Processamento principal ATUALIZADO
   const processPayment = useCallback(async (renderedHtml: string): Promise<void> => {
     if (isProcessingRef.current) return;
 
@@ -314,6 +410,23 @@ export const usePayment = ({
     if (!selectedMethod) {
       setErrorMessage('Por favor, selecione um método de pagamento');
       return;
+    }
+
+    // Validação específica do número
+    if (requiresContact) {
+      const cleanedContact = contactNumber.replace(/\s+/g, '');
+      const mpesaRegex = /^8[2-7]\d{7}$/; // M-Pesa: 82-87 + 7 dígitos
+      const emolaRegex = /^8[7-9]\d{7}$/; // E-Mola: 87-89 + 7 dígitos
+      
+      if (selectedMethod === 'Mpeza' && !mpesaRegex.test(cleanedContact)) {
+        setErrorMessage('Número M-Pesa inválido. Use formato: 8X XXX XXXX (ex: 84 123 4567)');
+        return;
+      }
+      
+      if (selectedMethod === 'E-Mola' && !emolaRegex.test(cleanedContact)) {
+        setErrorMessage('Número E-Mola inválido. Use formato: 8X XXX XXXX (ex: 87 123 4567)');
+        return;
+      }
     }
 
     isProcessingRef.current = true;
@@ -334,9 +447,9 @@ export const usePayment = ({
         }
       }
 
-      // Processar pagamento
+      // ✅ PROCESSAR PAGAMENTO REAL (substituiu a simulação)
       setSuccessMessage('🔄 Processando pagamento...');
-      const paymentSuccess = await simulatePayment(selectedMethod, contactNumber);
+      const paymentSuccess = await processRealPaymentCallback(selectedMethod, contactNumber);
 
       if (!paymentSuccess) {
         throw new Error('Pagamento falhou. Tente novamente ou use outro método.');
@@ -371,14 +484,14 @@ export const usePayment = ({
     selectedMethod,
     contactNumber,
     dynamicDocumentData,
-    simulatePayment,
+    processRealPaymentCallback,
     handleSaveDocument,
     onInvoiceCreated,
     invoiceData,
     checkDocumentByType
   ]);
 
-  // ✅ CORREÇÃO MÍNIMA - Download funcionando
+  // Download funcionando
   const handleDownload = useCallback(async (renderedHtml: string, documentNumber?: string): Promise<void> => {
     try {
       setIsGeneratingPdf(true);

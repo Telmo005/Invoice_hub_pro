@@ -14,6 +14,17 @@ interface EmissorCreateData {
   padrao?: boolean
 }
 
+// Interface para resposta padronizada
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+}
+
 // Validação de dados
 function validateEmissorData(data: any): { isValid: boolean; errors: string[]; validatedData?: EmissorCreateData } {
   const errors: string[] = []
@@ -50,19 +61,57 @@ function validateEmissorData(data: any): { isValid: boolean; errors: string[]; v
   return { isValid: true, errors: [], validatedData }
 }
 
-export async function GET(request: NextRequest) {
-  const supabase = await supabaseServer()
-
+// Função de log segura
+async function safeLog(action: string, message: string, details?: any) {
   try {
+    const { logger } = await import('@/lib/logger');
+    await logger.log({
+      action: action as any,
+      level: 'info',
+      message,
+      details
+    });
+  } catch (error) {
+    // Fallback para console se o logger falhar
+    console.log(`📝 [LOG: ${action}]:`, message, details);
+  }
+}
+
+// Função de log de erro segura
+async function safeLogError(error: Error, context: string, details?: any) {
+  try {
+    const { logger } = await import('@/lib/logger');
+    await logger.logError(error, context, details);
+  } catch (logError) {
+    console.error(`❌ [ERROR: ${context}]:`, error.message, details);
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  
+  try {
+    const supabase = await supabaseServer()
+
     // Verificar autenticação
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
+      await safeLog('api_call', 'Tentativa de acesso não autorizado à listagem de emissores', {
+        endpoint: '/api/emissores',
+        error: authError?.message
+      });
+
       return NextResponse.json(
         { error: 'Não autorizado' },
         { status: 401 }
       )
     }
+
+    // Log de início da listagem
+    await safeLog('document_view', `Usuário ${user.id} listando emissores`, {
+      user: user.id
+    });
 
     // Buscar todos os emissores do usuário
     const { data: emissores, error } = await supabase
@@ -73,12 +122,23 @@ export async function GET(request: NextRequest) {
       .order('updated_at', { ascending: false })
 
     if (error) {
+      await safeLogError(error, 'list_emissores_database', {
+        user: user.id
+      });
+
       console.error('Erro ao buscar emissores:', error)
       return NextResponse.json(
         { error: 'Erro ao carregar empresas' },
         { status: 500 }
       )
     }
+
+    // Log de sucesso na listagem
+    await safeLog('document_view', `Listagem concluída: ${emissores?.length || 0} emissores encontrados`, {
+      user: user.id,
+      total: emissores?.length || 0,
+      emissoresPadrao: emissores?.filter(e => e.padrao).length || 0
+    });
 
     // Transformar para formato do frontend
     const empresas = emissores.map(emissor => ({
@@ -87,7 +147,7 @@ export async function GET(request: NextRequest) {
       nuip: emissor.documento,
       pais: emissor.pais,
       cidade: emissor.cidade,
-      endereco: emissor.bairro, // Note: mapeando bairro para endereco
+      endereco: emissor.bairro,
       telefone: emissor.telefone,
       email: emissor.email,
       pessoa_contato: emissor.pessoa_contato,
@@ -97,22 +157,44 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ empresas })
 
   } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    await safeLogError(error as Error, 'list_emissores_unexpected', {
+      durationMs: duration
+    });
+
     console.error('Erro completo ao carregar emissores:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
     )
+  } finally {
+    // Log de performance
+    const duration = Date.now() - startTime;
+    try {
+      const { logger } = await import('@/lib/logger');
+      await logger.logApiCall('/api/emissores', 'GET', duration, true);
+    } catch (error) {
+      console.log(`⏱️ [PERF] GET /api/emissores: ${duration}ms`);
+    }
   }
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await supabaseServer()
-
+  const startTime = Date.now();
+  
   try {
+    const supabase = await supabaseServer()
+
     // Verificar autenticação
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
+      await safeLog('api_call', 'Tentativa de acesso não autorizado à criação de emissor', {
+        endpoint: '/api/emissores',
+        error: authError?.message
+      });
+
       return NextResponse.json(
         { error: 'Não autorizado' },
         { status: 401 }
@@ -121,9 +203,26 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     
+    // Log de tentativa de criação
+    await safeLog('document_create', `Usuário ${user.id} tentando criar emissor`, {
+      user: user.id,
+      nome_empresa: body.nome_empresa,
+      documento: body.documento
+    });
+    
     // Validar dados
     const validation = validateEmissorData(body)
     if (!validation.isValid) {
+      await safeLog('api_call', 'Validação falhou na criação de emissor', {
+        user: user.id,
+        errors: validation.errors,
+        data: {
+          nome_empresa: body.nome_empresa,
+          documento: body.documento,
+          email: body.email
+        }
+      });
+
       return NextResponse.json(
         { error: 'Dados inválidos', details: validation.errors },
         { status: 400 }
@@ -134,12 +233,26 @@ export async function POST(request: NextRequest) {
 
     // Se for definir como padrão, remover padrão atual
     if (validatedData.padrao) {
+      await safeLog('document_update', 'Removendo emissor padrão anterior', {
+        user: user.id
+      });
+
       await supabase
         .from('emissores')
         .update({ padrao: false })
         .eq('user_id', user.id)
         .eq('padrao', true)
     }
+
+    // Log antes da inserção
+    await safeLog('document_create', 'Inserindo novo emissor no banco', {
+      user: user.id,
+      emissor: {
+        nome_empresa: validatedData.nome_empresa,
+        documento: validatedData.documento,
+        padrao: validatedData.padrao
+      }
+    });
 
     // Inserir novo emissor
     const { data: novoEmissor, error } = await supabase
@@ -160,10 +273,23 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
+      await safeLogError(error, 'create_emissor_database', {
+        user: user.id,
+        emissor: {
+          nome_empresa: validatedData.nome_empresa,
+          documento: validatedData.documento
+        }
+      });
+
       console.error('Erro ao criar emitente:', error)
       
       // Tratar erro de duplicação
       if (error.code === '23505') {
+        await safeLog('document_create', 'Tentativa de criar emissor com documento duplicado', {
+          user: user.id,
+          documento: validatedData.documento
+        });
+
         return NextResponse.json(
           { error: 'Já existe uma empresa com este documento' },
           { status: 400 }
@@ -176,6 +302,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Log de sucesso
+    await safeLog('document_create', `Emissor criado com sucesso: ${novoEmissor.nome_empresa}`, {
+      user: user.id,
+      emissorId: novoEmissor.id,
+      emissorNome: novoEmissor.nome_empresa,
+      documento: novoEmissor.documento,
+      padrao: novoEmissor.padrao
+    });
+
     return NextResponse.json({
       success: true,
       emissor: novoEmissor,
@@ -183,10 +318,25 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
 
   } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    await safeLogError(error as Error, 'create_emissor_unexpected', {
+      durationMs: duration
+    });
+
     console.error('Erro completo ao criar emitente:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
     )
+  } finally {
+    // Log de performance
+    const duration = Date.now() - startTime;
+    try {
+      const { logger } = await import('@/lib/logger');
+      await logger.logApiCall('/api/emissores', 'POST', duration, true);
+    } catch (error) {
+      console.log(`⏱️ [PERF] POST /api/emissores: ${duration}ms`);
+    }
   }
 }

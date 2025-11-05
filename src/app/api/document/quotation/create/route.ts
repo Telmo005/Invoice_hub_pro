@@ -1,6 +1,7 @@
 // app/api/document/quotation/create/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
+import { logger } from '@/lib/logger';
 
 // Interfaces para tipagem consistente
 interface ApiResponse<T = any> {
@@ -70,13 +71,28 @@ async function checkExistingDocument(
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let quotationId: string | null = null;
+  let user: any = null;
+  let documentData: QuotationData | null = null;
+
   try {
     const supabase = await supabaseServer();
     
     // Verificar autenticação (MESMO DA FATURA)
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
     
-    if (authError || !user) {
+    if (authError || !authUser) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Tentativa de acesso não autorizado à API de criação de cotação',
+        details: { 
+          endpoint: '/api/document/quotation/create',
+          error: authError?.message 
+        }
+      });
+
       const errorResponse: ApiResponse = {
         success: false,
         error: {
@@ -88,11 +104,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 401 });
     }
 
+    user = authUser;
+
     // Validar e parsear corpo da requisição (MESMO DA FATURA)
     let body: RequestBody;
     try {
       body = await request.json();
     } catch (parseError) {
+      await logger.logError(parseError as Error, 'parse_quotation_request_body', {
+        endpoint: '/api/document/quotation/create',
+        method: 'POST',
+        user: user.id
+      });
+
       const errorResponse: ApiResponse = {
         success: false,
         error: {
@@ -104,10 +128,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    const { documentData } = body;
+    documentData = body.documentData;
 
     // Validar dados obrigatórios (MESMO DA FATURA)
     if (!documentData) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Dados da cotação não fornecidos',
+        details: { 
+          user: user.id,
+          endpoint: '/api/document/quotation/create'
+        }
+      });
+
       const errorResponse: ApiResponse = {
         success: false,
         error: {
@@ -124,14 +158,21 @@ export async function POST(request: NextRequest) {
 
     const { formData, items, totais, logo, assinatura } = documentData;
 
-    console.log('📝 [API Quotation] Dados recebidos:', {
-      user: user.id,
-      tipo: 'cotacao',
-      numero: formData?.cotacaoNumero,
-      emitente: formData?.emitente?.nomeEmpresa,
-      destinatario: formData?.destinatario?.nomeCompleto,
-      totalItens: items?.length,
-      validez: formData?.validezCotacao
+    // Log de tentativa de criação
+    await logger.log({
+      action: 'document_create',
+      level: 'info',
+      message: `Tentativa de criação de cotação: ${formData?.cotacaoNumero}`,
+      details: {
+        user: user.id,
+        tipo: 'cotacao',
+        numero: formData?.cotacaoNumero,
+        emitente: formData?.emitente?.nomeEmpresa,
+        destinatario: formData?.destinatario?.nomeCompleto,
+        totalItens: items?.length,
+        validez: formData?.validezCotacao,
+        valorTotal: totais?.totalFinal
+      }
     });
 
     // ✅ VALIDAÇÃO PADRONIZADA - MESMOS CAMPOS OBRIGATÓRIOS DA FATURA
@@ -142,6 +183,18 @@ export async function POST(request: NextRequest) {
     if (!formData?.destinatario) missingFields.push('destinatario');
 
     if (missingFields.length > 0) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Dados obrigatórios faltando para criação de cotação',
+        details: {
+          user: user.id,
+          missingFields,
+          required: ['cotacaoNumero', 'dataVencimento', 'emitente', 'destinatario'],
+          numero: formData?.cotacaoNumero
+        }
+      });
+
       const errorResponse: ApiResponse = {
         success: false,
         error: {
@@ -158,6 +211,16 @@ export async function POST(request: NextRequest) {
 
     // Validar items (MESMO DA FATURA)
     if (!items || !Array.isArray(items) || items.length === 0) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Lista de itens vazia para cotação',
+        details: {
+          user: user.id,
+          numero: formData.cotacaoNumero
+        }
+      });
+
       const errorResponse: ApiResponse = {
         success: false,
         error: {
@@ -178,9 +241,15 @@ export async function POST(request: NextRequest) {
     );
 
     if (documentExists) {
-      console.warn('⚠️ [API Quotation] Tentativa de criar documento duplicado:', {
-        userId: user.id,
-        numero: formData.cotacaoNumero
+      await logger.log({
+        action: 'document_create',
+        level: 'warn',
+        message: `Tentativa de criar cotação duplicada: ${formData.cotacaoNumero}`,
+        details: {
+          user: user.id,
+          numero: formData.cotacaoNumero,
+          tipo: 'cotacao'
+        }
       });
 
       const errorResponse: ApiResponse = {
@@ -222,8 +291,15 @@ export async function POST(request: NextRequest) {
 
     // ✅ TRATAMENTO DE ERRO PADRONIZADO (MESMO DA FATURA)
     if (functionError) {
-      console.error('❌ [API Quotation] Erro na função criar_fatura_completa:', functionError);
-      
+      await logger.logError(functionError, 'create_quotation_database', {
+        user: user.id,
+        numero: formData.cotacaoNumero,
+        databaseError: functionError.message,
+        databaseCode: functionError.code,
+        databaseHint: functionError.hint,
+        validez: formData.validezCotacao
+      });
+
       // Tratamento específico para erro de documento duplicado
       if (functionError.code === 'P0001' && functionError.message.includes('Já existe um documento')) {
         const errorResponse: ApiResponse = {
@@ -257,8 +333,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (!result) {
-      console.error('❌ [API Quotation] Resultado vazio da função');
-      
+      await logger.log({
+        action: 'error',
+        level: 'error',
+        message: 'Resultado vazio da função de criação de cotação',
+        details: {
+          user: user.id,
+          numero: formData.cotacaoNumero,
+          validez: formData.validezCotacao
+        }
+      });
+
       const errorResponse: ApiResponse = {
         success: false,
         error: {
@@ -270,10 +355,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 500 });
     }
 
-    console.log('✅ [API Quotation] Cotação criada com sucesso:', {
-      cotacaoId: result,
+    quotationId = result;
+
+    // Log de sucesso da criação
+    await logger.logDocumentCreation('cotacao', result, {
       numero: formData.cotacaoNumero,
-      validez: formData.validezCotacao || 15
+      totais: totais,
+      items: { length: items.length },
+      emitente: formData.emitente,
+      destinatario: formData.destinatario,
+      validez: formData.validezCotacao || 15,
+      dataVencimento: formData.dataVencimento
     });
 
     // ✅ RESPOSTA PADRONIZADA (mesma estrutura da fatura)
@@ -288,8 +380,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(successResponse, { status: 201 });
 
   } catch (error) {
-    console.error('💥 [API Quotation] Erro inesperado:', error);
+    const duration = Date.now() - startTime;
     
+    await logger.logError(error as Error, 'create_quotation_unexpected', {
+      user: user?.id,
+      quotationId,
+      durationMs: duration,
+      endpoint: '/api/document/quotation/create',
+      numero: documentData?.formData?.cotacaoNumero
+    });
+
     const errorResponse: ApiResponse = {
       success: false,
       error: {
@@ -302,5 +402,15 @@ export async function POST(request: NextRequest) {
     };
     
     return NextResponse.json(errorResponse, { status: 500 });
+  } finally {
+    const duration = Date.now() - startTime;
+    
+    // Log de performance da API
+    await logger.logApiCall(
+      '/api/document/quotation/create',
+      'POST',
+      duration,
+      quotationId !== null // Sucesso se quotationId foi definido
+    );
   }
 }

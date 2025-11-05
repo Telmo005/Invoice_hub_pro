@@ -1,8 +1,7 @@
-// lib/supabase/server.ts
+// lib/supabase-server.ts
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 
-// Opção 1: Função assíncrona
 export const supabaseServer = async () => {
   const cookieStore = await cookies()
   
