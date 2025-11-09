@@ -59,18 +59,48 @@ const PAYMENT_METHODS: PaymentMethod[] = [
     description: 'Confirmação imediata',
     requiresContact: true,
     imagePath: '/m-pesa-seeklogo.png'
-  },
-  {
-    id: 'E-Mola',
-    name: 'E-Mola', 
-    description: 'Confirmação imediata',
-    requiresContact: true,
-    imagePath: '/movitel-seeklogo.png' 
   }
 ];
 
 const LIBERATION_FEE = 10;
 const CURRENCY = 'MT';
+
+// ✅ GERADOR DE THIRD_PARTY_REFERENCE (Formato: 6 caracteres alfanuméricos)
+const generateThirdPartyReference = (): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  
+  // Primeiros 3 caracteres: números
+  for (let i = 0; i < 3; i++) {
+    result += Math.floor(Math.random() * 10).toString();
+  }
+  
+  // Últimos 3 caracteres: letras
+  for (let i = 0; i < 3; i++) {
+    result += chars.charAt(Math.floor(Math.random() * 26));
+  }
+  
+  return result;
+};
+
+// ✅ FUNÇÃO PARA FORMATAR TRANSACTION REFERENCE COM PREFIXO ORDER
+const formatTransactionReference = (documentNumber: string): string => {
+  // Remover TODOS os caracteres especiais, manter APENAS letras e números
+  const sanitized = documentNumber.replace(/[^a-zA-Z0-9]/g, '');
+  
+  // Adicionar prefixo ORDER (sem underscore) e limitar a 20 caracteres
+  const withPrefix = `ORDER${sanitized}`;
+  const limited = withPrefix.slice(0, 20);
+  
+  console.log('🔧 Formatando transaction reference:', {
+    original: documentNumber,
+    sanitized: sanitized,
+    withPrefix: withPrefix,
+    final: limited
+  });
+  
+  return limited;
+};
 
 // Utilitários
 const formatDate = (dateString?: string): string => {
@@ -141,26 +171,30 @@ const createDocumentDirect = async (documentData: InvoiceData): Promise<{
   return data.data!;
 };
 
-// ✅ FUNÇÃO REAL DE PAGAMENTO - INTEGRAÇÃO COM API
+// ✅ FUNÇÃO REAL DE PAGAMENTO - CORRIGIDA
 const processRealPayment = async (
-  method: string, 
-  contact: string, 
-  amount: number, 
-  currency: string,
-  documentId: string
+  contact: string,           // Número de telefone
+  amount: number,            // Valor do pagamento
+  documentNumber: string,    // Número da fatura/cotação
+  thirdPartyReference: string // Referência única
 ): Promise<{ success: boolean; paymentId?: string; message?: string }> => {
   try {
-    const response = await fetch('/api/payments/process', {
+    // ✅ FORMATAR a transaction reference com prefixo ORDER
+    const formattedTransactionRef = formatTransactionReference(documentNumber);
+    
+    const payload = {
+      customer_msisdn: contact,
+      amount: amount,
+      transaction_reference: formattedTransactionRef, // ✅ Com prefixo ORDER
+      third_party_reference: thirdPartyReference
+    };
+
+    console.log('📤 Payload final para MPesa:', payload);
+
+    const response = await fetch('/api/mpesa', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        paymentMethod: method,
-        contactNumber: contact,
-        amount,
-        currency,
-        documentId,
-        timestamp: new Date().toISOString()
-      }),
+      body: JSON.stringify(payload),
     });
 
     const data = await response.json();
@@ -176,7 +210,7 @@ const processRealPayment = async (
 
     return {
       success: data.success,
-      paymentId: data.paymentId,
+      paymentId: data.mpesa_transaction_id,
       message: data.message
     };
 
@@ -254,6 +288,7 @@ export const usePayment = ({
   const [internalCreateError, setInternalCreateError] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [existingDocumentData, setExistingDocumentData] = useState<{ documentNumber: string; documentId?: string } | null>(null);
+  const [thirdPartyReference, setThirdPartyReference] = useState<string>('');
 
   // Ref para prevenir duplo clique
   const isProcessingRef = useRef(false);
@@ -270,6 +305,11 @@ export const usePayment = ({
   const documentInfo = getDocumentDisplayInfo(documentType);
   const isCotacao = documentType === 'cotacao';
 
+  // ✅ Gerar third_party_reference quando o hook é inicializado
+  useState(() => {
+    setThirdPartyReference(generateThirdPartyReference());
+  });
+
   const dynamicDocumentData = {
     id: getDocumentId(invoiceData, isCotacao),
     client: invoiceData?.formData?.destinatario?.nomeCompleto || 'Cliente não definido',
@@ -279,6 +319,7 @@ export const usePayment = ({
     totalItems: invoiceData?.items?.length || 0,
     totalValue: invoiceData?.totais?.totalFinal || 0,
     currency: invoiceData?.formData?.moeda || 'MT',
+    thirdPartyReference: thirdPartyReference,
     ...documentInfo
   };
 
@@ -305,7 +346,8 @@ export const usePayment = ({
     try {
       const documentDataWithHtml = {
         ...invoiceData,
-        htmlContent
+        htmlContent,
+        payment_reference: thirdPartyReference
       };
 
       const result = await createDocumentDirect(documentDataWithHtml);
@@ -343,20 +385,25 @@ export const usePayment = ({
     } finally {
       setIsCreating(false);
     }
-  }, [invoiceData, dynamicDocumentData.id]);
+  }, [invoiceData, dynamicDocumentData.id, thirdPartyReference]);
 
-  // ✅ PROCESSAMENTO REAL DE PAGAMENTO - ATUALIZADO
+  // ✅ PROCESSAMENTO REAL DE PAGAMENTO - CORRIGIDO
   const processRealPaymentCallback = useCallback(async (
-    method: string, 
     contact: string
   ): Promise<boolean> => {
     try {
-      const paymentResult = await processRealPayment(
-        method,
+      console.log('🔍 Dados para MPesa:', {
         contact,
-        LIBERATION_FEE,
-        CURRENCY,
-        dynamicDocumentData.id
+        amount: LIBERATION_FEE,
+        documentNumber: dynamicDocumentData.id,
+        thirdPartyReference
+      });
+
+      const paymentResult = await processRealPayment(
+        contact,                    // Número de telefone
+        LIBERATION_FEE,             // Valor (10)
+        dynamicDocumentData.id,     // Número do documento (FTR-112)
+        thirdPartyReference         // Referência única (942XQN)
       );
 
       if (!paymentResult.success) {
@@ -386,6 +433,11 @@ export const usePayment = ({
           case 'PROVIDER_ERROR':
             throw new Error('Serviço de pagamento temporariamente indisponível. Tente novamente em alguns minutos.');
           
+          case 'DUPLICATE_TRANSACTION':
+            // ✅ Gerar nova referência para tentativa de retry
+            setThirdPartyReference(generateThirdPartyReference());
+            throw new Error('Transação duplicada. Nova referência gerada, tente novamente.');
+          
           default:
             throw new Error(error.message || 'Erro ao processar pagamento. Tente novamente.');
         }
@@ -393,40 +445,28 @@ export const usePayment = ({
       
       throw new Error('Erro inesperado ao processar pagamento. Tente novamente.');
     }
-  }, [dynamicDocumentData.id]);
+  }, [dynamicDocumentData.id, thirdPartyReference]);
 
-  // Processamento principal ATUALIZADO
+  // Processamento principal CORRIGIDO
   const processPayment = useCallback(async (renderedHtml: string): Promise<void> => {
     if (isProcessingRef.current) return;
 
-    const requiresContact = selectedMethod === 'Mpeza' || selectedMethod === 'E-Mola';
-
-    // Validações
-    if (requiresContact && !contactNumber.trim()) {
-      setErrorMessage('Por favor, insira o número de contacto para confirmação');
+    // ✅ VALIDAÇÕES SIMPLIFICADAS para MPesa
+    if (!contactNumber.trim()) {
+      setErrorMessage('Por favor, insira o número de contacto para MPesa');
       return;
     }
 
     if (!selectedMethod) {
-      setErrorMessage('Por favor, selecione um método de pagamento');
+      setErrorMessage('Por favor, selecione MPesa como método de pagamento');
       return;
     }
 
-    // Validação específica do número
-    if (requiresContact) {
-      const cleanedContact = contactNumber.replace(/\s+/g, '');
-      const mpesaRegex = /^8[2-7]\d{7}$/; // M-Pesa: 82-87 + 7 dígitos
-      const emolaRegex = /^8[7-9]\d{7}$/; // E-Mola: 87-89 + 7 dígitos
-      
-      if (selectedMethod === 'Mpeza' && !mpesaRegex.test(cleanedContact)) {
-        setErrorMessage('Número M-Pesa inválido. Use formato: 8X XXX XXXX (ex: 84 123 4567)');
-        return;
-      }
-      
-      if (selectedMethod === 'E-Mola' && !emolaRegex.test(cleanedContact)) {
-        setErrorMessage('Número E-Mola inválido. Use formato: 8X XXX XXXX (ex: 87 123 4567)');
-        return;
-      }
+    // ✅ VALIDAÇÃO BÁSICA do número
+    const cleanedContact = contactNumber.replace(/\D/g, '');
+    if (cleanedContact.length < 9) {
+      setErrorMessage('Número de telefone deve ter pelo menos 9 dígitos');
+      return;
     }
 
     isProcessingRef.current = true;
@@ -447,12 +487,13 @@ export const usePayment = ({
         }
       }
 
-      // ✅ PROCESSAR PAGAMENTO REAL (substituiu a simulação)
-      setSuccessMessage('🔄 Processando pagamento...');
-      const paymentSuccess = await processRealPaymentCallback(selectedMethod, contactNumber);
+      // ✅ PROCESSAR PAGAMENTO MPesa
+      setSuccessMessage(`🔄 Processando pagamento MPesa... Referência: ${thirdPartyReference}`);
+      
+      const paymentSuccess = await processRealPaymentCallback(contactNumber);
 
       if (!paymentSuccess) {
-        throw new Error('Pagamento falhou. Tente novamente ou use outro método.');
+        throw new Error('Pagamento MPesa falhou. Tente novamente.');
       }
 
       // Salvar documento COM HTML (após pagamento confirmado)
@@ -462,7 +503,11 @@ export const usePayment = ({
 
       // Sucesso
       setPaymentStatus('success');
-      setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso! Número: ${saveResult.documentNumber}`);
+      setSuccessMessage(
+        `${dynamicDocumentData.typeDisplay} criada com sucesso! 
+        Número: ${saveResult.documentNumber}
+        Referência: ${thirdPartyReference}`
+      );
 
       if (onInvoiceCreated) {
         onInvoiceCreated(saveResult.documentId);
@@ -475,7 +520,7 @@ export const usePayment = ({
         setErrorMessage(`${dynamicDocumentData.typeDisplay} já existe! Número: ${numero}`);
       } else {
         setPaymentStatus('error');
-        setErrorMessage(error instanceof Error ? error.message : 'Erro ao processar pagamento.');
+        setErrorMessage(error instanceof Error ? error.message : 'Erro ao processar pagamento MPesa.');
       }
     } finally {
       isProcessingRef.current = false;
@@ -488,7 +533,8 @@ export const usePayment = ({
     handleSaveDocument,
     onInvoiceCreated,
     invoiceData,
-    checkDocumentByType
+    checkDocumentByType,
+    thirdPartyReference
   ]);
 
   // Download funcionando
@@ -545,6 +591,8 @@ export const usePayment = ({
   }, []);
 
   const handleRetry = useCallback(() => {
+    // ✅ Gerar nova third_party_reference no retry
+    setThirdPartyReference(generateThirdPartyReference());
     setPaymentStatus('idle');
     setErrorMessage(null);
     setSuccessMessage(null);
