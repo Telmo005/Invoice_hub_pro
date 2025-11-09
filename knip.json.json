@@ -1,0 +1,37 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "src/app/**/*.{ts,tsx}",
+    "src/app/**/page.tsx",
+    "src/app/**/layout.tsx",
+    "src/app/**/loading.tsx",
+    "src/app/**/error.tsx",
+    "src/app/**/not-found.tsx",
+    "next.config.js",
+    "middleware.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "lib/**/*.{ts,tsx}",
+    "components/**/*.{ts,tsx}",
+    "hooks/**/*.{ts,tsx}",
+    "utils/**/*.{ts,tsx}"
+  ],
+  "ignore": [
+    "**/*.d.ts",
+    "**/types/**",
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/build/**",
+    "**/dist/**"
+  ],
+  "ignoreDependencies": [
+    "eslint",
+    "prettier",
+    "typescript",
+    "next",
+    "react",
+    "react-dom",
+    "@types/**"
+  ]
+}

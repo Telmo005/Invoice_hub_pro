@@ -1,4 +1,5 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+// app/auth/callback/route.ts
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 import { logAuthEvent } from '@/lib/security/audit-log'
@@ -13,11 +14,13 @@ export async function GET(request: NextRequest) {
   const errorDescription = requestUrl.searchParams.get('error_description')
   const redirectTo = requestUrl.searchParams.get('redirect_to') || ROUTES.DASHBOARD
 
+  // Log inicial
   await logAuthEvent({
     event: 'auth_callback_attempt',
     metadata: { code: !!code, error, redirectTo }
   })
 
+  // Tratar erros do OAuth
   if (error) {
     await logAuthEvent({
       event: 'auth_callback_failed',
@@ -29,6 +32,7 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // Validar código
   if (!code) {
     await logAuthEvent({
       event: 'auth_callback_missing_code',
@@ -41,7 +45,27 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = await cookies()
+    
+    // Criar cliente Supabase
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options)
+            })
+          },
+        },
+      }
+    )
+
+    // Trocar código por sessão
     const { error: supabaseError } = await supabase.auth.exchangeCodeForSession(code)
 
     if (supabaseError) {
@@ -55,6 +79,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Redirecionar com segurança
     const safeRedirect = redirectTo.startsWith('/') ? redirectTo : ROUTES.DASHBOARD
     
     await logAuthEvent({

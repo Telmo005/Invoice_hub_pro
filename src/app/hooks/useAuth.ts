@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import { Session } from '@supabase/supabase-js';
 import { logAuthEvent } from '@/lib/security/audit-log';
 
@@ -10,7 +10,12 @@ export function useAuth() {
   const [user, setUser] = useState<Session['user'] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  
+  // Criar cliente Supabase usando o novo padrão
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   const getCurrentSession = useCallback(async () => {
     try {
@@ -51,10 +56,17 @@ export function useAuth() {
         event: `auth_state_change_${event}`,
         metadata: { userId: session?.user?.id }
       });
+
+      // Redirecionar baseado no estado de autenticação
+      if (event === 'SIGNED_IN') {
+        router.refresh();
+      } else if (event === 'SIGNED_OUT') {
+        router.push('/login');
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, [getCurrentSession, supabase]);
+  }, [getCurrentSession, supabase, router]);
 
   const login = useCallback(async (credentials: { email: string; password: string }) => {
     setIsLoading(true);
@@ -68,6 +80,7 @@ export function useAuth() {
         metadata: { userId: data.user?.id }
       });
       
+      router.refresh();
       return data.user;
     } catch (error) {
       await logAuthEvent({
@@ -78,7 +91,7 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, router]);
 
   const logout = useCallback(async () => {
     try {

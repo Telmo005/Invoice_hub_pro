@@ -2,7 +2,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['www.google.com', 'lh3.googleusercontent.com'], // Adicionei o domínio do Google para avatares
+    domains: ['www.google.com', 'lh3.googleusercontent.com'], // domínio do Google para avatares
   },
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
