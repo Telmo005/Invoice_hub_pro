@@ -1,4 +1,3 @@
-// app/components/forms/InvoiceWizardForm.tsx
 import React, { useState, useCallback, memo, useEffect } from 'react';
 import { Roboto } from 'next/font/google';
 import {
@@ -26,11 +25,11 @@ import {
   FaDownload,
   FaBuilding
 } from 'react-icons/fa';
-import useInvoiceForm from '@/app/hooks/useInvoiceForm';
-import TemplateSlider from '@/app/components/templates/TemplateSlider/TemplateSlider';
-import Payment from '@/app/components/forms/Payment';
+import useInvoiceForm from '@/app/hooks/forms/useNewDocumentWizzardForm';
+import TemplateSlider from '@/app/components/panels/slider';
+import Payment from '@/app/components/forms/PaymentForm';
 import { formatCurrency } from '@/lib/formatUtils';
-import { Empresa } from '@/app/hooks/emitters/types/emissor';
+import { Empresa } from '@/types/emissor-type';
 import { useListarEmissores } from '@/app/hooks/emitters/useListarEmissores';
 import { useEmpresaPadrao } from '@/app/hooks/emitters/useEmpresaPadrao';
 import { TipoDocumento } from '@/types/invoice-types';
@@ -53,7 +52,7 @@ const STEPS = [
 ];
 
 // Props interface
-interface InvoiceWizardFormProps {
+interface newDocumentFormProps {
   tipo: TipoDocumento;
 }
 
@@ -85,13 +84,13 @@ const ItemRow = memo(({
       onUpdate(field, 0);
       return;
     }
-    
+
     // Remove zeros à esquerda quando o usuário digita
     const cleanValue = value.replace(/^0+/, '') || '0';
-    
+
     // Converte para número
     const numValue = parseFloat(cleanValue);
-    
+
     if (!isNaN(numValue)) {
       onUpdate(field, numValue);
     }
@@ -106,25 +105,25 @@ const ItemRow = memo(({
   // Função para lidar com campos de taxa
   const handleTaxValueChange = useCallback((index, value) => {
     const newTaxas = [...item.taxas];
-    
+
     // Se estiver vazio, define como 0
     if (value === '') {
-      newTaxas[index] = { 
-        ...newTaxas[index], 
-        valor: 0 
+      newTaxas[index] = {
+        ...newTaxas[index],
+        valor: 0
       };
       onUpdate('taxas', newTaxas);
       return;
     }
-    
+
     // Remove zeros à esquerda quando o usuário digita
     const cleanValue = value.replace(/^0+/, '') || '0';
     const numValue = parseFloat(cleanValue);
-    
+
     if (!isNaN(numValue)) {
-      newTaxas[index] = { 
-        ...newTaxas[index], 
-        valor: numValue 
+      newTaxas[index] = {
+        ...newTaxas[index],
+        valor: numValue
       };
       onUpdate('taxas', newTaxas);
     }
@@ -704,7 +703,7 @@ const ItensStep = memo(({
   const handleValidityChange = (e: React.ChangeEvent<HTMLInputElement>, isCotacao: boolean) => {
     const value = e.target.value;
     const fieldName = isCotacao ? "validezCotacao" : "validezFatura";
-    
+
     // Permite apenas números
     if (/^\d*$/.test(value)) {
       // Se estiver vazio, define como 0
@@ -844,8 +843,8 @@ const ItensStep = memo(({
                 id={isCotacao ? "validezCotacao" : "validezFatura"}
                 name={isCotacao ? "validezCotacao" : "validezFatura"}
                 className={`w-full p-2 border rounded text-sm ${errors[isCotacao ? 'validezCotacao' : 'validezFatura'] ? 'border-red-500' : 'border-gray-300'}`}
-                value={isCotacao ? 
-                  (formData.validezCotacao === '0' ? '' : formData.validezCotacao) : 
+                value={isCotacao ?
+                  (formData.validezCotacao === '0' ? '' : formData.validezCotacao) :
                   (formData.validezFatura === '0' ? '' : formData.validezFatura)
                 }
                 onChange={(e) => handleValidityChange(e, isCotacao)}
@@ -873,7 +872,7 @@ const ItensStep = memo(({
                 </div>
               )}
               <div className="text-xs text-gray-500 mt-1">
-                {isCotacao 
+                {isCotacao
                   ? 'Padrão: 15 dias. Digite o número de dias de validade.'
                   : 'Padrão: 15 dias. Digite o número de dias para vencimento.'
                 }
@@ -1184,7 +1183,7 @@ const StepsList = memo(({
 StepsList.displayName = 'StepsList';
 
 // Main component
-const InvoiceWizardForm: React.FC<InvoiceWizardFormProps> = ({ tipo = 'fatura' }) => {
+const newDocumentForm: React.FC<newDocumentFormProps> = ({ tipo = 'fatura' }) => {
   const {
     formData,
     items,
@@ -1250,7 +1249,7 @@ const InvoiceWizardForm: React.FC<InvoiceWizardFormProps> = ({ tipo = 'fatura' }
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       event.preventDefault();
-      
+
       if (currentStep > 0) {
         setIsNavigating(true);
         setTimeout(() => {
@@ -1272,9 +1271,9 @@ const InvoiceWizardForm: React.FC<InvoiceWizardFormProps> = ({ tipo = 'fatura' }
 
   // NOVO: Efeito para atualizar o histórico quando o step muda
   useEffect(() => {
-    window.history.pushState({ 
+    window.history.pushState({
       step: currentStep,
-      form: 'invoice-wizard' 
+      form: 'invoice-wizard'
     }, '', window.location.href);
   }, [currentStep]);
 
@@ -1896,4 +1895,4 @@ const InvoiceWizardForm: React.FC<InvoiceWizardFormProps> = ({ tipo = 'fatura' }
   );
 });
 
-export default InvoiceWizardForm;
+export default newDocumentForm;

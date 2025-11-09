@@ -1,8 +1,8 @@
 // pages/nova-fatura.tsx
 'use client';
 
-import NewInvoice from '@/app/components/forms/InvoiceWizardForm';
-import Navbar from '@/app/components/sections/Navbar';
+import NewInvoice from '@/app/components/forms/newDocumentWizzardForm';
+import Navbar from '@/app/components/layout/sections/Navbar';
 
 export default function NovaFaturaPage() {
   return (

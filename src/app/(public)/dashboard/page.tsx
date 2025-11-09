@@ -3,10 +3,10 @@
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/app/hooks/useAuth';
 import LoadingOverlay from '@/app/components/ui/LoadingOverlay';
-import MainLayout from '@/app/components/layout/MainLayout';
-import Footer from '@/app/components/sections/Footer';
+import MainLayout from '@/app/components/layout/mainLayout';
+import Footer from '@/app/components/layout/sections/Footer';
 
-const HeroSection = dynamic(() => import('@/app/components/sections/HeroSection'), {
+const HeroSection = dynamic(() => import('@/app/components/layout/sections/HeroSection'), {
   ssr: false,
   loading: () => <div className="min-h-[80vh] bg-gray-100 animate-pulse" />
 });

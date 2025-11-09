@@ -1,7 +1,7 @@
 export function generateDataHash(data: any): string {
     const jsonString = JSON.stringify(data, (key, value) => {
         if (typeof value === 'number') {
-            return value.toFixed(2); // Normalizar números
+            return value.toFixed(2);
         }
         return value;
     });

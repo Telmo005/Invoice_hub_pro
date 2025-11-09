@@ -714,9 +714,9 @@ export default function DocumentsPage() {
   const handleNewDocument = useCallback((type: 'fatura' | 'cotacao') => {
     secureLog('info', 'Criação de novo documento solicitada', { type });
     if (type === 'fatura') {
-      router.push('/invoices/new');
+      router.push('/pages/invoices/new');
     } else {
-      router.push('/quotations/new');
+      router.push('/pages/quotations/new');
     }
   }, [router, secureLog]);
 

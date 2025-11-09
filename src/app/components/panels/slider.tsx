@@ -1,14 +1,14 @@
 import React, { useCallback } from 'react';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { InvoiceData, TipoDocumento } from '@/types/invoice-types';
-import { useTemplateManager } from '@/app/hooks/useTemplateManager';
-import { useTemplateScroll } from '@/app/hooks/useTemplateScroll';
-import { TemplateCard } from '@/app/components/templates/TemplateSlider/TemplateCard';
-import { PreviewPanel } from '@/app/components/templates/TemplateSlider/PreviewPanel';
+import { useTemplateManager } from '@/app/hooks/panels/useTemplateManager';
+import { useTemplateScroll } from '@/app/hooks/panels/useTemplateScroll';
+import { TemplateCard } from '@/app/components/panels/card';
+import { PreviewPanel } from '@/app/components/panels/preview';
 
 interface TemplateSliderProps {
   invoiceData: InvoiceData;
-  tipo: TipoDocumento; // ← ÚNICA MODIFICAÇÃO AQUI
+  tipo: TipoDocumento; 
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
   onHtmlRendered?: (html: string) => void;
@@ -16,7 +16,7 @@ interface TemplateSliderProps {
 
 const TemplateSlider: React.FC<TemplateSliderProps> = ({
   invoiceData,
-  tipo, // ← NOVO PROP
+  tipo,
   isFullscreen = false,
   onToggleFullscreen = () => {},
   onHtmlRendered = () => {}
@@ -36,7 +36,7 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
     isZoomOutDisabled
   } = useTemplateManager({ 
     invoiceData, 
-    tipo, // ← PASSA O TIPO PARA O HOOK
+    tipo, 
     onHtmlRendered 
   });
 
@@ -65,7 +65,6 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
 
   return (
     <div className={containerClasses}>
-      {/* Header simples com tipo de documento */}
       <div className="mb-3 p-3 bg-light rounded">
         <div className="d-flex justify-content-between align-items-center">
           <h5 className="mb-0">
@@ -77,7 +76,6 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
         </div>
       </div>
 
-      {/* Seleção de templates acima - MANTIDO ORIGINAL */}
       <TemplateNavigationPanel
         templates={templates}
         selectedTemplateId={selectedTemplateId}
@@ -85,10 +83,9 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
         templatesContainerRef={templatesContainerRef}
         onTemplateSelect={handleTemplateSelectWithScroll}
         onNavigation={handleNavigation}
-        tipo={tipo} // ← PASSA O TIPO
+        tipo={tipo}
       />
 
-      {/* Previsualização abaixo - MANTIDO ORIGINAL */}
       <PreviewPanel
         templateName={selectedTemplate.name}
         zoomLevel={zoomLevel}
@@ -102,13 +99,12 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
         onToggleFullscreen={onToggleFullscreen}
         isZoomInDisabled={isZoomInDisabled}
         isZoomOutDisabled={isZoomOutDisabled}
-        tipo={tipo} // ← PASSA O TIPO
+        tipo={tipo}
       />
     </div>
   );
 };
 
-// TemplateNavigationPanel - MODIFICAÇÃO MÍNIMA
 interface TemplateNavigationPanelProps {
   templates: any[];
   selectedTemplateId: string;
@@ -116,7 +112,7 @@ interface TemplateNavigationPanelProps {
   templatesContainerRef: React.RefObject<HTMLDivElement>;
   onTemplateSelect: (id: string) => void;
   onNavigation: (direction: 'next' | 'prev') => void;
-  tipo: TipoDocumento; // ← ADICIONADO APENAS ISSO
+  tipo: TipoDocumento;
 }
 
 const TemplateNavigationPanel: React.FC<TemplateNavigationPanelProps> = ({
@@ -126,7 +122,7 @@ const TemplateNavigationPanel: React.FC<TemplateNavigationPanelProps> = ({
   templatesContainerRef,
   onTemplateSelect,
   onNavigation,
-  tipo // ← NOVO PARÂMETRO
+  tipo
 }) => {
   return (
     <>
@@ -155,7 +151,7 @@ const TemplateNavigationPanel: React.FC<TemplateNavigationPanelProps> = ({
               template={template}
               isSelected={selectedTemplateId === template.id}
               onSelect={onTemplateSelect}
-              tipo={tipo} // ← PASSA O TIPO
+              tipo={tipo}
             />
           ))}
         </div>

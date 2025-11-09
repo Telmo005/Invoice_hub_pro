@@ -1,7 +1,7 @@
 'use client';
 
-import Screen from '@/app/components/emitters/Screen';
-import Navbar from '@/app/components/sections/Navbar';
+import Screen from '@/app/components/forms/emittersForm';
+import Navbar from '@/app/components/layout/sections/Navbar';
 
 export default function NovaFaturaPage() {
   return (

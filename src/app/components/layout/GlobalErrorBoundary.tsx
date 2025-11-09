@@ -1,4 +1,3 @@
-// app/components/error/GlobalErrorBoundary.tsx
 'use client';
 import React from 'react';
 import { FiAlertTriangle, FiRefreshCw, FiHome } from 'react-icons/fi';

@@ -2,8 +2,8 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Template, TemplateRenderState, ZoomControls } from '@/types/template-types';
 import { InvoiceData, TipoDocumento } from '@/types/invoice-types';
 import { TemplateService, DocumentType } from '@/services/templateService';
-import { useDebounce } from '@/app/hooks/useDebounce';
-import { useThrottle } from '@/app/hooks/useThrottle';
+import { useDebounce } from '@/app/hooks/panels/useDebounce';
+import { useThrottle } from '@/app/hooks/panels/useThrottle';
 
 interface UseTemplateManagerProps {
   invoiceData: InvoiceData;

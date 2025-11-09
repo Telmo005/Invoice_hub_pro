@@ -1,4 +1,3 @@
-// app/components/emissor/Screen.tsx
 import React, { useState, useCallback, useMemo } from 'react';
 import { Roboto } from 'next/font/google';
 import { 
@@ -20,7 +19,7 @@ import {
   FaArrowLeft,
   FaSpinner
 } from 'react-icons/fa';
-import { Empresa } from '@/app/hooks/emitters/types/emissor';
+import { Empresa } from '@/types/emissor-type';
 import { useListarEmissores } from '@/app/hooks/emitters/useListarEmissores';
 import { useEmpresaPadrao } from '@/app/hooks/emitters/useEmpresaPadrao';
 import { useCrudEmissores } from '@/app/hooks/emitters/useCrudEmissores';

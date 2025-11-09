@@ -1,4 +1,4 @@
-// lib/logger.ts - VERSÃO UNIVERSAL CORRIGIDA
+// lib/logger.ts
 import { headers } from 'next/headers';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'audit';

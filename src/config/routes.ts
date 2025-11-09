@@ -11,12 +11,12 @@ export const ROUTES = {
 
   // Rotas privadas (requerem autenticação)
   PROFILE: '/pages/PROFILE',
-  ENTITIES: '/pages/emitters/entities',
+  ENTITIES: '/pages/emitters/overview',
   SETTINGS: '/settings',
   INVOICES: '/invoices',
-  QUOTES_INVOICES: '/pages/documents/documentsPanel',
-  INVOICES_NEW: '/invoices/new',
-  QUOTATIONS_NEW: '/quotations/new',
+  QUOTES_INVOICES: '/pages/documents/overview',
+  INVOICES_NEW: '/pages/invoices/new',
+  QUOTATIONS_NEW: 'pages/quotations/new',
 
   // Rotas da API
   API: {

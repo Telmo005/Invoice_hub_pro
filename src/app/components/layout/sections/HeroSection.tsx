@@ -51,7 +51,7 @@ export default function HeroSection() {
       {/* Background otimizado */}
       <div className="absolute inset-0 overflow-hidden">
         <Image
-          src="/hero-bg-finance.JPG"
+          src="/dashboard_background_img.JPG"
           alt="Fundo abstrato financeiro"
           fill
           priority
@@ -237,7 +237,7 @@ export default function HeroSection() {
               transition={reducedMotion ? {} : { type: "spring", stiffness: 400, damping: 10 }}
             >
               <Image
-                src="/capture1.JPG"
+                src="/template_fatura_1.JPG"
                 alt="Estilo de fatura minimalista"
                 width={96}
                 height={128}

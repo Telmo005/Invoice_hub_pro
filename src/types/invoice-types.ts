@@ -33,7 +33,7 @@ export interface Destinatario {
  */
 export interface FormDataFatura {
   // Campos comuns
-  tipo: TipoDocumento; // ← ADICIONADO - CRÍTICO!
+  tipo: TipoDocumento;
   emitente: Emitente;
   destinatario: Destinatario;
   dataFatura: string;
@@ -45,11 +45,11 @@ export interface FormDataFatura {
   faturaNumero?: string;
   dataVencimento?: string;
   metodoPagamento?: string;
-  validezFatura?: string; // ← NOVO CAMPO ADICIONADO
+  validezFatura?: string; 
   
   // Campos específicos de COTAÇÃO (opcionais para fatura)
   cotacaoNumero?: string;
-  validezCotacao?: string; // ← ATUALIZADO: mudado de number para string
+  validezCotacao?: string; 
 }
 
 /**
@@ -101,8 +101,8 @@ export interface TotaisFatura {
  * Tipo principal que representa uma fatura/cotação completa
  */
 export interface InvoiceData {
-  tipo: TipoDocumento; // ← ADICIONADO - CRÍTICO!
-  formData: FormDataFatura; // ← AGORA SUPORTA AMBOS!
+  tipo: TipoDocumento; 
+  formData: FormDataFatura; 
   items: ItemFatura[];
   totais: TotaisFatura;
   logo?: string | null;
