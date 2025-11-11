@@ -1,3 +1,4 @@
+// src/app/api/templates/render/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -81,7 +82,7 @@ class TemplateService {
       return `${formattedValue} ${currency}`;
     };
 
-    const formatDate = (dateString: string) => {
+    const formatDate = (dateString: string | undefined) => {
       if (!dateString) return '';
       try {
         return new Date(dateString).toLocaleDateString('pt-BR');
@@ -159,27 +160,27 @@ class TemplateService {
           'data-vencimento': formatDate(f.dataVencimento),
           'ordem-compra': f.ordemCompra || ' ',
           'metodo-pagamento': f.metodoPagamento || ' ',
-          'moeda-pagamento': f.moeda,
+          'moeda-pagamento': f.moeda || ' ',
           'termos-pagamento': f.termos || ' '
         };
 
         // Mapeamentos específicos por tipo
         if (tipo === 'invoice') {
           const invoiceMappings = {
-            'fatura-numero': f.faturaNumero,
+            'fatura-numero': f.faturaNumero || ' ',
             'fatura-numero-display': `Nº: ${f.faturaNumero || ''}`,
             'fatura-data-display': `Data: ${formatDate(f.dataFatura) || ''}`,
-            'documento-numero': f.faturaNumero,
+            'documento-numero': f.faturaNumero || ' ',
             'documento-numero-display': `Nº: ${f.faturaNumero || ''}`
           };
           
           Object.assign(commonMappings, invoiceMappings);
         } else {
           const quotationMappings = {
-            'cotacao-numero': f.cotacaoNumero,
+            'cotacao-numero': f.cotacaoNumero || ' ',
             'cotacao-numero-display': `Nº: ${f.cotacaoNumero || ''}`,
-            'validez-cotacao': f.validezCotacao + ` dias` ,
-            'documento-numero': f.cotacaoNumero,
+            'validez-cotacao': f.validezCotacao ? `${f.validezCotacao} dias` : ' ',
+            'documento-numero': f.cotacaoNumero || ' ',
             'documento-numero-display': `Nº: ${f.cotacaoNumero || ''}`
           };
           
@@ -206,7 +207,7 @@ class TemplateService {
         // PROTEÇÃO CRÍTICA: limita número de itens
         const safeItems = data.items.slice(0, 500); // Máximo 500 itens
 
-        safeItems.forEach(item => {
+        safeItems.forEach((item: any) => {
           const precoUnitario = item.precoUnitario || 0;
           const quantidade = item.quantidade || 0;
           const subtotalItem = precoUnitario * quantidade;
@@ -218,7 +219,7 @@ class TemplateService {
           if (item.taxas && Array.isArray(item.taxas)) {
             // Limita também o número de taxas por item
             const safeTaxas = item.taxas.slice(0, 10);
-            taxasTexto = safeTaxas.map(taxa => {
+            taxasTexto = safeTaxas.map((taxa: any) => {
               let valorTaxa = 0;
               let taxaDisplay = '';
               if (taxa.tipo === 'percent') {
@@ -277,7 +278,7 @@ class TemplateService {
           let taxasHtml = '';
           // Limita número de taxas detalhadas
           const safeTaxas = data.totais.taxasDetalhadas.slice(0, 10);
-          safeTaxas.forEach(taxa => {
+          safeTaxas.forEach((taxa: any) => {
             if (taxa.valor && taxa.valor !== 0) {
               taxasHtml += `
                 <p><strong>${escapeHtml(taxa.nome || 'Taxa')}:</strong> ${formatCurrency(taxa.valor, moeda)}</p>

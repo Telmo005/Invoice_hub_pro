@@ -1,4 +1,3 @@
-// components/ui/ToastNotification.tsx
 'use client';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/app/hooks/useToast';

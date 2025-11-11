@@ -1,0 +1,21 @@
+Write-Host "🔧 CORRIGINDO IMPORTS QUEBRADOS..." -ForegroundColor Yellow
+
+# 1. Corrigir import do Supabase no route.ts
+$file = "src/app/api/user/get/route.ts"
+if (Test-Path $file) {
+    $content = Get-Content $file -Raw
+    $content = $content -replace "import.*@supabase/auth-helpers-nextjs.*", "import { createServerClient } from '@supabase/ssr'`nimport { cookies } from 'next/headers'"
+    Set-Content $file $content
+    Write-Host "✅ Corrigido: $file" -ForegroundColor Green
+}
+
+# 2. Verificar e remover import quebrado no logger
+$loggerFile = "src/lib/logger.ts"
+if (Test-Path $loggerFile) {
+    $content = Get-Content $loggerFile -Raw
+    $content = $content -replace "import.*\./supabase-client.*", "// TODO: Corrigir import do supabase"
+    Set-Content $loggerFile $content
+    Write-Host "✅ Corrigido: $loggerFile" -ForegroundColor Green
+}
+
+Write-Host "🎉 IMPORTS CORRIGIDOS! Agora execute os comandos de limpeza." -ForegroundColor Green

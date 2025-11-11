@@ -1,12 +1,18 @@
-// Modifique seu teste para verificar a tabela de faturas
+// src/app/api/test-supabase/route.ts
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
 export async function GET() {
-    const supabase = supabaseServer();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     try {
         const { data, error } = await supabase
-            .from('invoices') // Ou o nome real da sua tabela de faturas
+            .from('faturas')
             .select('*')
-            .limit(5); // Aumente o limite para ver mais registros
+            .limit(5);
             
         if (error) throw error;
         
@@ -17,7 +23,11 @@ export async function GET() {
         });
     } catch (error) {
         return NextResponse.json(
-            { error: 'Erro ao acessar tabela de faturas', details: error },
+            { 
+                success: false,
+                error: 'Erro ao acessar tabela de faturas', 
+                details: error instanceof Error ? error.message : 'Erro desconhecido'
+            },
             { status: 500 }
         );
     }

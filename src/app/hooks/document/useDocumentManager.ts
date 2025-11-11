@@ -21,8 +21,6 @@ export const useDocumentManager = () => {
   const {
     sanitizeInput,
     hasPermission,
-    getSafeErrorMessage,
-    requireAuth,
     getSecureHeaders,
     secureLog,
     isAuthenticated,
@@ -30,6 +28,22 @@ export const useDocumentManager = () => {
   } = useSecurity();
 
   const [operations, setOperations] = useState<SecureOperation[]>([]);
+
+  // Função auxiliar para obter mensagem de erro segura
+  const getSafeErrorMessage = useCallback((error: unknown): string => {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    return 'Erro desconhecido';
+  }, []);
+
+  // Função auxiliar para verificar autenticação
+  const requireAuth = useCallback((): boolean => {
+    return isAuthenticated;
+  }, [isAuthenticated]);
 
   // Registrar operação para auditoria
   const registerOperation = useCallback((action: string, resourceId: string, status: SecureOperation['status']) => {

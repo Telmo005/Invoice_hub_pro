@@ -61,7 +61,7 @@ export const useSecurity = () => {
     };
 
     const allowedRoles = actionPermissions[action] || [];
-    const hasAccess = userRoles.some(role => allowedRoles.includes(role));
+    const hasAccess = userRoles.some((role: string) => allowedRoles.includes(role));
 
     if (!hasAccess) {
       secureLog('warn', 'Tentativa de ação não autorizada', {

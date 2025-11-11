@@ -1,60 +1,111 @@
-// hooks/useAuth.ts
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Session } from '@supabase/supabase-js';
-import { logAuthEvent } from '@/lib/security/audit-log';
+import { createClient, Session, User } from '@supabase/supabase-js';
+
+let sessionCache: Session | null = null;
+let cacheTimestamp = 0;
+const CACHE_DURATION = 1000 * 60 * 5;
 
 export function useAuth() {
-  const [user, setUser] = useState<Session['user'] | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const mountedRef = useRef(true);
+  const authCheckInProgressRef = useRef(false);
+  
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
-  const getCurrentSession = useCallback(async () => {
+  const getCurrentSession = useCallback(async (forceRefresh = false) => {
+    const now = Date.now();
+    if (!forceRefresh && sessionCache && (now - cacheTimestamp) < CACHE_DURATION) {
+      return sessionCache;
+    }
+
+    if (authCheckInProgressRef.current) {
+      return sessionCache;
+    }
+
+    authCheckInProgressRef.current = true;
+
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) throw error;
+
+      sessionCache = session;
+      cacheTimestamp = now;
+      
       return session;
-    } catch (error) {
-      console.error('Error getting session:', error);
+    } catch {
+      sessionCache = null;
       return null;
+    } finally {
+      authCheckInProgressRef.current = false;
     }
   }, [supabase]);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    mountedRef.current = true;
+
+    const initializeAuth = async () => {
+      if (!mountedRef.current) return;
+
       setIsLoading(true);
       try {
         const session = await getCurrentSession();
-        setUser(session?.user ?? null);
         
-        await logAuthEvent({
-          event: 'auth_session_check',
-          metadata: { userId: session?.user?.id }
-        });
-      } catch (error) {
-        setUser(null);
+        if (mountedRef.current) {
+          setUser(session?.user ?? null);
+        }
+      } catch {
+        if (mountedRef.current) {
+          setUser(null);
+        }
       } finally {
-        setIsLoading(false);
+        if (mountedRef.current) {
+          setIsLoading(false);
+        }
       }
     };
 
-    checkAuth();
+    initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
-      
-      await logAuthEvent({
-        event: `auth_state_change_${event}`,
-        metadata: { userId: session?.user?.id }
-      });
-    });
+    let stateChangeTimeout: NodeJS.Timeout;
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        clearTimeout(stateChangeTimeout);
+        
+        stateChangeTimeout = setTimeout(async () => {
+          if (!mountedRef.current) return;
 
-    return () => subscription.unsubscribe();
-  }, [getCurrentSession, supabase]);
+          sessionCache = session;
+          cacheTimestamp = Date.now();
+          
+          setUser(session?.user ?? null);
+
+          if (event === 'SIGNED_IN') {
+            router.refresh();
+          } else if (event === 'SIGNED_OUT') {
+            sessionCache = null;
+            router.push('/login');
+          } else if (event === 'TOKEN_REFRESHED') {
+            sessionCache = session;
+          }
+        }, 100);
+      }
+    );
+
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(stateChangeTimeout);
+      subscription.unsubscribe();
+    };
+  }, [getCurrentSession, supabase, router]);
 
   const login = useCallback(async (credentials: { email: string; password: string }) => {
     setIsLoading(true);
@@ -62,44 +113,45 @@ export function useAuth() {
       const { data, error } = await supabase.auth.signInWithPassword(credentials);
       
       if (error) throw error;
+
+      sessionCache = data.session;
+      cacheTimestamp = Date.now();
       
-      await logAuthEvent({
-        event: 'auth_login_success',
-        metadata: { userId: data.user?.id }
-      });
-      
+      router.refresh();
       return data.user;
     } catch (error) {
-      await logAuthEvent({
-        event: 'auth_login_failed',
-        metadata: { error: (error as Error).message }
-      });
+      sessionCache = null;
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, router]);
 
   const logout = useCallback(async () => {
     try {
       const { error } = await supabase.auth.signOut();
       
       if (error) throw error;
-      
-      await logAuthEvent({
-        event: 'auth_logout',
-        metadata: { userId: user?.id }
-      });
+
+      sessionCache = null;
+      cacheTimestamp = 0;
       
       router.push('/login');
     } catch (error) {
-      await logAuthEvent({
-        event: 'auth_logout_failed',
-        metadata: { error: (error as Error).message }
-      });
       throw error;
     }
-  }, [supabase, router, user]);
+  }, [supabase, router]);
 
-  return { user, isLoading, login, logout, getSession: getCurrentSession };
+  const refreshSession = useCallback(async () => {
+    return await getCurrentSession(true);
+  }, [getCurrentSession]);
+
+  return { 
+    user, 
+    isLoading, 
+    login, 
+    logout, 
+    getSession: getCurrentSession,
+    refreshSession
+  };
 }

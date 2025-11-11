@@ -2,6 +2,9 @@
  * Tipos específicos para cotações
  */
 
+// Importar InvoiceData se necessário, ou usar tipos locais
+import { InvoiceData } from './invoice-types';
+
 /**
  * Dados principais do formulário da cotação
  */

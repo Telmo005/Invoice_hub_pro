@@ -1,0 +1,4 @@
+{
+  "entry": ["src/app/**/*.{ts,tsx}"],
+  "project": ["src/**/*.{ts,tsx}"]
+}

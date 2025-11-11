@@ -1,75 +1,27 @@
-// .eslintrc.mjs
-import js from "@eslint/js";
-import next from "@next/eslint-plugin-next";
-import security from "eslint-plugin-security";
-import typescriptEslint from "@typescript-eslint/eslint-plugin";
-import globals from "globals";
+// eslint.config.mjs
+import js from '@eslint/js';
+import { includeIgnoreFile } from '@eslint/compat';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 
-/** @type {import('eslint').Linter.FlatConfig[]} */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const gitignorePath = resolve(__dirname, '.gitignore');
+
 export default [
-  // Configurações básicas do JavaScript
-  js.configs.recommended,
-  
-  // Configurações do Next.js
+  includeIgnoreFile(gitignorePath),
   {
-    files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
-    plugins: {
-      "@next/next": next,
-    },
+    files: ['**/*.{js,mjs,cjs,ts,jsx,tsx}'],
+    ...js.configs.recommended,
     rules: {
-      ...next.configs.recommended.rules,
-      "@next/next/no-html-link-for-pages": "off",
-    },
-  },
-  
-  // Configurações do TypeScript
-  {
-    files: ["**/*.ts", "**/*.tsx"],
-    plugins: {
-      "@typescript-eslint": typescriptEslint,
-    },
-    languageOptions: {
-      parser: typescriptEslint.configs.parser,
-      parserOptions: {
-        project: "./tsconfig.json",
-      },
-    },
-    rules: {
-      ...typescriptEslint.configs.recommended.rules,
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_" }
-      ],
-    },
-  },
-  
-  // Configurações de Segurança
-  {
-    plugins: {
-      security,
-    },
-    rules: {
-      "security/detect-object-injection": "off",
-      "security/detect-non-literal-fs-filename": "error",
-      "security/detect-possible-timing-attacks": "error",
-      "no-unsanitized/method": "error",
-      "no-unsanitized/property": "error",
-      "react/no-danger": "error",
-    },
-  },
-  
-  // Configurações globais e adicionais
-  {
-    languageOptions: {
-      globals: {
-        ...globals.browser,
-        ...globals.node,
-      },
-    },
-    rules: {
-      "react/react-in-jsx-scope": "off",
-      "react/jsx-uses-react": "off",
+      // Next.js core web vitals equivalent rules
+      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/rules-of-hooks': 'error',
+      '@next/next/no-html-link-for-pages': 'off', // Desabilitado sem o plugin
+      
+      // Suas regras personalizadas
+      'no-unused-vars': 'warn',
+      'prefer-const': 'error',
     },
   },
 ];

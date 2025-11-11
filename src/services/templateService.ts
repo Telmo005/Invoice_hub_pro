@@ -22,9 +22,15 @@ export interface TemplateNavigation {
   hasPrev: boolean;
 }
 
+// Interface estendida localmente para evitar modificar o tipo original
+interface TemplateWithBackend extends Template {
+  backendId: string;
+  supportedTypes?: DocumentType[];
+}
+
 export class TemplateService {
   private static instance: TemplateService;
-  private templates: Template[] = [];
+  private templates: TemplateWithBackend[] = [];
   private cache: TemplateCache;
   private metrics: TemplateMetrics;
   private abortControllers: Map<string, AbortController> = new Map();
@@ -70,7 +76,7 @@ export class TemplateService {
         name: "Moderno",
         description: "Design contemporâneo com ênfase visual",
         thumbnail: "bg-gradient-to-br from-gray-50 to-gray-100",
-        templateType: 'Moderno',
+        templateType: 'detailed',
         imageUrl: '/invoice3.JPG',
         backendId: 'template-3',
         supportedTypes: ['invoice', 'quotation']
@@ -117,7 +123,7 @@ export class TemplateService {
       };
     }
 
-    const backendId = template.backendId || this.mapToBackendId(templateId);
+    const backendId = template.backendId;
     const dataHash = generateDataHash({ ...documentData, documentType });
 
     // Verificar cache primeiro
@@ -170,7 +176,7 @@ export class TemplateService {
 
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        return { html: '', isLoading: false, error: null }; // Silent fail para abort
+        return { html: '', isLoading: false, error: null };
       }
 
       this.metrics.trackRenderError(templateId, err.message);
@@ -226,7 +232,7 @@ export class TemplateService {
       : this.templates;
 
     const preloadPromises = templatesToPreload.map(async (template) => {
-      const backendId = template.backendId || this.mapToBackendId(template.id);
+      const backendId = template.backendId;
       const type = documentType || (template.supportedTypes?.[0] || 'invoice');
       
       try {
@@ -255,7 +261,7 @@ export class TemplateService {
       : this.templates;
 
     const warmupPromises = templatesToWarmup.map(async (template) => {
-      const backendId = template.backendId || this.mapToBackendId(template.id);
+      const backendId = template.backendId;
       const type = documentType || (template.supportedTypes?.[0] || 'invoice');
       
       try {
@@ -297,8 +303,25 @@ export class TemplateService {
   private getEmptyInvoiceData(): Partial<InvoiceData> {
     return {
       formData: {
-        emitente: { nomeEmpresa: '' },
-        destinatario: { nomeCompleto: '' },
+        tipo: 'fatura',
+        emitente: { 
+          nomeEmpresa: '',
+          documento: '',
+          pais: '',
+          cidade: '',
+          bairro: '',
+          email: '',
+          telefone: ''
+        },
+        destinatario: { 
+          nomeCompleto: '',
+          documento: '',
+          pais: '',
+          cidade: '',
+          bairro: '',
+          email: '',
+          telefone: ''
+        },
         faturaNumero: '',
         dataFatura: '',
         dataVencimento: '',
@@ -306,36 +329,52 @@ export class TemplateService {
         termos: ''
       },
       items: [],
-      totais: { subtotal: 0, totalTaxas: 0, totalFinal: 0, taxasDetalhadas: [] }
+      totais: { 
+        subtotal: 0, 
+        totalTaxas: 0, 
+        totalFinal: 0, 
+        taxasDetalhadas: [] 
+      }
     };
   }
 
   private getEmptyQuotationData(): Partial<QuotationData> {
     return {
       formData: {
-        emitente: { nomeEmpresa: '' },
-        destinatario: { nomeCompleto: '' },
+        emitente: { 
+          nomeEmpresa: '',
+          documento: '',
+          pais: '',
+          cidade: '',
+          bairro: '',
+          email: '',
+          telefone: ''
+        },
+        destinatario: { 
+          nomeCompleto: '',
+          documento: '',
+          pais: '',
+          cidade: '',
+          bairro: '',
+          email: '',
+          telefone: ''
+        },
         cotacaoNumero: '',
         dataFatura: '',
         dataVencimento: '',
         moeda: 'MZN',
+        metodoPagamento: '',
         termos: '',
         validezCotacao: 15
       },
       items: [],
-      totais: { subtotal: 0, totalTaxas: 0, totalFinal: 0, taxasDetalhadas: [] }
+      totais: { 
+        subtotal: 0, 
+        totalTaxas: 0, 
+        totalFinal: 0, 
+        taxasDetalhadas: [] 
+      }
     };
-  }
-
-  private mapToBackendId(frontendId: string): string {
-    const mapping: { [key: string]: string } = {
-      'template-1': 'template1',
-      'template-2': 'template2',
-      'template-3': 'template3',
-      'template-cotacao-1': 'template-quotation-1',
-      'template-cotacao-2': 'template-quotation-2'
-    };
-    return mapping[frontendId] || frontendId;
   }
 
   private getErrorFallbackHtml(error: string, documentType: DocumentType): string {
@@ -350,7 +389,7 @@ export class TemplateService {
   }
 
   // Métodos de consulta de templates
-  getTemplates(documentType?: DocumentType): Template[] {
+  getTemplates(documentType?: DocumentType): TemplateWithBackend[] {
     if (!documentType) {
       return this.templates;
     }
@@ -359,15 +398,15 @@ export class TemplateService {
     );
   }
 
-  getInvoiceTemplates(): Template[] {
+  getInvoiceTemplates(): TemplateWithBackend[] {
     return this.getTemplates('invoice');
   }
 
-  getQuotationTemplates(): Template[] {
+  getQuotationTemplates(): TemplateWithBackend[] {
     return this.getTemplates('quotation');
   }
 
-  getTemplateById(id: string): Template | undefined {
+  getTemplateById(id: string): TemplateWithBackend | undefined {
     return this.templates.find(t => t.id === id);
   }
 
@@ -375,7 +414,7 @@ export class TemplateService {
     return this.templates.findIndex(t => t.id === id);
   }
 
-  getNextTemplate(currentId: string, documentType?: DocumentType): Template {
+  getNextTemplate(currentId: string, documentType?: DocumentType): TemplateWithBackend {
     const filteredTemplates = documentType 
       ? this.getTemplates(documentType)
       : this.templates;
@@ -385,7 +424,7 @@ export class TemplateService {
     return filteredTemplates[nextIndex];
   }
 
-  getPreviousTemplate(currentId: string, documentType?: DocumentType): Template {
+  getPreviousTemplate(currentId: string, documentType?: DocumentType): TemplateWithBackend {
     const filteredTemplates = documentType 
       ? this.getTemplates(documentType)
       : this.templates;
@@ -420,13 +459,3 @@ export class TemplateService {
     return template?.supportedTypes || ['invoice', 'quotation'];
   }
 }
-
-// Extensão da interface Template para suportar tipos de documento
-declare module '@/types/template-types' {
-  interface Template {
-    supportedTypes?: DocumentType[];
-  }
-}
-
-// Exportação explícita
-export { TemplateService };

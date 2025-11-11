@@ -2,12 +2,12 @@
 'use client';
 import { ReactNode } from 'react';
 import Head from 'next/head';
-import Navbar from '@/app/components/sections/Navbar';
+import Navbar from '@/app/components/layout/sections/Navbar';
 import ToastNotification from '@/app/components/ui/ToastNotification';
 import { useAuth } from '@/app/hooks/useAuth';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import AuthProvider from '@/app/providers/AuthProvider'
-import { GlobalErrorBoundary } from '@/app/components/error/GlobalErrorBoundary';
+import { GlobalErrorBoundary } from '@/app/components/layout/GlobalErrorBoundary';
 
 
 interface MainLayoutProps {
@@ -21,7 +21,6 @@ export default function MainLayout({
   title = 'Invoice Generator',
   description = 'Generate and manage your invoices online'
 }: MainLayoutProps) {
-  const { user, logout } = useAuth();
 
   return (
     <>
@@ -31,7 +30,7 @@ export default function MainLayout({
         <meta name="viewport" content="width=device-width, initial-scale=2" />
       </Head>
 
-      <Navbar user={user} onLogout={logout} />
+      <Navbar />
 
       <main>
         <GlobalErrorBoundary>
