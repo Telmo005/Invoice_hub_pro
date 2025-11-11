@@ -98,7 +98,7 @@ const LoginPage = () => {
               </button>
             </div>
 
-            <div>
+            <div className='hidden'>
               <button
                 onClick={() => handleLogin('facebook')}
                 disabled={isLoading}
