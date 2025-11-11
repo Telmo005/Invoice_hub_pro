@@ -1,5 +1,17 @@
 import { useState, useCallback } from 'react'
-import { Empresa } from '@/app/hooks/emitters/types/emissor'
+
+interface Empresa {
+    id: string
+    padrao: boolean
+    nome: string
+    nuip: string
+    pais: string
+    cidade: string
+    endereco: string
+    pessoa_contato: string
+    email: string
+    telefone: string
+}
 
 interface UseCrudEmissoresReturn {
     loading: boolean

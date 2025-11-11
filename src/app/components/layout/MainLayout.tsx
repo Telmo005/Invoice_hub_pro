@@ -21,7 +21,6 @@ export default function MainLayout({
   title = 'Invoice Generator',
   description = 'Generate and manage your invoices online'
 }: MainLayoutProps) {
-  const { user, logout } = useAuth();
 
   return (
     <>
@@ -31,7 +30,7 @@ export default function MainLayout({
         <meta name="viewport" content="width=device-width, initial-scale=2" />
       </Head>
 
-      <Navbar user={user} onLogout={logout} />
+      <Navbar />
 
       <main>
         <GlobalErrorBoundary>

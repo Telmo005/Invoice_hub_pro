@@ -2,6 +2,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FormDataFatura, ItemFatura, TotaisFatura, TaxaItem, InvoiceData, TipoDocumento } from '@/types/invoice-types';
 
+// Interface local para resolver o erro
+interface Empresa {
+  id: string;
+  padrao: boolean;
+  nome: string;
+  nuip: string;
+  pais: string;
+  cidade: string;
+  endereco: string;
+  pessoa_contato?: string;
+  email: string;
+  telefone: string;
+}
+
 interface EmpresaModificacoes {
   empresaOriginal: Empresa | null;
   camposModificados: Record<string, { original: string; atual: string }>;
@@ -137,13 +151,13 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
   });
   const [isCheckingDocument, setIsCheckingDocument] = useState(false);
 
-  const atualizarTermosAutomaticamente = useCallback((currentFormData: FormDataFatura) => {
-    const dias = currentFormData.tipo === 'cotacao' 
-      ? parseInt(currentFormData.validezCotacao) || 15
-      : parseInt(currentFormData.validezFatura) || 15;
-    const tipoDocumento = currentFormData.tipo === 'cotacao' ? 'cotação' : 'fatura';
-    return `Este ${tipoDocumento} é válido por ${dias} ${dias === 1 ? 'dia' : 'dias'} a partir da data de emissão.`;
-  }, []);
+ const atualizarTermosAutomaticamente = useCallback((currentFormData: FormDataFatura) => {
+  const dias = currentFormData.tipo === 'cotacao'
+    ? parseInt(currentFormData.validezCotacao || '15') || 15 // ← valor padrão 15
+    : parseInt(currentFormData.validezFatura || '15') || 15; // ← valor padrão 15
+  const tipoDocumento = currentFormData.tipo === 'cotacao' ? 'cotação' : 'fatura';
+  return `Este ${tipoDocumento} é válido por ${dias} ${dias === 1 ? 'dia' : 'dias'} a partir da data de emissão.`;
+}, []);
 
   useEffect(() => {
     let shouldUpdate = false;
@@ -151,8 +165,8 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
 
     if (formData.dataFatura) {
       const diasValidade = formData.tipo === 'cotacao' 
-        ? formData.validezCotacao 
-        : formData.validezFatura;
+        ? formData.validezCotacao || 15 // ← valor padrão 15 
+        : formData.validezFatura || 15; // ← valor padrão 15
       const novaDataValidade = calcularDataValidade(formData.dataFatura, diasValidade);
       if (formData.dataVencimento !== novaDataValidade) {
         updates.dataVencimento = novaDataValidade;
@@ -291,7 +305,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     return '';
   };
 
-  const handleBlur = async (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleBlur = async (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setTouched(prev => ({ ...prev, [name]: true }));
     const error = await validateField(name, value);
@@ -435,25 +449,25 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     if (formData.destinatario.email && !validateEmail(formData.destinatario.email)) newErrors['destinatario.email'] = 'Email inválido';
 
     if (formData.tipo === 'fatura') {
-      if (!formData.faturaNumero.trim()) newErrors.faturaNumero = 'Campo obrigatório';
+      if (!formData.faturaNumero?.trim()) newErrors.faturaNumero = 'Campo obrigatório';
       else if (!/^[A-Z0-9_]+$/.test(formData.faturaNumero)) newErrors.faturaNumero = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
       else {
         const exists = await checkDocumentExists(formData.faturaNumero);
         if (exists) newErrors.faturaNumero = `A fatura "${formData.faturaNumero}" já está registrada. Escolha outro número.`;
       }
-      if (!formData.validezFatura.trim()) newErrors.validezFatura = 'Campo obrigatório';
+      if (!formData.validezFatura?.trim()) newErrors.validezFatura = 'Campo obrigatório';
       else {
         const dias = parseInt(formData.validezFatura);
         if (dias < 1 || dias > 365) newErrors.validezFatura = 'Validade deve ser entre 1 e 365 dias';
       }
     } else {
-      if (!formData.cotacaoNumero.trim()) newErrors.cotacaoNumero = 'Campo obrigatório';
+      if (!formData.cotacaoNumero?.trim()) newErrors.cotacaoNumero = 'Campo obrigatório';
       else if (!/^[A-Z0-9_]+$/.test(formData.cotacaoNumero)) newErrors.cotacaoNumero = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
       else {
         const exists = await checkDocumentExists(formData.cotacaoNumero);
         if (exists) newErrors.cotacaoNumero = `A cotação "${formData.cotacaoNumero}" já está registrada. Escolha outro número.`;
       }
-      if (!formData.validezCotacao.trim()) newErrors.validezCotacao = 'Campo obrigatório';
+      if (!formData.validezCotacao?.trim()) newErrors.validezCotacao = 'Campo obrigatório';
       else {
         const dias = parseInt(formData.validezCotacao);
         if (dias < 1 || dias > 365) newErrors.validezCotacao = 'Validade deve ser entre 1 e 365 dias';

@@ -66,95 +66,77 @@ const SuccessScreen: React.FC<{
   renderedHtml: string;
   isGeneratingPdf: boolean;
   handleDownload: (html: string, documentNumber?: string) => Promise<void>;
-  emailStatus: 'sent' | 'not_sent' | 'no_email' | 'skipped';
 }> = ({
   dynamicDocumentData,
   documentSaveResult,
   renderedHtml,
   isGeneratingPdf,
-  handleDownload,
-  emailStatus
+  handleDownload
 }) => {
-  const DocumentIcon = dynamicDocumentData.type === 'cotacao' ? FaQuoteLeft : FaFileInvoice;
+    const DocumentIcon = dynamicDocumentData.type === 'cotacao' ? FaQuoteLeft : FaFileInvoice;
 
-  const getEmailMessage = () => {
-    switch (emailStatus) {
-      case 'sent':
-        return `📧 ${dynamicDocumentData.typeDisplay} enviada para seu email!`;
-      case 'not_sent':
-        return `⚠️ ${dynamicDocumentData.typeDisplay} criada! (Email não enviado)`;
-      case 'no_email':
-        return `ℹ️ ${dynamicDocumentData.typeDisplay} criada! (Configure um email para receber documentos)`;
-      default:
-        return `${dynamicDocumentData.typeDisplay} criada com sucesso!`;
-    }
-  };
+    const getSuccessMessage = () => {
+      return `${dynamicDocumentData.typeDisplay} criada com sucesso!`;
+    };
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-sm w-full bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
-        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-          <FaCheck className="h-5 w-5 text-green-600" />
-        </div>
-
-        <h2 className="text-lg font-semibold text-gray-800 mb-2">
-          {dynamicDocumentData.typeDisplay} Liberada!
-        </h2>
-
-        <StatusMessage
-          type={emailStatus === 'sent' ? 'success' : emailStatus === 'not_sent' ? 'warning' : 'info'}
-          message={getEmailMessage()}
-        />
-
-        <div className="bg-gray-50 rounded-md p-4 mb-4 text-left text-sm">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-gray-600">Número:</span>
-            <span className="font-medium">{documentSaveResult?.documentNumber}</span>
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-sm w-full bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+            <FaCheck className="h-5 w-5 text-green-600" />
           </div>
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-gray-600">Cliente:</span>
-            <span className="font-medium text-right max-w-[150px] truncate">
-              {dynamicDocumentData.client}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">Taxa paga:</span>
-            <span className="font-bold text-green-600">{dynamicDocumentData.amount}</span>
-          </div>
-        </div>
 
-        <div className="flex space-x-2 mb-3">
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">
+            {dynamicDocumentData.typeDisplay} Liberada!
+          </h2>
+
+          <StatusMessage
+            type="success"
+            message={getSuccessMessage()}
+          />
+
+          <div className="bg-gray-50 rounded-md p-4 mb-4 text-left text-sm">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-600">Número:</span>
+              <span className="font-medium">{documentSaveResult?.documentNumber}</span>
+            </div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-600">Cliente:</span>
+              <span className="font-medium text-right max-w-[150px] truncate">
+                {dynamicDocumentData.client}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Taxa paga:</span>
+              <span className="font-bold text-green-600">{dynamicDocumentData.amount}</span>
+            </div>
+          </div>
+
+          <div className="flex space-x-2 mb-3">
+            <button
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-md font-medium flex items-center justify-center text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              onClick={() => handleDownload(renderedHtml, documentSaveResult?.documentNumber)}
+              disabled={isGeneratingPdf}
+            >
+              {isGeneratingPdf ? (
+                <FaSpinner className="animate-spin mr-2" />
+              ) : (
+                <FaFilePdf className="mr-2" />
+              )}
+              {isGeneratingPdf ? 'Gerando PDF...' : 'Baixar PDF'}
+            </button>
+          </div>
+
           <button
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-md font-medium flex items-center justify-center text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            onClick={() => handleDownload(renderedHtml, documentSaveResult?.documentNumber)}
-            disabled={isGeneratingPdf}
+            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-3 rounded-md font-medium text-sm transition-colors"
+            onClick={() => window.location.reload()}
           >
-            {isGeneratingPdf ? (
-              <FaSpinner className="animate-spin mr-2" />
-            ) : (
-              <FaFilePdf className="mr-2" />
-            )}
-            {isGeneratingPdf ? 'Gerando PDF...' : 'Baixar PDF'}
+            Criar Nova {dynamicDocumentData.typeDisplay}
           </button>
         </div>
-
-        {emailStatus === 'no_email' && (
-          <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-700">
-            <FaInfoCircle className="inline mr-2" />
-            Configure um email em sua conta para receber documentos automaticamente.
-          </div>
-        )}
-
-        <button
-          className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-3 rounded-md font-medium text-sm transition-colors"
-          onClick={() => window.location.reload()}
-        >
-          Criar Nova {dynamicDocumentData.typeDisplay}
-        </button>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
 const PaymentMethodImage: React.FC<{
   methodId: string;
@@ -165,17 +147,17 @@ const PaymentMethodImage: React.FC<{
   imagePath,
   className = "w-6 h-6"
 }) => {
-  return (
-    <div className={`relative ${className}`}>
-      <Image
-        src={imagePath}
-        alt={methodId}
-        fill
-        className="object-contain"
-      />
-    </div>
-  );
-};
+    return (
+      <div className={`relative ${className}`}>
+        <Image
+          src={imagePath}
+          alt={methodId}
+          fill
+          className="object-contain"
+        />
+      </div>
+    );
+  };
 
 const PaymentMethodDropdown: React.FC<{
   paymentMethods: any[];
@@ -190,103 +172,103 @@ const PaymentMethodDropdown: React.FC<{
   onMethodSelect,
   onContactChange
 }) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const selectedMethodData = paymentMethods.find(method => method.id === selectedMethod);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const selectedMethodData = paymentMethods.find(method => method.id === selectedMethod);
 
-  const handleMethodSelect = (methodId: string) => {
-    onMethodSelect(methodId);
-    setIsDropdownOpen(false);
-  };
+    const handleMethodSelect = (methodId: string) => {
+      onMethodSelect(methodId);
+      setIsDropdownOpen(false);
+    };
 
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <h5 className="font-semibold text-gray-800 text-lg mb-3">
-        Método de Pagamento
-      </h5>
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <h5 className="font-semibold text-gray-800 text-lg mb-3">
+          Método de Pagamento
+        </h5>
 
-      <div className="relative mb-4">
-        <button
-          type="button"
-          className="w-full px-4 py-3 text-left bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent flex items-center justify-between hover:border-gray-400 transition-colors"
-          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        >
-          <div className="flex items-center">
-            {selectedMethodData ? (
-              <>
-                <PaymentMethodImage
-                  methodId={selectedMethodData.id}
-                  imagePath={selectedMethodData.imagePath}
-                  className="w-6 h-6 mr-3"
-                />
-                <span className="font-medium">{selectedMethodData.name}</span>
-              </>
-            ) : (
-              <span className="text-gray-500">Selecione método de pagamento</span>
-            )}
-          </div>
-          <FaChevronDown className={`text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-        </button>
+        <div className="relative mb-4">
+          <button
+            type="button"
+            className="w-full px-4 py-3 text-left bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent flex items-center justify-between hover:border-gray-400 transition-colors"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          >
+            <div className="flex items-center">
+              {selectedMethodData ? (
+                <>
+                  <PaymentMethodImage
+                    methodId={selectedMethodData.id}
+                    imagePath={selectedMethodData.imagePath}
+                    className="w-6 h-6 mr-3"
+                  />
+                  <span className="font-medium">{selectedMethodData.name}</span>
+                </>
+              ) : (
+                <span className="text-gray-500">Selecione método de pagamento</span>
+              )}
+            </div>
+            <FaChevronDown className={`text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
 
-        {isDropdownOpen && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-            {paymentMethods.map((method) => (
-              <div
-                key={method.id}
-                className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center border-b border-gray-100 last:border-b-0 transition-colors"
-                onClick={() => handleMethodSelect(method.id)}
-              >
-                <PaymentMethodImage
-                  methodId={method.id}
-                  imagePath={method.imagePath}
-                  className="w-6 h-6 mr-3"
-                />
-                <div className="flex-1">
-                  <div className="font-medium text-gray-800">{method.name}</div>
-                  <div className="text-sm text-gray-600">{method.description}</div>
+          {isDropdownOpen && (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+              {paymentMethods.map((method) => (
+                <div
+                  key={method.id}
+                  className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center border-b border-gray-100 last:border-b-0 transition-colors"
+                  onClick={() => handleMethodSelect(method.id)}
+                >
+                  <PaymentMethodImage
+                    methodId={method.id}
+                    imagePath={method.imagePath}
+                    className="w-6 h-6 mr-3"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-800">{method.name}</div>
+                    <div className="text-sm text-gray-600">{method.description}</div>
+                  </div>
+                  {selectedMethod === method.id && (
+                    <FaCheck className="text-green-500 ml-2" />
+                  )}
                 </div>
-                {selectedMethod === method.id && (
-                  <FaCheck className="text-green-500 ml-2" />
-                )}
+              ))}
+            </div>
+          )}
+        </div>
+
+        {selectedMethodData && (
+          <div className="p-4 border-2 rounded-lg bg-red-50 border-red-200 transition-all">
+            <div className="flex items-center mb-3">
+              <PaymentMethodImage
+                methodId={selectedMethodData.id}
+                imagePath={selectedMethodData.imagePath}
+                className="w-8 h-8 mr-3"
+              />
+              <div>
+                <h4 className="font-semibold text-gray-800 text-base">{selectedMethodData.name}</h4>
+                <p className="text-gray-600 text-sm">{selectedMethodData.description}</p>
               </div>
-            ))}
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                Seu número para confirmação:
+              </label>
+              <input
+                type="tel"
+                value={contactNumber}
+                onChange={(e) => onContactChange(e.target.value)}
+                placeholder="84 123 4567"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-colors"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Enviaremos uma confirmação para este número
+              </p>
+            </div>
           </div>
         )}
       </div>
-
-      {selectedMethodData && (
-        <div className="p-4 border-2 rounded-lg bg-red-50 border-red-200 transition-all">
-          <div className="flex items-center mb-3">
-            <PaymentMethodImage
-              methodId={selectedMethodData.id}
-              imagePath={selectedMethodData.imagePath}
-              className="w-8 h-8 mr-3"
-            />
-            <div>
-              <h4 className="font-semibold text-gray-800 text-base">{selectedMethodData.name}</h4>
-              <p className="text-gray-600 text-sm">{selectedMethodData.description}</p>
-            </div>
-          </div>
-
-          <div className="mt-3">
-            <label className="block text-sm text-gray-700 mb-2 font-medium">
-              Seu número para confirmação:
-            </label>
-            <input
-              type="tel"
-              value={contactNumber}
-              onChange={(e) => onContactChange(e.target.value)}
-              placeholder="84 123 4567"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-colors"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Enviaremos uma confirmação para este número
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+    );
+  };
 
 const PreviewModal: React.FC<{
   isOpen: boolean;
@@ -299,40 +281,40 @@ const PreviewModal: React.FC<{
   dynamicDocumentData,
   renderedHtml
 }) => {
-  if (!isOpen) return null;
+    if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white">
-          <h3 className="font-semibold text-lg text-gray-800">
-            Pré-visualização - {dynamicDocumentData.id}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-xl bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="flex-1 overflow-auto p-4 bg-gray-50">
-          <div
-            className="bg-white p-6 shadow-sm mx-auto max-w-4xl"
-            dangerouslySetInnerHTML={{ __html: renderedHtml }}
-          />
-        </div>
-        <div className="p-4 border-t border-gray-200 flex justify-end bg-white">
-          <button
-            className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium text-sm transition-colors"
-            onClick={onClose}
-          >
-            Fechar Pré-visualização
-          </button>
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white">
+            <h3 className="font-semibold text-lg text-gray-800">
+              Pré-visualização - {dynamicDocumentData.id}
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 text-xl bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto p-4 bg-gray-50">
+            <div
+              className="bg-white p-6 shadow-sm mx-auto max-w-4xl"
+              dangerouslySetInnerHTML={{ __html: renderedHtml }}
+            />
+          </div>
+          <div className="p-4 border-t border-gray-200 flex justify-end bg-white">
+            <button
+              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium text-sm transition-colors"
+              onClick={onClose}
+            >
+              Fechar Pré-visualização
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
 const PaymentScreen: React.FC<PaymentScreenProps> = ({
   invoiceData,
@@ -347,10 +329,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
     successMessage,
     documentSaveResult,
     isCreating,
-    internalCreateError,
     isPreviewOpen,
     isGeneratingPdf,
-    emailStatus,
     setSelectedMethod,
     setContactNumber,
     setIsPreviewOpen,
@@ -378,7 +358,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
         renderedHtml={renderedHtml}
         isGeneratingPdf={isGeneratingPdf}
         handleDownload={handleDownload}
-        emailStatus={emailStatus}
       />
     );
   }
@@ -399,16 +378,12 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
           </div>
         </div>
 
-        {successMessage && !errorMessage && !internalCreateError && (
+        {successMessage && !errorMessage && (
           <StatusMessage type="info" message={successMessage} />
         )}
 
         {errorMessage && (
           <StatusMessage type="error" message={errorMessage} />
-        )}
-
-        {internalCreateError && (
-          <StatusMessage type="error" message={internalCreateError} />
         )}
 
         <div className="flex flex-col lg:flex-row gap-6">

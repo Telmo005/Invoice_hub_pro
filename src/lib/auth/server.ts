@@ -1,10 +1,10 @@
-// src/lib/auth/server.ts - NOVO
+// src/lib/auth/server.ts
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export async function getServerUser() {
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -83,10 +83,10 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: documentId } = await params;
+    const { id: documentId } = await context.params;
 
     if (!documentId || documentId === 'undefined' || documentId === 'null') {
       return NextResponse.json(
@@ -105,7 +105,7 @@ export async function GET(
         html_content, 
         data_fatura, 
         moeda,
-        destinatarios!inner (
+        destinatarios (
           nome_completo
         )
       `)
@@ -126,12 +126,16 @@ export async function GET(
       );
     }
 
+    const clientName = document.destinatarios && Array.isArray(document.destinatarios) 
+      ? document.destinatarios[0]?.nome_completo 
+      : 'Cliente não especificado';
+
     const pdfHtml = getPdfTemplate(document.html_content, {
       id: document.id,
       numero: document.numero,
       type: document.tipo_documento,
       typeDisplay: document.tipo_documento === 'cotacao' ? 'Cotação' : 'Fatura',
-      client: document.destinatarios.nome_completo,
+      client: clientName,
       date: document.data_fatura,
       currency: document.moeda || 'MZN',
       status: document.status
@@ -146,6 +150,7 @@ export async function GET(
     });
 
   } catch (error) {
+    console.error('Erro ao gerar PDF:', error);
     return NextResponse.json(
       { success: false, error: 'Erro interno do servidor' },
       { status: 500 }

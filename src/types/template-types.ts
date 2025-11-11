@@ -6,6 +6,7 @@ export interface Template {
     thumbnail: string;
     templateType: 'default' | 'minimal' | 'detailed';
     imageUrl: string;
+    backendId: string;
 }
 
 export interface TemplateRenderState {

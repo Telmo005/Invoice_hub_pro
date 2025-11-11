@@ -3,11 +3,10 @@ import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import type { Database } from '@/types/supabase'
 import { ROUTES } from '@/config/routes'
 
 type AuthContextType = {
-  supabase: SupabaseClient<Database>
+  supabase: SupabaseClient
   user: User | null
   isLoading: boolean
   signInWithOAuth: (provider: 'google' | 'facebook', redirectTo?: string) => Promise<void>
@@ -25,16 +24,14 @@ export default function AuthProvider({
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  // Criar cliente Supabase usando o novo padrão
   const [supabase] = useState(() => 
-    createBrowserClient<Database>(
+    createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
   )
 
   useEffect(() => {
-    // Verificar sessão inicial
     const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -48,7 +45,6 @@ export default function AuthProvider({
 
     getInitialSession()
 
-    // Escutar mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
       setIsLoading(false)
@@ -77,7 +73,7 @@ export default function AuthProvider({
       if (error) throw error
     } catch (error) {
       console.error('Error signing in:', error)
-      throw error // Re-throw para tratamento no componente
+      throw error
     } finally {
       setIsLoading(false)
     }
@@ -91,7 +87,7 @@ export default function AuthProvider({
       router.refresh()
     } catch (error) {
       console.error('Error signing out:', error)
-      throw error // Re-throw para tratamento no componente
+      throw error
     }
   }
 

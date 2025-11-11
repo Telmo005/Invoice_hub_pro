@@ -9,6 +9,7 @@ import { Empresa } from '@/types/emissor-type';
 import { useListarEmissores } from '@/app/hooks/emitters/useListarEmissores';
 import { useEmpresaPadrao } from '@/app/hooks/emitters/useEmpresaPadrao';
 import { TipoDocumento } from '@/types/invoice-types';
+import { ItemFatura } from '@/types/invoice-types'; 
 
 const roboto = Roboto({ weight: ['300', '400', '700'], subsets: ['latin'], variable: '--font-roboto' });
 
@@ -19,92 +20,299 @@ const STEPS = [
   { title: 'Pré-visualização', icon: '👁️' },
   { title: 'Finalizar', icon: '🏆' },
 ];
+interface EmitenteStepProps {
+  formData: any;
+  errors: Record<string, string>;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+  handleBlur: (e: React.FocusEvent<HTMLInputElement |HTMLSelectElement | HTMLTextAreaElement>) => void;
+  empresas: Empresa[];
+  selectedEmpresa: Empresa | null;
+  onEmpresaChange: (empresa: Empresa) => void;
+  empresasLoading: boolean;
+}
+
+interface DestinatarioStepProps {
+  formData: any;
+  errors: Record<string, string>;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+  handleBlur: (e: React.FocusEvent<HTMLInputElement |HTMLSelectElement  | HTMLTextAreaElement>) => void;
+}
+
+interface ItensStepProps {
+  formData: any;
+  errors: Record<string, string>;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+  handleBlur: (e: React.FocusEvent<HTMLInputElement| HTMLSelectElement  | HTMLTextAreaElement>) => void;
+  items: any[];
+  adicionarItem: () => void;
+  removerItem: (id: number) => void;
+  atualizarItem: (id: number, field: keyof ItemFatura, value: any) => void;
+  adicionarTaxa: (id: number) => void;
+  removerTaxa: (id: number, taxaIndex: number) => void;
+  onItemBlur: (field: string) => void;
+  isCheckingDocument: boolean;
+}
+
+interface PreviewStepProps {
+  invoiceData: any;
+  tipo: TipoDocumento;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
+  onHtmlRendered: (html: string) => void;
+}
+
+interface ProcessingOverlayProps {
+  isVisible: boolean;
+  message?: string;
+}
+
+interface NavigationButtonsProps {
+  currentStep: number;
+  totalSteps: number;
+  onPrev: () => void;
+  onNext: () => void;
+  isNavigating: boolean;
+}
+
+interface StepsListProps {
+  currentStep: number;
+  onStepClick: (stepIndex: number) => void;
+  validateAllPreviousSteps: (targetStep: number) => Promise<boolean>;
+  isNavigating: boolean;
+}
 
 interface newDocumentFormProps { tipo: TipoDocumento; }
 
-const ItemRow = memo(({ item, currency, onUpdate, onRemove, onAddTax, onRemoveTax, errors, onBlur }) => {
+interface ItemRowProps {
+  item: any;
+  currency: string;
+  onUpdate: (field: string, value: any) => void;
+  onRemove: () => void;
+  onAddTax: () => void;
+  onRemoveTax: (index: number) => void;
+  errors: Record<string, string>;
+  onBlur: (field: string) => void;
+}
+
+const ItemRow = memo(({
+  item,
+  currency,
+  onUpdate,
+  onRemove,
+  onAddTax,
+  onRemoveTax,
+  errors,
+  onBlur
+}: ItemRowProps) => {
   const calculateTotal = useCallback(() => {
     const subtotal = item.quantidade * item.precoUnitario;
-    const taxTotal = item.taxas.reduce((sum, tax) => tax.tipo === 'percent' ? sum + (subtotal * tax.valor) / 100 : sum + tax.valor, 0);
+    const taxTotal = item.taxas.reduce((sum: number, tax: any) =>
+      tax.tipo === 'percent' ? sum + (subtotal * tax.valor) / 100 : sum + tax.valor, 0);
     return subtotal + taxTotal;
   }, [item.quantidade, item.precoUnitario, item.taxas]);
 
-  const handleNumericInput = useCallback((field, value, currentValue) => {
+  const handleNumericInput = useCallback((field: string, value: string, currentValue: number) => {
     if (value === '') { onUpdate(field, 0); return; }
     const cleanValue = value.replace(/^0+/, '') || '0';
     const numValue = parseFloat(cleanValue);
     if (!isNaN(numValue)) onUpdate(field, numValue);
   }, [onUpdate]);
 
-  const handleTaxUpdate = useCallback((index, field, value) => {
+  const handleTaxUpdate = useCallback((index: number, field: string, value: any) => {
     const newTaxas = [...item.taxas];
     newTaxas[index] = { ...newTaxas[index], [field]: value };
     onUpdate('taxas', newTaxas);
   }, [item.taxas, onUpdate]);
 
-  const handleTaxValueChange = useCallback((index, value) => {
+  const handleTaxValueChange = useCallback((index: number, value: string) => {
     const newTaxas = [...item.taxas];
-    if (value === '') { newTaxas[index] = { ...newTaxas[index], valor: 0 }; onUpdate('taxas', newTaxas); return; }
+    if (value === '') {
+      newTaxas[index] = { ...newTaxas[index], valor: 0 };
+      onUpdate('taxas', newTaxas);
+      return;
+    }
     const cleanValue = value.replace(/^0+/, '') || '0';
     const numValue = parseFloat(cleanValue);
-    if (!isNaN(numValue)) { newTaxas[index] = { ...newTaxas[index], valor: numValue }; onUpdate('taxas', newTaxas); }
+    if (!isNaN(numValue)) {
+      newTaxas[index] = { ...newTaxas[index], valor: numValue };
+      onUpdate('taxas', newTaxas);
+    }
   }, [item.taxas, onUpdate]);
 
   return (
     <tr className="hover:bg-gray-50 border-b">
       <td className="p-1 border-r text-sm w-16">
-        <input type="text" inputMode="numeric" pattern="[0-9]*" className="w-full p-1 border rounded text-center text-xs" value={item.quantidade === 0 ? '' : item.quantidade.toString()} onChange={(e) => { const value = e.target.value; if (/^\d*$/.test(value)) handleNumericInput('quantidade', value, item.quantidade); }} onBlur={(e) => { if (e.target.value === '') onUpdate('quantidade', 1); onBlur(`item-${item.id}-quantidade`); }} onFocus={(e) => e.target.select()} />
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          className="w-full p-1 border rounded text-center text-xs"
+          value={item.quantidade === 0 ? '' : item.quantidade.toString()}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (/^\d*$/.test(value)) handleNumericInput('quantidade', value, item.quantidade);
+          }}
+          onBlur={(e) => {
+            if (e.target.value === '') onUpdate('quantidade', 1);
+            onBlur(`item-${item.id}-quantidade`);
+          }}
+          onFocus={(e) => e.target.select()}
+        />
         {errors[`item-${item.id}-quantidade`] && <div className="text-red-500 text-xs mt-1">{errors[`item-${item.id}-quantidade`]}</div>}
       </td>
       <td className="p-1 border-r text-sm w-32">
-        <input type="text" className="w-full p-1 border rounded text-xs" value={item.descricao} onChange={(e) => onUpdate('descricao', e.target.value)} onBlur={() => onBlur(`item-${item.id}-descricao`)} placeholder="Descrição" />
+        <input
+          type="text"
+          className="w-full p-1 border rounded text-xs"
+          value={item.descricao}
+          onChange={(e) => onUpdate('descricao', e.target.value)}
+          onBlur={() => onBlur(`item-${item.id}-descricao`)}
+          placeholder="Descrição"
+        />
         {errors[`item-${item.id}-descricao`] && <div className="text-red-500 text-xs mt-1">{errors[`item-${item.id}-descricao`]}</div>}
       </td>
       <td className="p-1 border-r text-sm w-24">
-        <input type="text" inputMode="decimal" className="w-full p-1 border rounded text-right text-xs" value={item.precoUnitario === 0 ? '' : item.precoUnitario.toString()} onChange={(e) => { const value = e.target.value; if (/^\d*\.?\d*$/.test(value)) handleNumericInput('precoUnitario', value, item.precoUnitario); }} onBlur={() => onBlur(`item-${item.id}-preco`)} onFocus={(e) => e.target.select()} />
+        <input
+          type="text"
+          inputMode="decimal"
+          className="w-full p-1 border rounded text-right text-xs"
+          value={item.precoUnitario === 0 ? '' : item.precoUnitario.toString()}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (/^\d*\.?\d*$/.test(value)) handleNumericInput('precoUnitario', value, item.precoUnitario);
+          }}
+          onBlur={() => onBlur(`item-${item.id}-preco`)}
+          onFocus={(e) => e.target.select()}
+        />
         {errors[`item-${item.id}-preco`] && <div className="text-red-500 text-xs mt-1">{errors[`item-${item.id}-preco`]}</div>}
       </td>
       <td className="p-1 border-r text-sm w-32">
-        {item.taxas.map((taxa, index) => (
+        {item.taxas.map((taxa: any, index: number) => (
           <div key={index} className="flex items-center mb-1">
-            <select className="w-12 p-1 border rounded text-center text-xs" value={taxa.tipo} onChange={(e) => handleTaxUpdate(index, 'tipo', e.target.value)}>
+            <select
+              className="w-12 p-1 border rounded text-center text-xs"
+              value={taxa.tipo}
+              onChange={(e) => handleTaxUpdate(index, 'tipo', e.target.value)}
+            >
               <option value="percent">%</option>
               <option value="fixed">Fixo</option>
             </select>
-            <input type="text" className="w-12 p-1 border rounded text-center text-xs mx-1" value={taxa.nome} onChange={(e) => handleTaxUpdate(index, 'nome', e.target.value)} placeholder="IVA" />
-            <input type="text" inputMode="decimal" className="w-12 p-1 border rounded text-center text-xs mx-1" value={taxa.valor === 0 ? '' : taxa.valor.toString()} onChange={(e) => { const value = e.target.value; if (/^\d*\.?\d*$/.test(value)) handleTaxValueChange(index, value); }} onFocus={(e) => e.target.select()} placeholder="16" />
-            <button type="button" className="text-red-500 hover:text-red-700" onClick={() => onRemoveTax(index)}><FaTimes size={10} /></button>
+            <input
+              type="text"
+              className="w-12 p-1 border rounded text-center text-xs mx-1"
+              value={taxa.nome}
+              onChange={(e) => handleTaxUpdate(index, 'nome', e.target.value)}
+              placeholder="IVA"
+            />
+            <input
+              type="text"
+              inputMode="decimal"
+              className="w-12 p-1 border rounded text-center text-xs mx-1"
+              value={taxa.valor === 0 ? '' : taxa.valor.toString()}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (/^\d*\.?\d*$/.test(value)) handleTaxValueChange(index, value);
+              }}
+              onFocus={(e) => e.target.select()}
+              placeholder="16"
+            />
+            <button
+              type="button"
+              className="text-red-500 hover:text-red-700"
+              onClick={() => onRemoveTax(index)}
+            >
+              <FaTimes size={10} />
+            </button>
           </div>
         ))}
-        <button type="button" className="text-xs text-blue-500 hover:text-blue-700 mt-1 flex items-center justify-center" onClick={onAddTax}><FaPlus size={8} className="mr-1" /> Taxa</button>
+        <button
+          type="button"
+          className="text-xs text-blue-500 hover:text-blue-700 mt-1 flex items-center justify-center"
+          onClick={onAddTax}
+        >
+          <FaPlus size={8} className="mr-1" /> Taxa
+        </button>
       </td>
-      <td className="p-1 border-r text-sm text-right font-medium w-24"><span className="text-xs">{formatCurrency(calculateTotal(), currency)}</span></td>
-      <td className="p-1 text-sm text-center w-12"><button type="button" className="text-red-500 hover:text-red-700 p-1" onClick={onRemove}><FaTimes size={12} /></button></td>
+      <td className="p-1 border-r text-sm text-right font-medium w-24">
+        <span className="text-xs">{formatCurrency(calculateTotal(), currency)}</span>
+      </td>
+      <td className="p-1 text-sm text-center w-12">
+        <button
+          type="button"
+          className="text-red-500 hover:text-red-700 p-1"
+          onClick={onRemove}
+        >
+          <FaTimes size={12} />
+        </button>
+      </td>
     </tr>
   );
 });
 ItemRow.displayName = 'ItemRow';
+interface FormFieldProps {
+  id: string;
+  label: string;
+  type: string;
+  value: any;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
+  error?: string;
+  placeholder?: string;
+  required?: boolean;
+  halfWidth?: boolean;
+  disabled?: boolean;
+  maxLength?: number;
+}
 
-const FormField = memo(({ id, label, type, value, onChange, onBlur, error, placeholder, required, halfWidth, disabled = false, ...props }) => (
+const FormField = memo(({
+  id,
+  label,
+  type,
+  value,
+  onChange,
+  onBlur,
+  error,
+  placeholder,
+  required,
+  halfWidth,
+  disabled = false,
+  maxLength,
+  ...props
+}: FormFieldProps) => (
   <div className={`${halfWidth ? "w-full md:w-1/2" : "w-full"} px-2 mb-3`}>
     <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-    <input type={type} id={id} name={id} className={`w-full p-2 border rounded text-sm ${error ? 'border-red-500' : 'border-gray-300'} ${disabled ? 'bg-gray-100 opacity-50 cursor-not-allowed' : ''}`} placeholder={placeholder} value={value} onChange={onChange} onBlur={onBlur} required={required} disabled={disabled} {...props} />
+    <input
+      type={type}
+      id={id}
+      name={id}
+      className={`w-full p-2 border rounded text-sm ${error ? 'border-red-500' : 'border-gray-300'} ${disabled ? 'bg-gray-100 opacity-50 cursor-not-allowed' : ''}`}
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      onBlur={onBlur}
+      required={required}
+      disabled={disabled}
+      maxLength={maxLength}
+      {...props}
+    />
     {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
   </div>
 ));
 FormField.displayName = 'FormField';
 
-const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresas, selectedEmpresa, onEmpresaChange, empresasLoading }) => {
+const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresas, selectedEmpresa, onEmpresaChange, empresasLoading }: EmitenteStepProps) => {
   const [localLoading, setLocalLoading] = useState(false);
   const isCotacao = formData.tipo === 'cotacao';
 
-  const handleEmpresaSelect = useCallback(async (empresaId) => {
+  const handleEmpresaSelect = useCallback(async (empresaId: string) => {
     if (!empresaId || empresasLoading) return;
     setLocalLoading(true);
     try {
       const empresa = empresas.find(e => e.id === empresaId);
       if (empresa) await onEmpresaChange(empresa);
-    } finally { setTimeout(() => setLocalLoading(false), 300); }
+    } finally {
+      setTimeout(() => setLocalLoading(false), 300);
+    }
   }, [empresas, onEmpresaChange, empresasLoading]);
 
   return (
@@ -151,7 +359,7 @@ const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresa
 });
 EmitenteStep.displayName = 'EmitenteStep';
 
-const DestinatarioStep = memo(({ formData, errors, handleChange, handleBlur }) => {
+const DestinatarioStep = memo(({ formData, errors, handleChange, handleBlur }: DestinatarioStepProps) => {
   const isCotacao = formData.tipo === 'cotacao';
   return (
     <div className="w-full">
@@ -178,7 +386,7 @@ const DestinatarioStep = memo(({ formData, errors, handleChange, handleBlur }) =
 });
 DestinatarioStep.displayName = 'DestinatarioStep';
 
-const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, onItemBlur, isCheckingDocument }) => {
+const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, onItemBlur, isCheckingDocument }: ItensStepProps) => {
   const isCotacao = formData.tipo === 'cotacao';
   const formatarData = (data: string) => new Date(data).toLocaleDateString('pt-MZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const handleValidityChange = (e: React.ChangeEvent<HTMLInputElement>, isCotacao: boolean) => {
@@ -236,7 +444,7 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
                 <tr><th className="px-2 py-2 border text-xs font-medium text-gray-700 text-center w-16">Qtd</th><th className="px-2 py-2 border text-xs font-medium text-gray-700 w-32">Descrição</th><th className="px-2 py-2 border text-xs font-medium text-gray-700 text-right w-24">Preço</th><th className="px-2 py-2 border text-xs font-medium text-gray-700 text-center w-32">Taxas</th><th className="px-2 py-2 border text-xs font-medium text-gray-700 text-right w-24">Total</th><th className="px-2 py-2 border text-xs font-medium text-gray-700 text-center w-12">Ações</th></tr>
               </thead>
               <tbody>
-                {items.map((item) => (<ItemRow key={item.id} item={item} currency={formData.moeda} onUpdate={(field, value) => atualizarItem(item.id, field, value)} onRemove={() => removerItem(item.id)} onAddTax={() => adicionarTaxa(item.id)} onRemoveTax={(taxaIndex) => removerTaxa(item.id, taxaIndex)} errors={errors} onBlur={onItemBlur} />))}
+                {items.map((item) => (<ItemRow key={item.id} item={item} currency={formData.moeda} onUpdate={(field, value) => atualizarItem(item.id, field as keyof ItemFatura, value)} onRemove={() => removerItem(item.id)} onAddTax={() => adicionarTaxa(item.id)} onRemoveTax={(taxaIndex) => removerTaxa(item.id, taxaIndex)} errors={errors} onBlur={onItemBlur} />))}
               </tbody>
             </table>
           </div>
@@ -265,7 +473,7 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
 });
 ItensStep.displayName = 'ItensStep';
 
-const PreviewStep = memo(({ invoiceData, tipo, isFullscreen, onToggleFullscreen, onHtmlRendered }) => (
+const PreviewStep = memo(({ invoiceData, tipo, isFullscreen, onToggleFullscreen, onHtmlRendered }: PreviewStepProps) => (
   <div className="w-full space-y-6">
     <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg"><div className="flex items-center justify-between"><div className="flex items-center"><div><h4 className="text-lg font-semibold mb-2">Pré-visualização</h4><p className="text-sm text-blue-600">Visualize como seu documento ficará com o template selecionado.</p></div></div></div></div>
     <div><hr></hr><TemplateSlider invoiceData={invoiceData} tipo={tipo} isFullscreen={isFullscreen} onToggleFullscreen={onToggleFullscreen} onHtmlRendered={onHtmlRendered} /></div>
@@ -273,13 +481,13 @@ const PreviewStep = memo(({ invoiceData, tipo, isFullscreen, onToggleFullscreen,
 ));
 PreviewStep.displayName = 'PreviewStep';
 
-const ProcessingOverlay = memo(({ isVisible, message = "Processando..." }) => {
+const ProcessingOverlay = memo(({ isVisible, message = "Processando..." }: ProcessingOverlayProps) => {
   if (!isVisible) return null;
   return (<div className="fixed inset-0 bg-white bg-opacity-80 flex items-center justify-center z-50 rounded-lg"><div className="text-center"><FaSpinner className="animate-spin text-blue-500 text-3xl mb-2 mx-auto" /><p className="text-sm text-gray-600">{message}</p></div></div>);
 });
 ProcessingOverlay.displayName = 'ProcessingOverlay';
 
-const NavigationButtons = memo(({ currentStep, totalSteps, onPrev, onNext, isNavigating }) => (
+const NavigationButtons = memo(({ currentStep, totalSteps, onPrev, onNext, isNavigating }: NavigationButtonsProps) => (
   <div className="mt-6 md:mt-8 flex justify-between border-t pt-4 md:pt-6">
     {currentStep > 0 && (<button className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-3 md:px-4 rounded flex items-center text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={onPrev} disabled={isNavigating}>{isNavigating ? <FaSpinner className="animate-spin mr-1 md:mr-2" size={14} /> : <FaArrowLeft className="mr-1 md:mr-2" size={14} />}{isNavigating ? 'Processando...' : 'Voltar'}</button>)}
     {currentStep < totalSteps - 1 && (<button className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 md:px-4 rounded flex items-center text-sm ml-auto transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={onNext} disabled={isNavigating}>{isNavigating ? <><FaSpinner className="animate-spin mr-1 md:mr-2" size={14} />Processando...</> : <><span>Próximo</span><FaArrowRight className="ml-1 md:ml-2" size={14} /></>}</button>)}
@@ -287,8 +495,8 @@ const NavigationButtons = memo(({ currentStep, totalSteps, onPrev, onNext, isNav
 ));
 NavigationButtons.displayName = 'NavigationButtons';
 
-const StepsList = memo(({ currentStep, onStepClick, validateAllPreviousSteps, isNavigating }) => {
-  const handleStepClick = useCallback(async (stepIndex) => {
+const StepsList = memo(({ currentStep, onStepClick, validateAllPreviousSteps, isNavigating }: StepsListProps) => {
+  const handleStepClick = useCallback(async (stepIndex: number) => {
     if (isNavigating || stepIndex === currentStep) return;
     if (stepIndex < currentStep) { onStepClick(stepIndex); return; }
     const canProceed = await validateAllPreviousSteps(stepIndex);
@@ -357,12 +565,40 @@ const newDocumentForm: React.FC<newDocumentFormProps> = ({ tipo = 'fatura' }) =>
   const handleHtmlRendered = useCallback((html: string) => { setRenderedHtml(html); }, []);
   const toggleTemplateFullscreen = useCallback(() => { setIsTemplateFullscreen(!isTemplateFullscreen); }, [isTemplateFullscreen]);
 
+
   const validateStep = useCallback((step: number) => {
     const newErrors: Record<string, string> = {};
     const invalidFields: string[] = [];
-    const validateRequired = (value: string, fieldName: string) => { if (!value?.trim()) { newErrors[fieldName] = 'Obrigatório'; invalidFields.push(fieldName); return false; } return true; };
-    const validateEmail = (email: string, fieldName: string) => { if (email && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { newErrors[fieldName] = 'Email inválido'; invalidFields.push(fieldName); return false; } return true; };
-    const validatePhone = (phone: string, fieldName: string) => { if (phone && phone.trim()) { const cleanPhone = phone.replace(/[\s\-\(\)]/g, ''); if (!/^[\+]?[0-9]{8,15}$/.test(cleanPhone)) { newErrors[fieldName] = 'Telefone inválido'; invalidFields.push(fieldName); return false; } } return true; };
+
+    const validateRequired = (value: string | undefined, fieldName: string) => {
+      if (!value?.trim()) {
+        newErrors[fieldName] = 'Obrigatório';
+        invalidFields.push(fieldName);
+        return false;
+      }
+      return true;
+    };
+
+    const validateEmail = (email: string | undefined, fieldName: string) => {
+      if (email && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        newErrors[fieldName] = 'Email inválido';
+        invalidFields.push(fieldName);
+        return false;
+      }
+      return true;
+    };
+
+    const validatePhone = (phone: string | undefined, fieldName: string) => {
+      if (phone && phone.trim()) {
+        const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+        if (!/^[\+]?[0-9]{8,15}$/.test(cleanPhone)) {
+          newErrors[fieldName] = 'Telefone inválido';
+          invalidFields.push(fieldName);
+          return false;
+        }
+      }
+      return true;
+    };
 
     switch (step) {
       case 0:
@@ -384,20 +620,33 @@ const newDocumentForm: React.FC<newDocumentFormProps> = ({ tipo = 'fatura' }) =>
       case 2:
         if (formData.tipo === 'fatura') {
           validateRequired(formData.faturaNumero, 'faturaNumero');
-          if (formData.faturaNumero && !/^[A-Z0-9_]+$/.test(formData.faturaNumero)) newErrors['faturaNumero'] = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
+          if (formData.faturaNumero && !/^[A-Z0-9_]+$/.test(formData.faturaNumero))
+            newErrors['faturaNumero'] = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
           validateRequired(formData.validezFatura, 'validezFatura');
-          if (formData.validezFatura) { const dias = parseInt(formData.validezFatura); if (dias < 1 || dias > 365) newErrors['validezFatura'] = 'Validade deve ser entre 1 e 365 dias'; }
+          if (formData.validezFatura) {
+            const dias = parseInt(formData.validezFatura);
+            if (dias < 1 || dias > 365)
+              newErrors['validezFatura'] = 'Validade deve ser entre 1 e 365 dias';
+          }
         } else {
           validateRequired(formData.cotacaoNumero, 'cotacaoNumero');
-          if (formData.cotacaoNumero && !/^[A-Z0-9\-_]+$/.test(formData.cotacaoNumero)) newErrors['cotacaoNumero'] = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
+          if (formData.cotacaoNumero && !/^[A-Z0-9\-_]+$/.test(formData.cotacaoNumero))
+            newErrors['cotacaoNumero'] = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
           validateRequired(formData.validezCotacao, 'validezCotacao');
-          if (formData.validezCotacao) { const dias = parseInt(formData.validezCotacao); if (dias < 1 || dias > 365) newErrors['validezCotacao'] = 'Validade deve ser entre 1 e 365 dias'; }
+          if (formData.validezCotacao) {
+            const dias = parseInt(formData.validezCotacao);
+            if (dias < 1 || dias > 365)
+              newErrors['validezCotacao'] = 'Validade deve ser entre 1 e 365 dias';
+          }
         }
         validateRequired(formData.dataFatura, 'dataFatura');
         items.forEach((item) => {
-          if (!item.descricao.trim()) newErrors[`item-${item.id}-descricao`] = 'Descrição obrigatória';
-          if (item.quantidade < 1) newErrors[`item-${item.id}-quantidade`] = 'Quantidade mínima: 1';
-          if (item.precoUnitario < 0) newErrors[`item-${item.id}-preco`] = 'Preço não pode ser negativo';
+          if (!item.descricao.trim())
+            newErrors[`item-${item.id}-descricao`] = 'Descrição obrigatória';
+          if (item.quantidade < 1)
+            newErrors[`item-${item.id}-quantidade`] = 'Quantidade mínima: 1';
+          if (item.precoUnitario < 0)
+            newErrors[`item-${item.id}-preco`] = 'Preço não pode ser negativo';
         });
         break;
     }
@@ -448,8 +697,15 @@ const newDocumentForm: React.FC<newDocumentFormProps> = ({ tipo = 'fatura' }) =>
 
   const pularAtualizacao = useCallback(() => { setShowUpdateModal(false); setPendingStep(null); if (pendingStep !== null) setCurrentStep(pendingStep); }, [pendingStep]);
   const handleStepClick = useCallback((stepIndex: number) => { setCurrentStep(stepIndex); }, []);
-  const handleItemBlur = useCallback((field: string) => { handleBlur({ target: { name: field, value: '' } }); }, [handleBlur]);
-  const prepareDocumentData = useCallback(() => { return prepareInvoiceData(); }, [prepareInvoiceData]);
+  const handleItemBlur = useCallback((field: string) => { 
+  handleBlur({ 
+    target: { 
+      name: field, 
+      value: '' 
+    } 
+  } as any); // Usar 'any' para evitar problemas de tipo
+}, [handleBlur]);
+ const prepareDocumentData = useCallback(() => { return prepareInvoiceData(); }, [prepareInvoiceData]);
 
   const renderStepContent = useCallback(() => {
     const stepComponents = {
@@ -457,9 +713,9 @@ const newDocumentForm: React.FC<newDocumentFormProps> = ({ tipo = 'fatura' }) =>
       1: <DestinatarioStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} />,
       2: <ItensStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} items={items} adicionarItem={adicionarItem} removerItem={removerItem} atualizarItem={atualizarItem} adicionarTaxa={adicionarTaxa} removerTaxa={removerTaxa} onItemBlur={handleItemBlur} isCheckingDocument={isCheckingDocument} />,
       3: <PreviewStep invoiceData={prepareInvoiceData()} tipo={tipo} isFullscreen={isTemplateFullscreen} onToggleFullscreen={toggleTemplateFullscreen} onHtmlRendered={handleHtmlRendered} />,
-      4: <Payment invoiceData={prepareDocumentData()} renderedHtml={renderedHtml} isFullscreen={isTemplateFullscreen} onToggleFullscreen={toggleTemplateFullscreen} />
+      4: <Payment invoiceData={prepareDocumentData()} renderedHtml={renderedHtml} />
     };
-    return stepComponents[currentStep] || null;
+    return stepComponents[currentStep as keyof typeof stepComponents] || null;
   }, [currentStep, formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, isTemplateFullscreen, toggleTemplateFullscreen, handleHtmlRendered, renderedHtml, handleItemBlur, empresas, selectedEmpresa, handleEmpresaChange, loading, prepareDocumentData, tipo, isCheckingDocument]);
 
   if (loading && empresas.length === 0) return (<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><FaSpinner className="animate-spin text-blue-500 text-4xl mb-4 mx-auto" /><p className="text-gray-600">Carregando dados das empresas...</p></div></div>);
@@ -517,6 +773,6 @@ const newDocumentForm: React.FC<newDocumentFormProps> = ({ tipo = 'fatura' }) =>
       </div>
     </div>
   );
-});
+};
 
 export default newDocumentForm;

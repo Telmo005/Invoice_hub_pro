@@ -327,7 +327,6 @@ export const usePayment = ({
   const dynamicDocumentData = {
     id: getDocumentId(),
     client: invoiceData?.formData?.destinatario?.nomeCompleto || 'Cliente não definido',
-    description: documentInfo.description,
     amount: `${LIBERATION_FEE.toFixed(2)} ${CURRENCY}`,
     date: formatDate(invoiceData?.formData?.dataFatura),
     totalItems: invoiceData?.items?.length || 0,
@@ -403,8 +402,8 @@ export const usePayment = ({
   }, []);
 
   const handleSaveDocument = useCallback(async (htmlContent: string): Promise<{
-    documentId: string;
-    documentNumber: string;
+    id: string;
+    numero: string;
   }> => {
     setIsCreating(true);
     setErrorMessage(null);

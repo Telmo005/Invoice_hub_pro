@@ -66,8 +66,8 @@ export const useTemplateManager = ({
   // Memoized service instance
   const templateService = useMemo(() => TemplateService.getInstance(), []);
   
-  // Refs for cleanup and state tracking
-  const abortControllerRef = useRef<AbortController>();
+  // Refs for cleanup and state tracking - CORRIGIDO
+  const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
   const retryCountRef = useRef<Map<string, number>>(new Map());
   
@@ -125,7 +125,7 @@ export const useTemplateManager = ({
     }
   }, []);
 
-  // Enhanced template rendering with retry logic and timeout
+  // Enhanced template rendering with retry logic and timeout - CORRIGIDO
   const fetchRenderedTemplate = useCallback(async (
     templateId: string, 
     data: InvoiceData,
@@ -144,16 +144,19 @@ export const useTemplateManager = ({
     }
 
     // Reset retry count on new template or data change
-    const cacheKey = `${templateId}-${documentType}-${JSON.stringify(data)}`; // ← INCLUI documentType
+    const cacheKey = `${templateId}-${documentType}-${JSON.stringify(data)}`;
     if (retryCount === 0) {
       retryCountRef.current.set(cacheKey, 0);
     }
 
     safeSetRenderState(prev => ({ ...prev, isLoading: true, error: null }));
 
+    // DECLARE timeoutId AQUI - FORA DO TRY (CORREÇÃO)
+    let timeoutId: NodeJS.Timeout | null = null;
+
     try {
       const timeoutController = new AbortController();
-      const timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(() => {
         timeoutController.abort();
       }, timeoutMs);
 
@@ -171,10 +174,11 @@ export const useTemplateManager = ({
       const result = await templateService.renderTemplate(templateId, data, {
         signal: combinedSignal,
         useCache: cacheFlag,
-        documentType // ← NOVO: passa o tipo de documento
+        documentType 
       });
 
       clearTimeout(timeoutId);
+      timeoutId = null;
 
       // Clear retry count on success
       retryCountRef.current.delete(cacheKey);
@@ -190,7 +194,11 @@ export const useTemplateManager = ({
       }
 
     } catch (error: unknown) {
-      clearTimeout(timeoutId);
+      // AGORA timeoutId ESTÁ DISPONÍVEL NO CATCH (CORREÇÃO)
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
 
       // Handle specific error types
       if (error instanceof Error) {
@@ -212,7 +220,7 @@ export const useTemplateManager = ({
                 retryCount: currentRetries + 1
               });
             }
-          }, Math.min(1000 * Math.pow(2, currentRetries), 10000)); // Exponential backoff
+          }, Math.min(1000 * Math.pow(2, currentRetries), 10000));
           
           return;
         }
@@ -237,7 +245,7 @@ export const useTemplateManager = ({
     maxRetries, 
     timeoutMs, 
     safeSetRenderState,
-    documentType // ← NOVA DEPENDÊNCIA
+    documentType 
   ]);
 
   // Effect para renderização automática com dados debounced
@@ -372,6 +380,6 @@ export const useTemplateManager = ({
     isZoomOutDisabled,
     fetchRenderedTemplate,
     invoiceData,
-    tipo // ← NOVA DEPENDÊNCIA
+    tipo 
   ]);
 };

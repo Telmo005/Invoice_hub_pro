@@ -59,10 +59,38 @@ const ICONS = {
   faCompany: faBuilding
 };
 
+// Interfaces
+interface User {
+  user_metadata?: {
+    avatar_url?: string;
+    picture?: string;
+    name?: string;
+  };
+  identities?: Array<{
+    identity_data?: {
+      avatar_url?: string;
+    };
+  }>;
+  image?: string;
+  email?: string;
+}
+
+interface NavLinkProps {
+  href: string;
+  icon: string;
+  label: string;
+}
+
+interface DropdownLinkProps {
+  href: string;
+  icon: string;
+  label: string;
+  onClick: () => void;
+}
 
 // Hook personalizado para manipulação do avatar
-const useUserAvatar = (user) => {
-  const isValidUrl = (url) => {
+const useUserAvatar = (user: User | null) => {
+  const isValidUrl = (url: string) => {
     if (!url) return false;
     try {
       const parsed = new URL(url);
@@ -73,21 +101,24 @@ const useUserAvatar = (user) => {
   };
 
   return useMemo(() => {
+    if (!user) return null;
+
     const sources = [
       user?.user_metadata?.avatar_url,
       user?.user_metadata?.picture,
       user?.identities?.[0]?.identity_data?.avatar_url,
       user?.image
-    ].filter(Boolean);
+    ].filter(Boolean) as string[];
+
     return sources.find(isValidUrl) || null;
   }, [user]);
 };
 
-// Hook para detectar clique fora do elemento
-const useClickOutside = (ref, callback) => {
+// Hook para detectar clique fora do elemento - CORRIGIDO
+const useClickOutside = (ref: React.RefObject<HTMLElement | null>, callback: () => void) => {
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (ref.current && !ref.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
         callback();
       }
     };
@@ -102,8 +133,8 @@ const AvatarSkeleton = () => (
 );
 
 // Componentes reutilizáveis
-const NavLink = ({ href, icon, label }) => {
-  const iconObj = ICONS[icon];
+const NavLink = ({ href, icon, label }: NavLinkProps) => {
+  const iconObj = ICONS[icon as keyof typeof ICONS];
 
   return (
     <Link href={href} className="group" prefetch={false}>
@@ -120,8 +151,8 @@ const NavLink = ({ href, icon, label }) => {
   );
 };
 
-const DropdownLink = ({ href, icon, label, onClick }) => {
-  const iconObj = ICONS[icon];
+const DropdownLink = ({ href, icon, label, onClick }: DropdownLinkProps) => {
+  const iconObj = ICONS[icon as keyof typeof ICONS];
 
   return (
     <Link
@@ -136,8 +167,8 @@ const DropdownLink = ({ href, icon, label, onClick }) => {
   );
 };
 
-const MobileDropdownLink = ({ href, icon, label, onClick }) => {
-  const iconObj = ICONS[icon];
+const MobileDropdownLink = ({ href, icon, label, onClick }: DropdownLinkProps) => {
+  const iconObj = ICONS[icon as keyof typeof ICONS];
 
   return (
     <Link
@@ -159,8 +190,10 @@ export default function Navbar() {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const { user, isLoading, signOut } = useAuth();
   const router = useRouter();
-  const dropdownRef = useRef(null);
-  const mobileDropdownRef = useRef(null);
+
+  // CORRIGIDO: Especificar o tipo HTMLDivElement explicitamente
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileDropdownRef = useRef<HTMLDivElement>(null);
 
   const avatarUrl = useUserAvatar(user);
   const userDisplayName = useMemo(() => (
@@ -258,7 +291,8 @@ export default function Navbar() {
                           height={36}
                           className="object-cover"
                           onError={(e) => {
-                            e.currentTarget.src = '/default-avatar.png';
+                            const target = e.currentTarget as HTMLImageElement;
+                            target.src = '/default-avatar.png';
                           }}
                         />
                       ) : (
@@ -284,7 +318,8 @@ export default function Navbar() {
                             height={40}
                             className="object-cover"
                             onError={(e) => {
-                              e.currentTarget.src = '/default-avatar.png';
+                              const target = e.currentTarget as HTMLImageElement;
+                              target.src = '/default-avatar.png';
                             }}
                           />
                         ) : (
@@ -365,7 +400,8 @@ export default function Navbar() {
                           height={40}
                           className="object-cover"
                           onError={(e) => {
-                            e.currentTarget.src = '/default-avatar.png';
+                            const target = e.currentTarget as HTMLImageElement;
+                            target.src = '/default-avatar.png';
                           }}
                         />
                       ) : (

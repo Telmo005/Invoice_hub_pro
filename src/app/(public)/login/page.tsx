@@ -7,11 +7,11 @@ import { FaFacebook } from 'react-icons/fa'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { ROUTES } from '@/config/routes'
 
-const LoginPage = () => {
+function LoginContent() {
   const { signInWithOAuth } = useAuth()
   const [isLoading, setIsLoading] = React.useState(false)
   const [currentProvider, setCurrentProvider] = React.useState<'google' | 'facebook' | null>(null)
-  const [error, setError] = React.useState(null)
+  const [error, setError] = React.useState<string | null>(null)
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect_to') || ROUTES.DASHBOARD
   const errorMessage = searchParams.get('error')
@@ -24,7 +24,12 @@ const LoginPage = () => {
       await signInWithOAuth(provider, redirectTo)
     } catch (err) {
       console.error("Login failed:", err)
-      setError(err.message || 'Falha ao fazer login. Por favor, tente novamente.')
+
+      if (err instanceof Error) {
+        setError(err.message || 'Falha ao fazer login. Por favor, tente novamente.')
+      } else {
+        setError('Falha ao fazer login. Por favor, tente novamente.')
+      }
     } finally {
       setIsLoading(false)
       setCurrentProvider(null)
@@ -157,4 +162,26 @@ const LoginPage = () => {
   )
 }
 
-export default LoginPage
+export default function LoginPage() {
+  return (
+    <React.Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="flex justify-center">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
+              <span className="text-white font-semibold text-sm">IH</span>
+            </div>
+          </div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Acesse sua conta
+          </h2>
+          <div className="mt-8 flex justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </React.Suspense>
+  )
+}

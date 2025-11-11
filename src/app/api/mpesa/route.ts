@@ -123,7 +123,6 @@ export async function POST(request: NextRequest) {
     transactionReference = transaction_reference
     customerMsisdn = customer_msisdn
 
-    // Validar campos obrigatórios
     if (!amount || !customer_msisdn || !transaction_reference) {
       const missingFields = []
       if (!amount) missingFields.push('amount')
@@ -152,7 +151,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validações específicas
     if (typeof amount !== 'number' || amount <= 0) {
       await logger.log({
         action: 'api_call',
@@ -199,7 +197,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar third_party_reference
     if (third_party_reference && third_party_reference.length < 8) {
       await logger.log({
         action: 'api_call',
@@ -227,7 +224,6 @@ export async function POST(request: NextRequest) {
     const mpesaService = new MpesaService()
     const formattedMsisdn = mpesaService.formatPhoneNumber(customer_msisdn)
     
-    // Validar número de telefone
     if (!mpesaService.validatePhoneNumber(customer_msisdn)) {
       await logger.log({
         action: 'api_call',
@@ -271,32 +267,26 @@ export async function POST(request: NextRequest) {
       service_provider_code: '171717'
     }
 
-    // Processar pagamento com retry automático
     const paymentResult = await mpesaService.processPaymentWithRetry(mpesaPayload)
 
     if (paymentResult.success) {
+      // Log genérico sem acessar propriedades específicas
       await logger.log({
         action: 'mpesa_payment_success',
         level: 'info',
         message: `Pagamento MPesa processado com sucesso: ${transaction_reference}`,
         details: {
           transactionReference,
-          mpesaTransactionId: paymentResult.data?.transaction_id,
-          conversationId: paymentResult.data?.conversation_id,
-          responseCode: paymentResult.data?.response_code,
-          responseDescription: paymentResult.data?.response_description,
           amount,
-          retryAttempts: paymentResult.retryAttempts || 0
+          retryAttempts: paymentResult.retryAttempts || 0,
+          responseData: paymentResult.data
         }
       })
 
+      // Resposta genérica sem depender de propriedades específicas
       const successResponse = createSuccessResponse(
         {
-          mpesa_transaction_id: paymentResult.data?.transaction_id,
-          conversation_id: paymentResult.data?.conversation_id,
           third_party_reference: mpesaPayload.third_party_reference,
-          response_code: paymentResult.data?.response_code,
-          response_description: paymentResult.data?.response_description,
           status: 'completed'
         },
         'Pagamento processado com sucesso via MPesa'
@@ -304,7 +294,6 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(successResponse)
     } else {
-      // Fazer health check diagnóstico se houve tentativas de retry
       let healthStatus = null
       if (paymentResult.retryAttempts && paymentResult.retryAttempts > 0) {
         healthStatus = await mpesaService.healthCheck()
@@ -414,13 +403,12 @@ export async function OPTIONS() {
   })
 }
 
-// Health check endpoint
 export async function GET() {
   const startTime = Date.now()
   
   try {
     const mpesaService = new MpesaService()
-    const healthStatus = await mpesaService.healthCheck(true) // Force check
+    const healthStatus = await mpesaService.healthCheck(true)
     
     await logger.log({
       action: 'health_check',

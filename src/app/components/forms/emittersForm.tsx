@@ -328,7 +328,7 @@ const Screen = () => {
     return Object.keys(errors).length === 0;
   }, [newEmpresa]);
 
-  // Handlers otimizados com useCallback - AGORA COM INDICADORES DE PROCESSAMENTO
+  // Handlers otimizados com useCallback - CORRIGIDOS
   const handleAddEmpresa = useCallback(async (empresaData: Omit<Empresa, 'id' | 'padrao'>) => {
     if (!validateForm()) return;
     
@@ -336,7 +336,10 @@ const Screen = () => {
     setProcessingMessage('Adicionando entidade...');
     
     try {
-      await adicionarEmpresa(empresaData);
+      await adicionarEmpresa({
+        ...empresaData,
+        pessoa_contato: empresaData.pessoa_contato || ''
+      });
       setIsModalOpen(false);
       setNewEmpresa({
         nome: '',
@@ -367,7 +370,10 @@ const Screen = () => {
     setProcessingMessage('Atualizando entidade...');
 
     try {
-      await editarEmpresa(selectedEmpresa.id, empresaData);
+      await editarEmpresa(selectedEmpresa.id, {
+        ...empresaData,
+        pessoa_contato: empresaData.pessoa_contato || ''
+      });
       setIsModalOpen(false);
       setNewEmpresa({
         nome: '',

@@ -99,7 +99,6 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
         onToggleFullscreen={onToggleFullscreen}
         isZoomInDisabled={isZoomInDisabled}
         isZoomOutDisabled={isZoomOutDisabled}
-        tipo={tipo}
       />
     </div>
   );
@@ -109,7 +108,7 @@ interface TemplateNavigationPanelProps {
   templates: any[];
   selectedTemplateId: string;
   navigation: any;
-  templatesContainerRef: React.RefObject<HTMLDivElement>;
+  templatesContainerRef: React.RefObject<HTMLDivElement | null>;
   onTemplateSelect: (id: string) => void;
   onNavigation: (direction: 'next' | 'prev') => void;
   tipo: TipoDocumento;
@@ -151,7 +150,6 @@ const TemplateNavigationPanel: React.FC<TemplateNavigationPanelProps> = ({
               template={template}
               isSelected={selectedTemplateId === template.id}
               onSelect={onTemplateSelect}
-              tipo={tipo}
             />
           ))}
         </div>

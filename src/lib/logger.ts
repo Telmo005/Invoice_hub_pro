@@ -1,13 +1,12 @@
-// lib/logger.ts
 import { headers } from 'next/headers';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'audit';
 export type LogAction = 
-  | 'document_create' | 'document_update' | 'document_delete' | 'document_view'
-  | 'document_export' | 'document_download'
-  | 'payment_create' | 'payment_success' | 'payment_failed' | 'payment_refund'
-  | 'user_login' | 'user_logout' | 'user_profile_update'
-  | 'api_call' | 'error' | 'system_alert';
+  | 'document_create' | 'document_update' | 'document_delete' | 'document_view' | 'mpesa_payment_processing'
+  | 'document_export' | 'document_download' | 'email_sent_success' | 'email_service_error' | 'mpesa_payment_success'
+  | 'payment_create' | 'payment_success' | 'payment_failed' | 'payment_refund' | 'document_send' | 'health_check_diagnostic'
+  | 'user_login' | 'user_logout' | 'user_profile_update' | 'email_send_attempt' | 'email_validation_error'
+  | 'api_call' | 'error' | 'system_alert' | 'mpesa_payment_error' | 'mpesa_health_check' |'health_check';
 
 export interface LogData {
   level?: LogLevel;
@@ -35,7 +34,6 @@ export class SystemLogger {
 
   private async getRequestContext() {
     try {
-      // ✅ CORREÇÃO: Verifica se está em ambiente server
       if (typeof window === 'undefined') {
         const headersList = await headers();
         return {
@@ -45,7 +43,6 @@ export class SystemLogger {
           method: headersList.get('x-method') || 'GET'
         };
       } else {
-        // Client-side context
         return {
           ipAddress: 'client',
           userAgent: navigator.userAgent || 'unknown',
@@ -64,23 +61,18 @@ export class SystemLogger {
   }
 
   async log(logData: LogData) {
-    // 🔥 CRÍTICO: Não espera pelo log, adiciona na fila e retorna imediatamente
     this.addToQueue(logData);
   }
 
-  // ✅ ADICIONA À FILA E RETORNA IMEDIATAMENTE
   private addToQueue(logData: LogData) {
     const logPromise = async () => {
       try {
-        // ✅ CORREÇÃO: Importação dinâmica condicional
         let supabase;
         
         if (typeof window === 'undefined') {
-          // Server-side
           const { supabaseServer } = await import('./supabase-server');
           supabase = await supabaseServer();
         } else {
-          // Client-side
           const { default: supabaseClient } = await import('./supabase-client');
           supabase = supabaseClient();
         }
@@ -90,7 +82,6 @@ export class SystemLogger {
 
         const level = logData.level || this.getDefaultLevel(logData.action);
 
-        // Ignora debug em produção
         if (process.env.NODE_ENV === 'production' && level === 'debug') {
           return;
         }
@@ -111,30 +102,30 @@ export class SystemLogger {
           created_at: new Date().toISOString()
         };
 
-        // 🔥 INSERÇÃO RÁPIDA - sem await se possível, ou com timeout
-        const { error } = await Promise.race([
-          supabase.from('system_logs').insert(logEntry),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Log timeout')), 2000) // 2s timeout
+        const insertOperation = supabase.from('system_logs').insert(logEntry);
+        
+        const result = await Promise.race([
+          insertOperation,
+          new Promise<null>((_, reject) => 
+            setTimeout(() => reject(new Error('Log timeout')), 2000)
           )
         ]);
 
-        if (error) {
-          console.error('❌ [LOG ERROR]', error.message);
+        if (result && 'error' in result && result.error) {
+          console.error('Log insertion error:', result.error.message);
         }
 
       } catch (error) {
-        // 🔥 SILENCIOSO - não quebra a aplicação
-        console.error('💥 [LOG CRITICAL]', error);
+        if (error instanceof Error && error.message !== 'Log timeout') {
+          console.error('Critical log error:', error);
+        }
       }
     };
 
-    // Adiciona à fila e processa em background
     this.logQueue.push(logPromise);
     this.processQueue();
   }
 
-  // ✅ PROCESSAMENTO EM BACKGROUND (mesmo código anterior)
   private async processQueue() {
     if (this.isProcessing || this.logQueue.length === 0) {
       return;
@@ -143,15 +134,13 @@ export class SystemLogger {
     this.isProcessing = true;
 
     try {
-      // Processa apenas os primeiros 10 logs para não sobrecarregar
       const batch = this.logQueue.splice(0, Math.min(10, this.logQueue.length));
       
-      // 🔥 EXECUTA EM PARALELO mas não espera por todos
       Promise.allSettled(batch.map(logFn => logFn()))
         .then(results => {
           const failed = results.filter(r => r.status === 'rejected').length;
           if (failed > 0) {
-            console.warn(`⚠️ [LOGS] ${failed} logs falharam silenciosamente`);
+            console.warn(`${failed} logs failed silently`);
           }
         })
         .finally(() => {
@@ -168,17 +157,37 @@ export class SystemLogger {
 
   private getDefaultLevel(action: LogAction): LogLevel {
     const levelMap: Record<LogAction, LogLevel> = {
-      'document_create': 'audit', 'document_delete': 'audit',
-      'payment_success': 'audit', 'payment_refund': 'audit', 'user_login': 'audit',
-      'document_update': 'info', 'document_view': 'info', 'document_export': 'info',
-      'document_download': 'info', 'payment_create': 'info', 'user_logout': 'info',
-      'user_profile_update': 'info', 'api_call': 'info', 'payment_failed': 'warn',
-      'error': 'error', 'system_alert': 'error'
+      'document_create': 'audit',
+      'document_update': 'info',
+      'document_delete': 'audit',
+      'document_view': 'info',
+      'mpesa_payment_processing': 'info',
+      'document_export': 'info',
+      'document_download': 'info',
+      'email_sent_success': 'info',
+      'email_service_error': 'error',
+      'mpesa_payment_success': 'audit',
+      'payment_create': 'info',
+      'payment_success': 'audit',
+      'payment_failed': 'warn',
+      'payment_refund': 'audit',
+      'document_send': 'info',
+      'health_check_diagnostic': 'info',
+      'user_login': 'audit',
+      'user_logout': 'info',
+      'user_profile_update': 'info',
+      'email_send_attempt': 'info',
+      'email_validation_error': 'warn',
+      'api_call': 'info',
+      'error': 'error',
+      'system_alert': 'error',
+      'mpesa_payment_error': 'error',
+      'mpesa_health_check': 'info',
+      'health_check': 'info'
     };
     return levelMap[action] || 'info';
   }
 
-  // ✅ MÉTODOS DE CONVENIÊNCIA OTIMIZADOS (mesmo código anterior)
   async logDocumentCreation(documentType: string, documentId: string, documentData: any) {
     this.addToQueue({
       action: 'document_create',

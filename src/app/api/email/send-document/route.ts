@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     const { documentId, documentNumber, documentType, clientEmail, clientName } = body;
 
     await logger.log({
-      action: 'email_send_attempt',
+      action: 'document_send',
       level: 'info',
       message: `Tentativa de envio de email para documento: ${documentNumber}`,
       details: {
@@ -99,10 +99,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
+    // Validação do tipo de documento
+    const validDocumentType = documentType === 'cotacao' || documentType === 'fatura' 
+      ? documentType 
+      : 'fatura';
+
     const result = await emailService.sendDocumentLink({
       documentId: documentId.trim(),
       documentNumber: documentNumber.trim(),
-      documentType,
+      documentType: validDocumentType,
       clientName: clientName?.trim() || 'Cliente',
       clientEmail: clientEmail.trim(),
       date: body.date || new Date().toISOString(),
@@ -168,14 +173,14 @@ export async function POST(request: NextRequest) {
       } : null
     });
 
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    
     const errorResponse: ApiResponse = {
       success: false,
       error: {
         code: ERROR_CODES.INTERNAL_ERROR,
         message: 'Erro interno do servidor',
-        details: process.env.NODE_ENV === 'development' ? 
-          (error instanceof Error ? error.message : 'Erro desconhecido') : 
-          undefined
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
       }
     };
     

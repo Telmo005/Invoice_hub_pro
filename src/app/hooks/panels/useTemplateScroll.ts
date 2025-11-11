@@ -36,7 +36,7 @@ export const useTemplateScroll = () => {
     }, []);
 
     return {
-        templatesContainerRef,
+        templatesContainerRef: templatesContainerRef as React.RefObject<HTMLDivElement | null>,
         scrollTemplates,
         scrollToTemplate
     };

@@ -1,5 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Empresa } from '@/app/hooks/emitters/types/emissor'
+
+// Interface local para resolver o erro
+interface Empresa {
+    id: string
+    padrao: boolean
+    nome: string
+    nuip: string
+    pais: string
+    cidade: string
+    endereco: string
+    pessoa_contato: string
+    email: string
+    telefone: string
+}
 
 interface UseListarEmissoresReturn {
     empresas: Empresa[]

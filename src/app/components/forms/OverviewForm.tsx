@@ -39,11 +39,11 @@ type DocumentType = 'faturas' | 'cotacoes';
 type DocumentStatus = 'rascunho' | 'emitida' | 'paga' | 'cancelada' | 'expirada' | 'todos';
 type PaymentStatus = 'pendente' | 'pago' | null;
 
-interface Document {
+interface OverviewDocument {
   id: string;
   numero: string;
   tipo: 'fatura' | 'cotacao';
-  status: DocumentStatus;
+  status: string;
   emitente: string;
   destinatario: string;
   data_emissao: string;
@@ -51,7 +51,7 @@ interface Document {
   valor_total: number;
   moeda: string;
   itens_count: number;
-  pagamento_status: PaymentStatus;
+  pagamento_status: string | null;
 }
 
 // Configuração de status
@@ -207,7 +207,7 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
 interface DocumentPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  documentData: Document | null;
+  documentData: OverviewDocument | null;
   documentHtml: string | null;
   isLoading: boolean;
   error: string | null;
@@ -250,9 +250,12 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               <p className="text-sm text-gray-500 flex items-center gap-1">
                 <span>Cliente: {documentData?.destinatario}</span>
                 <span>•</span>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig[documentData?.status || 'todos'].color} ${statusConfig[documentData?.status || 'todos'].bg}`}>
-                  {statusConfig[documentData?.status || 'todos'].text}
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig[(documentData?.status as keyof typeof statusConfig) || 'todos'].color
+                  } ${statusConfig[(documentData?.status as keyof typeof statusConfig) || 'todos'].bg
+                  }`}>
+                  {statusConfig[(documentData?.status as keyof typeof statusConfig) || 'todos'].text}
                 </span>
+
               </p>
             </div>
           </div>
@@ -344,8 +347,8 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
 };
 
 // Componentes memoizados
-const StatusBadge = React.memo(({ status }: { status: DocumentStatus | PaymentStatus }) => {
-  const config = statusConfig[status as keyof typeof statusConfig];
+const StatusBadge = React.memo(({ status }: { status: string }) => {
+  const config = statusConfig[(status as keyof typeof statusConfig) || 'todos'];
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color} ${config.bg}`}>
       {config.text}
@@ -479,13 +482,13 @@ export default function DocumentsPage() {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
+  const [documentToDelete, setDocumentToDelete] = useState<OverviewDocument | null>(null);
   const [currentSection, setCurrentSection] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
 
   // ✅ Estados para o preview
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<OverviewDocument | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [lastOpenedDocument, setLastOpenedDocument] = useState<string | null>(null);
 
@@ -570,7 +573,7 @@ export default function DocumentsPage() {
   }, [documents, dateFilter, loading]);
 
   // ✅ FUNÇÃO MELHORADA: Preview com feedback visual
-  const handlePreview = useCallback(async (document: Document, event?: React.MouseEvent) => {
+  const handlePreview = useCallback(async (document: OverviewDocument, event?: React.MouseEvent) => {
     // Prevenir múltiplos cliques rápidos
     if (lastOpenedDocument === document.id) {
       return;
@@ -720,7 +723,7 @@ export default function DocumentsPage() {
     }
   }, [router, secureLog]);
 
-  const handleDeleteClick = useCallback((document: Document, event: React.MouseEvent) => {
+  const handleDeleteClick = useCallback((document: OverviewDocument, event: React.MouseEvent) => {
     event.stopPropagation(); // Impedir que abra o preview
 
     secureLog('info', 'Eliminação de documento solicitada', {
@@ -752,7 +755,7 @@ export default function DocumentsPage() {
     });
 
     try {
-      const result = await deleteDocument(documentToDelete.id, documentToDelete);
+      const result = await deleteDocument(documentToDelete.id);
 
       if (result.success) {
         removeDocument(documentToDelete.id);
@@ -784,7 +787,7 @@ export default function DocumentsPage() {
   }, [documentToDelete, secureLog]);
 
   // ✅ Componente para Linha de Documento Cliсkável
-  const DocumentRow = React.memo(({ doc, index }: { doc: Document; index: number }) => (
+  const DocumentRow = React.memo(({ doc, index }: { doc: OverviewDocument; index: number }) => (
     <motion.tr
       key={doc.id}
       initial={{ opacity: 0, y: 10 }}
