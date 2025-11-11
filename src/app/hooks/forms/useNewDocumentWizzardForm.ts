@@ -275,7 +275,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     
     if ((name === 'faturaNumero' || name === 'cotacaoNumero') && value) {
       if (!/^[A-Z0-9]+$/.test(value)) {
-        return 'Apenas letras maiúsculas e números são permitidos';
+        return 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
       }
       const exists = await checkDocumentExists(value);
       if (exists) {
@@ -436,7 +436,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
 
     if (formData.tipo === 'fatura') {
       if (!formData.faturaNumero.trim()) newErrors.faturaNumero = 'Campo obrigatório';
-      else if (!/^[A-Z0-9\-_]+$/.test(formData.faturaNumero)) newErrors.faturaNumero = 'Apenas letras maiúsculas e números são permitidos';
+      else if (!/^[A-Z0-9_]+$/.test(formData.faturaNumero)) newErrors.faturaNumero = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
       else {
         const exists = await checkDocumentExists(formData.faturaNumero);
         if (exists) newErrors.faturaNumero = `A fatura "${formData.faturaNumero}" já está registrada. Escolha outro número.`;
@@ -448,7 +448,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       }
     } else {
       if (!formData.cotacaoNumero.trim()) newErrors.cotacaoNumero = 'Campo obrigatório';
-      else if (!/^[A-Z0-9\-_]+$/.test(formData.cotacaoNumero)) newErrors.cotacaoNumero = 'Apenas letras maiúsculas e números são permitidos';
+      else if (!/^[A-Z0-9_]+$/.test(formData.cotacaoNumero)) newErrors.cotacaoNumero = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
       else {
         const exists = await checkDocumentExists(formData.cotacaoNumero);
         if (exists) newErrors.cotacaoNumero = `A cotação "${formData.cotacaoNumero}" já está registrada. Escolha outro número.`;

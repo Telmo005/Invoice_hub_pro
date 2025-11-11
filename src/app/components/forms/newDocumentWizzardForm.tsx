@@ -384,12 +384,12 @@ const newDocumentForm: React.FC<newDocumentFormProps> = ({ tipo = 'fatura' }) =>
       case 2:
         if (formData.tipo === 'fatura') {
           validateRequired(formData.faturaNumero, 'faturaNumero');
-          if (formData.faturaNumero && !/^[A-Z0-9\-_]+$/.test(formData.faturaNumero)) newErrors['faturaNumero'] = 'Apenas letras maiúsculas e números';
+          if (formData.faturaNumero && !/^[A-Z0-9_]+$/.test(formData.faturaNumero)) newErrors['faturaNumero'] = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
           validateRequired(formData.validezFatura, 'validezFatura');
           if (formData.validezFatura) { const dias = parseInt(formData.validezFatura); if (dias < 1 || dias > 365) newErrors['validezFatura'] = 'Validade deve ser entre 1 e 365 dias'; }
         } else {
           validateRequired(formData.cotacaoNumero, 'cotacaoNumero');
-          if (formData.cotacaoNumero && !/^[A-Z0-9\-_]+$/.test(formData.cotacaoNumero)) newErrors['cotacaoNumero'] = 'Apenas letras maiúsculas e números';
+          if (formData.cotacaoNumero && !/^[A-Z0-9\-_]+$/.test(formData.cotacaoNumero)) newErrors['cotacaoNumero'] = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
           validateRequired(formData.validezCotacao, 'validezCotacao');
           if (formData.validezCotacao) { const dias = parseInt(formData.validezCotacao); if (dias < 1 || dias > 365) newErrors['validezCotacao'] = 'Validade deve ser entre 1 e 365 dias'; }
         }
