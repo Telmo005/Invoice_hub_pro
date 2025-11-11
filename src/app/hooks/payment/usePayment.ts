@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef } from 'react';
+// src/app/hooks/payment/usePayment.ts
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { InvoiceData, TipoDocumento } from '@/types/invoice-types';
-import { useDocumentCheck } from '@/app/hooks/document/useFind';
+import { useAuth } from '@/app/providers/AuthProvider';
 
-export interface PaymentMethod {
+interface PaymentMethod {
   id: string;
   name: string;
   description: string;
@@ -10,48 +11,33 @@ export interface PaymentMethod {
   imagePath: string;
 }
 
-export interface UsePaymentProps {
+interface UsePaymentProps {
   invoiceData: InvoiceData;
   onInvoiceCreated?: (invoiceId: string) => void;
 }
 
-export interface UsePaymentReturn {
-  // Estados
+interface UsePaymentReturn {
   selectedMethod: string | null;
-  paymentStatus: 'idle' | 'processing' | 'success' | 'error' | 'duplicate_document';
+  paymentStatus: 'idle' | 'processing' | 'success' | 'error';
   contactNumber: string;
   errorMessage: string | null;
   successMessage: string | null;
   documentSaveResult: { documentId: string; documentNumber: string } | null;
   isCreating: boolean;
-  internalCreateError: string | null;
   isPreviewOpen: boolean;
   isGeneratingPdf: boolean;
-  existingDocumentData: { documentNumber: string; documentId?: string } | null;
-  isCheckingDocument: boolean;
-
-  // Setters
   setSelectedMethod: (method: string | null) => void;
   setContactNumber: (contact: string) => void;
   setIsPreviewOpen: (isOpen: boolean) => void;
   setErrorMessage: (message: string | null) => void;
-
-  // Ações
   processPayment: (renderedHtml: string) => Promise<void>;
   handleRetry: () => void;
   handleDownload: (renderedHtml: string, documentNumber?: string) => Promise<void>;
   handleEmailSend: (documentNumber?: string) => void;
-  handleUseExistingDocument: () => void;
-  handleCreateNewDocument: () => void;
-
-  // Dados
   paymentMethods: PaymentMethod[];
   dynamicDocumentData: any;
-  liberationFee: number;
-  currency: string;
 }
 
-// Constantes
 const PAYMENT_METHODS: PaymentMethod[] = [
   {
     id: 'Mpeza',
@@ -65,70 +51,6 @@ const PAYMENT_METHODS: PaymentMethod[] = [
 const LIBERATION_FEE = 10;
 const CURRENCY = 'MT';
 
-// ✅ GERADOR DE THIRD_PARTY_REFERENCE (Formato: 6 caracteres alfanuméricos)
-const generateThirdPartyReference = (): string => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  
-  // Primeiros 3 caracteres: números
-  for (let i = 0; i < 3; i++) {
-    result += Math.floor(Math.random() * 10).toString();
-  }
-  
-  // Últimos 3 caracteres: letras
-  for (let i = 0; i < 3; i++) {
-    result += chars.charAt(Math.floor(Math.random() * 26));
-  }
-  
-  return result;
-};
-
-// ✅ FUNÇÃO PARA FORMATAR TRANSACTION REFERENCE COM PREFIXO ORDER
-const formatTransactionReference = (documentNumber: string): string => {
-  // Remover TODOS os caracteres especiais, manter APENAS letras e números
-  const sanitized = documentNumber.replace(/[^a-zA-Z0-9]/g, '');
-  
-  // Adicionar prefixo ORDER (sem underscore) e limitar a 20 caracteres
-  const withPrefix = `ORDER${sanitized}`;
-  const limited = withPrefix.slice(0, 20);
-  
-  console.log('🔧 Formatando transaction reference:', {
-    original: documentNumber,
-    sanitized: sanitized,
-    withPrefix: withPrefix,
-    final: limited
-  });
-  
-  return limited;
-};
-
-// Utilitários
-const formatDate = (dateString?: string): string => {
-  if (!dateString) return new Date().toLocaleDateString('pt-MZ');
-  return new Date(dateString).toLocaleDateString('pt-MZ', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
-};
-
-const getDocumentId = (invoiceData: InvoiceData, isCotacao: boolean): string => {
-  return isCotacao
-    ? invoiceData?.formData?.cotacaoNumero || 'N/A'
-    : invoiceData?.formData?.faturaNumero || 'N/A';
-};
-
-const getDocumentDisplayInfo = (documentType: TipoDocumento) => {
-  const isCotacao = documentType === 'cotacao';
-  return {
-    type: documentType,
-    typeDisplay: isCotacao ? 'Cotação' : 'Fatura',
-    typeDisplayLower: isCotacao ? 'cotação' : 'fatura',
-    description: isCotacao ? 'Taxa de liberação de cotação' : 'Taxa de liberação de fatura'
-  };
-};
-
-// Cliente API
 class ApiError extends Error {
   constructor(
     public code: string,
@@ -141,7 +63,92 @@ class ApiError extends Error {
   }
 }
 
-// Função para criar documento
+// ✅ FUNÇÕES PARA VERIFICAR SE DOCUMENTO JÁ EXISTE
+const checkFaturaExistsDirect = async (numero: string): Promise<boolean> => {
+  try {
+    const response = await fetch('/api/document/invoice/find', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ numero }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Erro na API de busca de fatura:', data.error);
+      return false;
+    }
+
+    return data.success && data.data?.exists === true;
+  } catch (error) {
+    console.error('Erro ao verificar fatura:', error);
+    return false;
+  }
+};
+
+const checkCotacaoExistsDirect = async (numero: string): Promise<boolean> => {
+  try {
+    const response = await fetch('/api/document/quotation/find', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ numero }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Erro na API de busca de cotação:', data.error);
+      return false;
+    }
+
+    return data.success && data.data?.exists === true;
+  } catch (error) {
+    console.error('Erro ao verificar cotação:', error);
+    return false;
+  }
+};
+
+const generateThirdPartyReference = (): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 4; i++) {
+    result += Math.floor(Math.random() * 10).toString();
+  }
+  for (let i = 0; i < 4; i++) {
+    result += chars.charAt(Math.floor(Math.random() * 26));
+  }
+  return result;
+};
+
+const formatTransactionReference = (documentNumber: string): string => {
+  const sanitized = documentNumber.replace(/[^a-zA-Z0-9]/g, '');
+  const withPrefix = `ORDER${sanitized}`;
+  return withPrefix.slice(0, 20);
+};
+
+const formatDate = (dateString?: string): string => {
+  if (!dateString) return new Date().toLocaleDateString('pt-MZ');
+  return new Date(dateString).toLocaleDateString('pt-MZ', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+};
+
+const getDocumentDisplayInfo = (documentType: TipoDocumento) => {
+  const isCotacao = documentType === 'cotacao';
+  return {
+    type: documentType,
+    typeDisplay: isCotacao ? 'Cotação' : 'Fatura',
+    typeDisplayLower: isCotacao ? 'cotação' : 'fatura',
+    description: isCotacao ? 'Taxa de liberação de cotação' : 'Taxa de liberação de fatura'
+  };
+};
+
 const createDocumentDirect = async (documentData: InvoiceData): Promise<{
   id: string;
   numero: string;
@@ -171,63 +178,88 @@ const createDocumentDirect = async (documentData: InvoiceData): Promise<{
   return data.data!;
 };
 
-// ✅ FUNÇÃO REAL DE PAGAMENTO - CORRIGIDA
 const processRealPayment = async (
-  contact: string,           // Número de telefone
-  amount: number,            // Valor do pagamento
-  documentNumber: string,    // Número da fatura/cotação
-  thirdPartyReference: string // Referência única
-): Promise<{ success: boolean; paymentId?: string; message?: string }> => {
-  try {
-    // ✅ FORMATAR a transaction reference com prefixo ORDER
-    const formattedTransactionRef = formatTransactionReference(documentNumber);
-    
-    const payload = {
-      customer_msisdn: contact,
-      amount: amount,
-      transaction_reference: formattedTransactionRef, // ✅ Com prefixo ORDER
-      third_party_reference: thirdPartyReference
-    };
+  contact: string,
+  amount: number,
+  documentNumber: string,
+  thirdPartyReference: string
+): Promise<void> => {
+  const formattedTransactionRef = formatTransactionReference(documentNumber);
 
-    console.log('📤 Payload final para MPesa:', payload);
+  const payload = {
+    customer_msisdn: contact,
+    amount: amount,
+    transaction_reference: formattedTransactionRef,
+    third_party_reference: thirdPartyReference
+  };
 
-    const response = await fetch('/api/mpesa', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+  const response = await fetch('/api/mpesa', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new ApiError(
-        data.error?.code || 'PAYMENT_ERROR',
-        data.error?.message || 'Erro ao processar pagamento',
-        data.error?.details,
-        response.status
-      );
-    }
+  const data = await response.json();
 
-    return {
-      success: data.success,
-      paymentId: data.mpesa_transaction_id,
-      message: data.message
-    };
-
-  } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
-    
+  if (!response.ok) {
+    const errorMessage = data.error?.message || 'Erro ao processar pagamento';
     throw new ApiError(
-      'NETWORK_ERROR',
-      'Erro de conexão. Verifique sua internet e tente novamente.',
-      { originalError: error }
+      data.error?.code || 'PAYMENT_ERROR',
+      errorMessage,
+      data.error?.details,
+      response.status
+    );
+  }
+
+  if (!data.success) {
+    throw new ApiError(
+      'PAYMENT_FAILED',
+      data.message || 'Pagamento não foi autorizado'
     );
   }
 };
 
-// Template PDF
+const sendDocumentByEmail = async (documentData: {
+  documentId: string;
+  documentNumber: string;
+  documentType: 'fatura' | 'cotacao';
+  clientName: string;
+  clientEmail: string;
+  date: string;
+  totalValue?: number;
+  currency?: string;
+}): Promise<{ success: boolean; message: string }> => {
+  try {
+    console.log('📧 usePayment: Enviando email para:', documentData.clientEmail);
+    console.log('📧 usePayment - documentId:', documentData.documentId);
+
+    const response = await fetch('/api/email/send-document', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(documentData),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Erro ao enviar email');
+    }
+
+    return {
+      success: result.success,
+      message: result.message
+    };
+  } catch (error) {
+    console.error('📧 usePayment: Erro ao enviar email:', error);
+    return {
+      success: false,
+      message: 'Erro ao enviar email. Tente novamente.'
+    };
+  }
+};
+
 const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?: string): string => {
   return `
 <!DOCTYPE html>
@@ -241,32 +273,18 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
     body { background: white !important; color: #000 !important; line-height: 1.4; padding: 5mm; margin: 0 !important; }
     
     @media print {
-      @page { margin: 5mm !important; size: A4; margin-header: 0 !important; margin-footer: 0 !important; marks: none !important; }
+      @page { margin: 5mm !important; size: A4; }
       body { padding: 0 !important; margin: 0 !important; width: 100% !important; }
-      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
-      .header, .footer, [class*="header"], [class*="footer"], #header, #footer, .print-header, .print-footer { display: none !important; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .header, .footer, [class*="header"], [class*="footer"] { display: none !important; }
     }
-    
-    table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
-    th, td { padding: 8px 12px; border: 1px solid #ddd; }
-    .no-break { page-break-inside: avoid; }
   </style>
 </head>
 <body>
   ${htmlContent}
   
-  <div style="display: none;" class="print-instructions">
-    <h3>📄 Como Salvar como PDF</h3>
-    <ol>
-      <li><strong>Pressione Ctrl+P</strong> (ou Cmd+P no Mac)</li>
-      <li>Selecione <strong>"Salvar como PDF"</strong></li>
-      <li><strong>Margens:</strong> "Mínimo" | <strong>Cabeçalhos/rodapés:</strong> DESATIVADOS</li>
-    </ol>
-  </div>
-
   <script>
     setTimeout(() => window.print(), 500);
-    window.onbeforeunload = () => "PDF gerado com sucesso? Pode fechar esta janela.";
   </script>
 </body>
 </html>`;
@@ -276,42 +294,38 @@ export const usePayment = ({
   invoiceData,
   onInvoiceCreated
 }: UsePaymentProps): UsePaymentReturn => {
-  // Estados
-  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'error' | 'duplicate_document'>('idle');
+  const [selectedMethod, setSelectedMethod] = useState<string | null>('Mpeza');
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [contactNumber, setContactNumber] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [documentSaveResult, setDocumentSaveResult] = useState<{ documentId: string; documentNumber: string } | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [internalCreateError, setInternalCreateError] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [existingDocumentData, setExistingDocumentData] = useState<{ documentNumber: string; documentId?: string } | null>(null);
   const [thirdPartyReference, setThirdPartyReference] = useState<string>('');
 
-  // Ref para prevenir duplo clique
   const isProcessingRef = useRef(false);
+  const currentAttemptRef = useRef(0);
 
-  // Hook de verificação
-  const {
-    checkFaturaExists,
-    checkCotacaoExists,
-    checking: isCheckingDocument,
-  } = useDocumentCheck();
+  const { user } = useAuth();
 
-  // Dados derivados
   const documentType: TipoDocumento = invoiceData?.tipo || 'fatura';
   const documentInfo = getDocumentDisplayInfo(documentType);
   const isCotacao = documentType === 'cotacao';
 
-  // ✅ Gerar third_party_reference quando o hook é inicializado
-  useState(() => {
+  useEffect(() => {
     setThirdPartyReference(generateThirdPartyReference());
-  });
+  }, []);
+
+  const getDocumentId = (): string => {
+    return isCotacao
+      ? invoiceData?.formData?.cotacaoNumero || 'N/A'
+      : invoiceData?.formData?.faturaNumero || 'N/A';
+  };
 
   const dynamicDocumentData = {
-    id: getDocumentId(invoiceData, isCotacao),
+    id: getDocumentId(),
     client: invoiceData?.formData?.destinatario?.nomeCompleto || 'Cliente não definido',
     description: documentInfo.description,
     amount: `${LIBERATION_FEE.toFixed(2)} ${CURRENCY}`,
@@ -323,19 +337,71 @@ export const usePayment = ({
     ...documentInfo
   };
 
-  // Verificação de documento
-  const checkDocumentByType = useCallback(async (numero: string): Promise<boolean> => {
-    if (!numero.trim()) return false;
-    try {
-      return invoiceData?.tipo === 'fatura' 
-        ? await checkFaturaExists(numero)
-        : await checkCotacaoExists(numero);
-    } catch {
-      return false;
-    }
-  }, [invoiceData?.tipo, checkFaturaExists, checkCotacaoExists]);
+  // ✅ VALIDAÇÃO ATUALIZADA - VERIFICA SE DOCUMENTO JÁ EXISTE
+  const validateDocumentNumber = useCallback(async (): Promise<boolean> => {
+    const numero = invoiceData?.formData?.faturaNumero || invoiceData?.formData?.cotacaoNumero;
 
-  // Salvamento seguro de documento
+    if (!numero?.trim()) {
+      throw new Error('Número do documento é obrigatório');
+    }
+
+    try {
+      // Verificar se o documento já existe
+      const documentExists = isCotacao
+        ? await checkCotacaoExistsDirect(numero)
+        : await checkFaturaExistsDirect(numero);
+
+      if (documentExists) {
+        throw new Error(`${dynamicDocumentData.typeDisplay} "${numero}" já existe. Já registaste uma ${dynamicDocumentData.typeDisplay} com este código.`);
+      }
+
+      return true;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Erro ao verificar documento existente');
+    }
+  }, [invoiceData, isCotacao, dynamicDocumentData.typeDisplay]);
+
+  const processPaymentWithRetry = useCallback(async (
+    contact: string,
+    amount: number,
+    documentNumber: string,
+    thirdPartyRef: string,
+    maxRetries: number = 3
+  ): Promise<void> => {
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        currentAttemptRef.current = attempt;
+
+        if (attempt > 1) {
+          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+        }
+
+        await processRealPayment(contact, amount, documentNumber, thirdPartyRef);
+        return;
+
+      } catch (error) {
+        lastError = error as Error;
+
+        const errorMessage = error instanceof Error ? error.message.toLowerCase() : '';
+        const isRetryableError =
+          errorMessage.includes('duplicate') ||
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('network');
+
+        if (!isRetryableError || attempt === maxRetries) {
+          throw lastError;
+        }
+      }
+    }
+
+    throw lastError;
+  }, []);
+
   const handleSaveDocument = useCallback(async (htmlContent: string): Promise<{
     documentId: string;
     documentNumber: string;
@@ -351,27 +417,19 @@ export const usePayment = ({
       };
 
       const result = await createDocumentDirect(documentDataWithHtml);
+
+      if (!result.id) {
+        throw new Error('ID do documento não foi retornado');
+      }
+
       return result;
     } catch (error) {
       let errorMessage = 'Erro ao criar documento';
 
       if (error instanceof ApiError) {
         switch (error.code) {
-          case 'UNAUTHORIZED':
-            errorMessage = 'Sessão expirada. Faça login novamente.';
-            break;
-          case 'VALIDATION_ERROR':
-            errorMessage = `Dados inválidos: ${error.message}`;
-            break;
           case 'DOCUMENT_ALREADY_EXISTS':
-            errorMessage = error.message;
-            setExistingDocumentData({
-              documentNumber: error.details?.documentNumber || dynamicDocumentData.id,
-              documentId: error.details?.documentId
-            });
-            throw new ApiError(error.code, error.message, error.details);
-          case 'DATABASE_ERROR':
-            errorMessage = 'Erro no banco de dados. Tente novamente.';
+            errorMessage = `${dynamicDocumentData.typeDisplay} já existe! Escolha outro número.`;
             break;
           default:
             errorMessage = error.message || 'Erro ao criar documento';
@@ -385,159 +443,130 @@ export const usePayment = ({
     } finally {
       setIsCreating(false);
     }
-  }, [invoiceData, dynamicDocumentData.id, thirdPartyReference]);
+  }, [invoiceData, dynamicDocumentData.typeDisplay, thirdPartyReference]);
 
-  // ✅ PROCESSAMENTO REAL DE PAGAMENTO - CORRIGIDO
-  const processRealPaymentCallback = useCallback(async (
-    contact: string
-  ): Promise<boolean> => {
-    try {
-      console.log('🔍 Dados para MPesa:', {
-        contact,
-        amount: LIBERATION_FEE,
-        documentNumber: dynamicDocumentData.id,
-        thirdPartyReference
-      });
-
-      const paymentResult = await processRealPayment(
-        contact,                    // Número de telefone
-        LIBERATION_FEE,             // Valor (10)
-        dynamicDocumentData.id,     // Número do documento (FTR-112)
-        thirdPartyReference         // Referência única (942XQN)
-      );
-
-      if (!paymentResult.success) {
-        throw new ApiError(
-          'PAYMENT_FAILED',
-          paymentResult.message || 'Pagamento não foi autorizado pelo provedor'
-        );
-      }
-
-      return true;
-    } catch (error) {
-      if (error instanceof ApiError) {
-        // Tratamento específico por tipo de erro
-        switch (error.code) {
-          case 'INSUFFICIENT_FUNDS':
-            throw new Error('Saldo insuficiente. Por favor, recarregue sua conta e tente novamente.');
-          
-          case 'INVALID_NUMBER':
-            throw new Error('Número de telefone inválido. Verifique o número e tente novamente.');
-          
-          case 'NETWORK_ERROR':
-            throw new Error('Erro de conexão. Verifique sua internet e tente novamente.');
-          
-          case 'PAYMENT_TIMEOUT':
-            throw new Error('Tempo limite excedido. O pagamento demorou muito para processar.');
-          
-          case 'PROVIDER_ERROR':
-            throw new Error('Serviço de pagamento temporariamente indisponível. Tente novamente em alguns minutos.');
-          
-          case 'DUPLICATE_TRANSACTION':
-            // ✅ Gerar nova referência para tentativa de retry
-            setThirdPartyReference(generateThirdPartyReference());
-            throw new Error('Transação duplicada. Nova referência gerada, tente novamente.');
-          
-          default:
-            throw new Error(error.message || 'Erro ao processar pagamento. Tente novamente.');
-        }
-      }
-      
-      throw new Error('Erro inesperado ao processar pagamento. Tente novamente.');
-    }
-  }, [dynamicDocumentData.id, thirdPartyReference]);
-
-  // Processamento principal CORRIGIDO
   const processPayment = useCallback(async (renderedHtml: string): Promise<void> => {
-    if (isProcessingRef.current) return;
+    if (isProcessingRef.current) {
+      setErrorMessage('Processamento já em andamento');
+      return;
+    }
 
-    // ✅ VALIDAÇÕES SIMPLIFICADAS para MPesa
+    // Validação do contacto
     if (!contactNumber.trim()) {
       setErrorMessage('Por favor, insira o número de contacto para MPesa');
       return;
     }
 
-    if (!selectedMethod) {
-      setErrorMessage('Por favor, selecione MPesa como método de pagamento');
-      return;
-    }
-
-    // ✅ VALIDAÇÃO BÁSICA do número
     const cleanedContact = contactNumber.replace(/\D/g, '');
     if (cleanedContact.length < 9) {
       setErrorMessage('Número de telefone deve ter pelo menos 9 dígitos');
       return;
     }
 
+    // Reset do estado
     isProcessingRef.current = true;
+    currentAttemptRef.current = 0;
     setPaymentStatus('processing');
     setErrorMessage(null);
     setSuccessMessage(null);
-    setExistingDocumentData(null);
 
     try {
-      // Verificação de duplicata
-      const numero = invoiceData?.formData?.faturaNumero || invoiceData?.formData?.cotacaoNumero;
-      if (numero?.trim()) {
-        const documentStillExists = await checkDocumentByType(numero);
-        if (documentStillExists) {
-          setPaymentStatus('duplicate_document');
-          setErrorMessage(`${dynamicDocumentData.typeDisplay} "${numero}" já registrada. Escolha outro número!`);
-          return;
-        }
-      }
+      // ✅ 1. VALIDAÇÃO DO DOCUMENTO - VERIFICA SE JÁ EXISTE (PRIMEIRO PASSO CRÍTICO)
+      setSuccessMessage('Validando número do documento...');
+      await validateDocumentNumber();
 
-      // ✅ PROCESSAR PAGAMENTO MPesa
-      setSuccessMessage(`🔄 Processando pagamento MPesa... Referência: ${thirdPartyReference}`);
-      
-      const paymentSuccess = await processRealPaymentCallback(contactNumber);
+      // ✅ 2. SE CHEGOU AQUI, DOCUMENTO NÃO EXISTE - PODE CONTINUAR
 
-      if (!paymentSuccess) {
-        throw new Error('Pagamento MPesa falhou. Tente novamente.');
-      }
+      // 3. Gerar referência
+      const currentThirdPartyReference = generateThirdPartyReference();
+      setThirdPartyReference(currentThirdPartyReference);
 
-      // Salvar documento COM HTML (após pagamento confirmado)
-      setSuccessMessage('✅ Pagamento confirmado! Salvando documento...');
-      const saveResult = await handleSaveDocument(renderedHtml);
-      setDocumentSaveResult(saveResult);
-
-      // Sucesso
-      setPaymentStatus('success');
-      setSuccessMessage(
-        `${dynamicDocumentData.typeDisplay} criada com sucesso! 
-        Número: ${saveResult.documentNumber}
-        Referência: ${thirdPartyReference}`
+      // 4. Processar pagamento
+      setSuccessMessage('Iniciando processamento MPesa...');
+      await processPaymentWithRetry(
+        contactNumber,
+        LIBERATION_FEE,
+        dynamicDocumentData.id,
+        currentThirdPartyReference
       );
 
+      // 5. Salvar documento
+      setSuccessMessage('Pagamento confirmado! Salvando documento...');
+      const saveResult = await handleSaveDocument(renderedHtml);
+
+      setDocumentSaveResult({
+        documentId: saveResult.id,
+        documentNumber: saveResult.numero
+      });
+
+      // ✅ 6. ENVIAR EMAIL APÓS SALVAR O DOCUMENTO COM SUCESSO
+      try {
+        const userEmail = user?.email;
+        if (userEmail) {
+          setSuccessMessage('Enviando documento por email...');
+
+          await sendDocumentByEmail({
+            documentId: saveResult.id,
+            documentNumber: saveResult.numero,
+            documentType: dynamicDocumentData.type as 'fatura' | 'cotacao',
+            clientName: dynamicDocumentData.client,
+            clientEmail: userEmail,
+            date: new Date().toISOString(),
+            totalValue: dynamicDocumentData.totalValue,
+            currency: dynamicDocumentData.currency
+          });
+
+          setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso! Documento enviado por email.`);
+        } else {
+          setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso!`);
+        }
+      } catch (emailError) {
+        console.error('Erro ao enviar email:', emailError);
+        setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso! (Email não enviado)`);
+      }
+
+      // 7. Sucesso final
+      setPaymentStatus('success');
+
       if (onInvoiceCreated) {
-        onInvoiceCreated(saveResult.documentId);
+        onInvoiceCreated(saveResult.id);
       }
 
     } catch (error) {
-      if (error instanceof ApiError && error.code === 'DOCUMENT_ALREADY_EXISTS') {
-        setPaymentStatus('duplicate_document');
-        const numero = invoiceData?.formData?.faturaNumero || invoiceData?.formData?.cotacaoNumero;
-        setErrorMessage(`${dynamicDocumentData.typeDisplay} já existe! Número: ${numero}`);
+      setPaymentStatus('error');
+
+      if (error instanceof Error) {
+        const errorMsg = error.message.toLowerCase();
+
+        if (errorMsg.includes('já existe') || errorMsg.includes('nunca')) {
+          setErrorMessage(error.message);
+        } else if (errorMsg.includes('saldo') || errorMsg.includes('insufficient')) {
+          setErrorMessage('Saldo insuficiente no MPesa. Por favor, recarregue e tente novamente.');
+        } else if (errorMsg.includes('duplicate') || errorMsg.includes('duplicad')) {
+          setErrorMessage('Transação duplicada. Aguarde alguns instantes e tente novamente.');
+        } else if (errorMsg.includes('invalid') || errorMsg.includes('inválido')) {
+          setErrorMessage('Número de telefone inválido. Verifique o número inserido.');
+        } else if (currentAttemptRef.current > 1) {
+          setErrorMessage(`Falha após ${currentAttemptRef.current} tentativas. ${error.message}`);
+        } else {
+          setErrorMessage(error.message);
+        }
       } else {
-        setPaymentStatus('error');
-        setErrorMessage(error instanceof Error ? error.message : 'Erro ao processar pagamento MPesa.');
+        setErrorMessage('Erro inesperado ao processar pagamento');
       }
     } finally {
       isProcessingRef.current = false;
     }
   }, [
-    selectedMethod,
     contactNumber,
     dynamicDocumentData,
-    processRealPaymentCallback,
     handleSaveDocument,
     onInvoiceCreated,
-    invoiceData,
-    checkDocumentByType,
-    thirdPartyReference
+    validateDocumentNumber,
+    processPaymentWithRetry,
+    user?.email
   ]);
 
-  // Download funcionando
   const handleDownload = useCallback(async (renderedHtml: string, documentNumber?: string): Promise<void> => {
     try {
       setIsGeneratingPdf(true);
@@ -552,10 +581,8 @@ export const usePayment = ({
       pdfWindow.document.write(optimizedHtml);
       pdfWindow.document.close();
 
-      setSuccessMessage('📄 PDF gerado com sucesso!');
-
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Erro ao gerar PDF');
+      setErrorMessage('Erro ao gerar PDF');
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -568,43 +595,17 @@ export const usePayment = ({
     window.open(`mailto:digitalhub.midia@gmail.com?subject=${subject}&body=${body}`, '_blank');
   }, [dynamicDocumentData]);
 
-  const handleUseExistingDocument = useCallback(() => {
-    if (existingDocumentData?.documentId) {
-      setDocumentSaveResult({
-        documentId: existingDocumentData.documentId,
-        documentNumber: existingDocumentData.documentNumber
-      });
-      setPaymentStatus('success');
-      setErrorMessage(null);
-      setSuccessMessage(`Usando ${dynamicDocumentData.typeDisplayLower} existente: ${existingDocumentData.documentNumber}`);
-
-      if (onInvoiceCreated) {
-        onInvoiceCreated(existingDocumentData.documentId);
-      }
-    }
-  }, [existingDocumentData, dynamicDocumentData, onInvoiceCreated]);
-
-  const handleCreateNewDocument = useCallback(() => {
-    setPaymentStatus('idle');
-    setExistingDocumentData(null);
-    setErrorMessage('Por favor, altere o número do documento e tente novamente.');
-  }, []);
-
   const handleRetry = useCallback(() => {
-    // ✅ Gerar nova third_party_reference no retry
     setThirdPartyReference(generateThirdPartyReference());
     setPaymentStatus('idle');
     setErrorMessage(null);
     setSuccessMessage(null);
     setDocumentSaveResult(null);
-    setExistingDocumentData(null);
-    setContactNumber('');
-    setSelectedMethod(null);
     isProcessingRef.current = false;
+    currentAttemptRef.current = 0;
   }, []);
 
   return {
-    // Estados
     selectedMethod,
     paymentStatus,
     contactNumber,
@@ -612,30 +613,17 @@ export const usePayment = ({
     successMessage,
     documentSaveResult,
     isCreating,
-    internalCreateError,
     isPreviewOpen,
     isGeneratingPdf,
-    existingDocumentData,
-    isCheckingDocument,
-
-    // Setters
     setSelectedMethod,
     setContactNumber,
     setIsPreviewOpen,
     setErrorMessage,
-
-    // Ações
     processPayment,
     handleRetry,
     handleDownload,
     handleEmailSend,
-    handleUseExistingDocument,
-    handleCreateNewDocument,
-
-    // Dados
     paymentMethods: PAYMENT_METHODS,
-    dynamicDocumentData,
-    liberationFee: LIBERATION_FEE,
-    currency: CURRENCY
+    dynamicDocumentData
   };
 };
