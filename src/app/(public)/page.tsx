@@ -12,7 +12,7 @@ const HeroSection = dynamic(() => import('@/app/components/layout/sections/HeroS
 });
 
 export default function HomePage() {
-  const { user, isLoading } = useAuth();
+  const { user: _user, isLoading } = useAuth();
 
   if (isLoading) {
     return <LoadingOverlay />;

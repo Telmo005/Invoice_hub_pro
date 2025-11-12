@@ -183,6 +183,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     if (shouldUpdate) {
       setFormData(prev => ({ ...prev, ...updates }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.dataFatura, formData.dataVencimento, formData.validezCotacao, formData.validezFatura, formData.tipo, formData.termos, atualizarTermosAutomaticamente]);
 
   const verificarModificacoesEmpresa = useCallback((empresaOriginal: Empresa, dadosAtuais: FormDataFatura['emitente']) => {
@@ -232,7 +233,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
 
       item.taxas.forEach((taxa) => {
         const valorTaxa = Math.max(VALIDATION_RULES.MIN_TAX_RATE, Math.min(taxa.tipo === 'percent' ? VALIDATION_RULES.MAX_TAX_RATE : VALIDATION_RULES.MAX_PRICE, taxa.valor));
-        let taxaAmount = taxa.tipo === 'percent' ? (baseValue * valorTaxa) / 100 : valorTaxa;
+        const taxaAmount = taxa.tipo === 'percent' ? (baseValue * valorTaxa) / 100 : valorTaxa;
         itemTaxas += taxaAmount;
         const nomeTaxa = sanitizeString(taxa.nome) || 'Taxa';
         taxasMap[nomeTaxa] = (taxasMap[nomeTaxa] || 0) + taxaAmount;

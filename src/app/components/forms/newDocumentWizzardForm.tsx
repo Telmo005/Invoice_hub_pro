@@ -1,6 +1,6 @@
 import React, { useState, useCallback, memo, useEffect } from 'react';
 import { Roboto } from 'next/font/google';
-import { FaEye, FaPlus, FaTrash, FaEdit, FaExclamationTriangle, FaArrowRight, FaArrowLeft, FaCheck, FaSpinner, FaTimes, FaDownload, FaBuilding } from 'react-icons/fa';
+import { FaPlus, FaExclamationTriangle, FaArrowRight, FaArrowLeft, FaCheck, FaSpinner, FaTimes } from 'react-icons/fa';
 import useInvoiceForm from '@/app/hooks/forms/useNewDocumentWizzardForm';
 import TemplateSlider from '@/app/components/panels/slider';
 import Payment from '@/app/components/forms/PaymentForm';
@@ -81,7 +81,7 @@ interface StepsListProps {
   isNavigating: boolean;
 }
 
-interface newDocumentFormProps { tipo: TipoDocumento; }
+interface NewDocumentFormProps { tipo: TipoDocumento; }
 
 interface ItemRowProps {
   item: any;
@@ -111,7 +111,7 @@ const ItemRow = memo(({
     return subtotal + taxTotal;
   }, [item.quantidade, item.precoUnitario, item.taxas]);
 
-  const handleNumericInput = useCallback((field: string, value: string, currentValue: number) => {
+  const handleNumericInput = useCallback((field: string, value: string, _currentValue: number) => {
     if (value === '') { onUpdate(field, 0); return; }
     const cleanValue = value.replace(/^0+/, '') || '0';
     const numValue = parseFloat(cleanValue);
@@ -521,7 +521,7 @@ const StepsList = memo(({ currentStep, onStepClick, validateAllPreviousSteps, is
 });
 StepsList.displayName = 'StepsList';
 
-const newDocumentForm: React.FC<newDocumentFormProps> = ({ tipo = 'fatura' }) => {
+const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) => {
   const { formData, items, errors, handleChange, handleBlur, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, updateFormData, empresaModificacoes, verificarModificacoesEmpresa, registrarEmpresaOriginal, limparModificacoesEmpresa, isCheckingDocument, validateForm } = useInvoiceForm(tipo);
   const { empresas, loading: empresasLoading, error: empresasError, refetch: refetchEmpresas } = useListarEmissores();
   const { empresaPadrao, loading: empresaPadraoLoading, error: empresaPadraoError, refetch: refetchEmpresaPadrao } = useEmpresaPadrao();
@@ -775,4 +775,4 @@ const newDocumentForm: React.FC<newDocumentFormProps> = ({ tipo = 'fatura' }) =>
   );
 };
 
-export default newDocumentForm;
+export default NewDocumentForm;

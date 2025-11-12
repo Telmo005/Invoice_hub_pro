@@ -334,7 +334,7 @@ export async function DELETE(
       .single();
 
     // Verificar se existem faturas vinculadas
-    const { data: faturas, error: checkError } = await supabase
+    const { data: faturas, error: _checkError } = await supabase
       .from('faturas')
       .select('id')
       .eq('emitente_id', id)

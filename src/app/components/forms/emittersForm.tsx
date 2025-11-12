@@ -237,7 +237,7 @@ const Screen = () => {
   } = useListarEmissores();
   
   const { 
-    empresaPadrao, 
+    empresaPadrao: _empresaPadrao, 
     loading: loadingPadrao, 
     error: errorPadrao, 
     definirEmpresaPadrao,
@@ -245,8 +245,8 @@ const Screen = () => {
   } = useEmpresaPadrao();
   
   const { 
-    loading: loadingCrud, 
-    error: errorCrud, 
+    loading: _loadingCrud, 
+    error: _errorCrud, 
     adicionarEmpresa, 
     editarEmpresa, 
     excluirEmpresa 

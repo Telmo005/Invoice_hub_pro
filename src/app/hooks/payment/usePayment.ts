@@ -1,5 +1,5 @@
 // src/app/hooks/payment/usePayment.ts
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { InvoiceData, TipoDocumento } from '@/types/invoice-types';
 import { useAuth } from '@/app/providers/AuthProvider';
 
@@ -318,14 +318,12 @@ export const usePayment = ({
     setThirdPartyReference(generateThirdPartyReference());
   }, []);
 
-  const getDocumentId = (): string => {
-    return isCotacao
-      ? invoiceData?.formData?.cotacaoNumero || 'N/A'
-      : invoiceData?.formData?.faturaNumero || 'N/A';
-  };
+  
 
-  const dynamicDocumentData = {
-    id: getDocumentId(),
+  const dynamicDocumentData = useMemo(() => ({
+    id: isCotacao
+      ? invoiceData?.formData?.cotacaoNumero || 'N/A'
+      : invoiceData?.formData?.faturaNumero || 'N/A',
     client: invoiceData?.formData?.destinatario?.nomeCompleto || 'Cliente não definido',
     amount: `${LIBERATION_FEE.toFixed(2)} ${CURRENCY}`,
     date: formatDate(invoiceData?.formData?.dataFatura),
@@ -334,7 +332,7 @@ export const usePayment = ({
     currency: invoiceData?.formData?.moeda || 'MT',
     thirdPartyReference: thirdPartyReference,
     ...documentInfo
-  };
+  }), [invoiceData, thirdPartyReference, documentInfo, isCotacao]);
 
   // ✅ VALIDAÇÃO ATUALIZADA - VERIFICA SE DOCUMENTO JÁ EXISTE
   const validateDocumentNumber = useCallback(async (): Promise<boolean> => {
@@ -580,7 +578,7 @@ export const usePayment = ({
       pdfWindow.document.write(optimizedHtml);
       pdfWindow.document.close();
 
-    } catch (error) {
+    } catch (_error) {
       setErrorMessage('Erro ao gerar PDF');
     } finally {
       setIsGeneratingPdf(false);

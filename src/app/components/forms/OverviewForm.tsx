@@ -3,18 +3,15 @@ import { useRouter } from 'next/navigation';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   FiFileText,
-  FiDollarSign,
   FiSearch,
   FiEye,
   FiFilter,
   FiActivity,
-  FiX,
   FiChevronDown,
   FiChevronUp,
   FiAlertCircle,
-  FiFile,
   FiTrash2,
-  FiPlus,
+  
   FiCheck,
   FiArrowRight,
   FiArrowLeft,
@@ -37,7 +34,6 @@ const roboto = Roboto({
 
 type DocumentType = 'faturas' | 'cotacoes';
 type DocumentStatus = 'rascunho' | 'emitida' | 'paga' | 'cancelada' | 'expirada' | 'todos';
-type PaymentStatus = 'pendente' | 'pago' | null;
 
 interface OverviewDocument {
   id: string;
@@ -473,7 +469,7 @@ const NAVIGATION_SECTIONS = [
 
 export default function DocumentsPage() {
   const router = useRouter();
-  const { secureLog, isAuthenticated } = useDocumentManager();
+  const { secureLog, isAuthenticated: _isAuthenticated } = useDocumentManager();
 
   // Estados de UI
   const [activeTab, setActiveTab] = useState<DocumentType>('faturas');
@@ -504,7 +500,6 @@ export default function DocumentsPage() {
   // Hooks com segurança
   const {
     documents,
-    stats,
     loading,
     error,
     refetch,
@@ -1071,6 +1066,7 @@ export default function DocumentsPage() {
       default:
         return null;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentSection, activeTab, statusFilter, dateFilter, searchTerm,
     filteredDocuments, draftStats, isFiltersOpen,

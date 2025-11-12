@@ -86,9 +86,9 @@ class TemplateService {
       if (!dateString) return '';
       try {
         return new Date(dateString).toLocaleDateString('pt-BR');
-      } catch (e) {
-        return dateString;
-      }
+      } catch (_e) {
+          return dateString;
+        }
     };
 
     let renderedHtml = html;

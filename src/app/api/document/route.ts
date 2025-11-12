@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
       stats
     })
 
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
