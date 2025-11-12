@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
 
-// Interfaces para tipagem consistente
 interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -37,7 +36,6 @@ interface RequestBody {
   documentData: InvoiceData;
 }
 
-// Códigos de erro padronizados
 const ERROR_CODES = {
   UNAUTHORIZED: 'UNAUTHORIZED',
   VALIDATION_ERROR: 'VALIDATION_ERROR',
@@ -45,29 +43,6 @@ const ERROR_CODES = {
   DOCUMENT_ALREADY_EXISTS: 'DOCUMENT_ALREADY_EXISTS',
   INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
-
-// Função para verificar se documento já existe
-async function checkExistingDocument(
-  supabase: any, 
-  userId: string, 
-  documentNumber: string, 
-  tipo: string
-): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('documentos')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('numero_documento', documentNumber)
-    .eq('tipo_documento', tipo)
-    .maybeSingle();
-
-  if (error) {
-    console.error('Erro ao verificar documento existente:', error);
-    return false;
-  }
-
-  return !!data;
-}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -78,7 +53,6 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await supabaseServer();
     
-    // Verificar autenticação
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !authUser) {
@@ -105,7 +79,6 @@ export async function POST(request: NextRequest) {
 
     user = authUser;
 
-    // Validar e parsear corpo da requisição
     let body: RequestBody;
     try {
       body = await request.json();
@@ -129,7 +102,6 @@ export async function POST(request: NextRequest) {
 
     documentData = body.documentData;
 
-    // Validar dados obrigatórios
     if (!documentData) {
       await logger.log({
         action: 'api_call',
@@ -157,7 +129,6 @@ export async function POST(request: NextRequest) {
 
     const { formData, items, totais, logo, assinatura } = documentData;
 
-    // Log de tentativa de criação
     await logger.log({
       action: 'document_create',
       level: 'info',
@@ -174,7 +145,6 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Validar dados obrigatórios específicos
     const missingFields = [];
     if (!formData?.faturaNumero) missingFields.push('faturaNumero');
     if (!formData?.emitente) missingFields.push('emitente');
@@ -207,7 +177,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    // Validar items
     if (!items || !Array.isArray(items) || items.length === 0) {
       await logger.log({
         action: 'api_call',
@@ -230,42 +199,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    // ✅ VERIFICAR SE DOCUMENTO JÁ EXISTE ANTES DE CRIAR
-    const documentExists = await checkExistingDocument(
-      supabase, 
-      user.id, 
-      formData.faturaNumero, 
-      'fatura'
-    );
-
-    if (documentExists) {
-      await logger.log({
-        action: 'document_create',
-        level: 'warn',
-        message: `Tentativa de criar fatura duplicada: ${formData.faturaNumero}`,
-        details: {
-          user: user.id,
-          numero: formData.faturaNumero,
-          tipo: 'fatura'
-        }
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.DOCUMENT_ALREADY_EXISTS,
-          message: 'Esta fatura já foi criada anteriormente',
-          details: {
-            documentNumber: formData.faturaNumero,
-            suggestion: 'Verifique suas faturas criadas ou use um número diferente',
-            existingDocument: true
-          }
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 409 }); // 409 Conflict
-    }
-
-    // Chamar a função PostgreSQL para criar a fatura completa
     const { data: result, error: functionError } = await supabase.rpc('criar_fatura_completa', {
       p_user_id: user.id,
       p_emitente: formData.emitente,
@@ -295,7 +228,6 @@ export async function POST(request: NextRequest) {
         databaseHint: functionError.hint
       });
 
-      // Tratamento específico para erro de documento duplicado
       if (functionError.code === 'P0001' && functionError.message.includes('Já existe um documento')) {
         const errorResponse: ApiResponse = {
           success: false,
@@ -351,7 +283,6 @@ export async function POST(request: NextRequest) {
 
     invoiceId = result;
 
-    // Log de sucesso da criação
     await logger.logDocumentCreation('fatura', result, {
       numero: formData.faturaNumero,
       totais: totais,
@@ -361,7 +292,6 @@ export async function POST(request: NextRequest) {
       dataVencimento: formData.dataVencimento
     });
 
-    // Resposta de sucesso
     const successResponse: ApiResponse<{ id: string; numero: string }> = {
       success: true,
       data: {
@@ -398,12 +328,11 @@ export async function POST(request: NextRequest) {
   } finally {
     const duration = Date.now() - startTime;
     
-    // Log de performance da API
     await logger.logApiCall(
       '/api/document/invoice/create',
       'POST',
       duration,
-      invoiceId !== null // Sucesso se invoiceId foi definido
+      invoiceId !== null
     );
   }
 }

@@ -20,6 +20,7 @@ const STEPS = [
   { title: 'Pré-visualização', icon: '👁️' },
   { title: 'Finalizar', icon: '🏆' },
 ];
+
 interface EmitenteStepProps {
   formData: any;
   errors: Record<string, string>;
@@ -50,7 +51,7 @@ interface ItensStepProps {
   adicionarTaxa: (id: number) => void;
   removerTaxa: (id: number, taxaIndex: number) => void;
   onItemBlur: (field: string) => void;
-  isCheckingDocument: boolean;
+  isGeneratingNumber: boolean;
 }
 
 interface PreviewStepProps {
@@ -249,6 +250,7 @@ const ItemRow = memo(({
   );
 });
 ItemRow.displayName = 'ItemRow';
+
 interface FormFieldProps {
   id: string;
   label: string;
@@ -386,7 +388,7 @@ const DestinatarioStep = memo(({ formData, errors, handleChange, handleBlur }: D
 });
 DestinatarioStep.displayName = 'DestinatarioStep';
 
-const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, onItemBlur, isCheckingDocument }: ItensStepProps) => {
+const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, onItemBlur, isGeneratingNumber }: ItensStepProps) => {
   const isCotacao = formData.tipo === 'cotacao';
   const formatarData = (data: string) => new Date(data).toLocaleDateString('pt-MZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const handleValidityChange = (e: React.ChangeEvent<HTMLInputElement>, isCotacao: boolean) => {
@@ -410,9 +412,31 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
         <div className="flex flex-wrap -mx-2">
           <div className="w-full md:w-1/2 px-2 mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">{isCotacao ? 'Número da Cotação *' : 'Número da Fatura *'}</label>
-            <input type="text" id={isCotacao ? "cotacaoNumero" : "faturaNumero"} name={isCotacao ? "cotacaoNumero" : "faturaNumero"} className={`w-full p-2 border rounded text-sm ${errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] ? 'border-red-500' : 'border-gray-300'}`} value={isCotacao ? (formData.cotacaoNumero || '') : formData.faturaNumero} onChange={handleChange} onBlur={handleBlur} placeholder={isCotacao ? "Ex: COT-100" : "Ex: FTR-100"} required maxLength={20} />
+            <input 
+              type="text" 
+              id={isCotacao ? "cotacaoNumero" : "faturaNumero"} 
+              name={isCotacao ? "cotacaoNumero" : "faturaNumero"} 
+              className={`w-full bg-gray-50 p-2 border rounded text-sm ${errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] ? 'border-red-500' : 'border-gray-300'} ${isGeneratingNumber ? 'bg-gray-50' : ''}`} 
+              value={isCotacao ? (formData.cotacaoNumero || '') : formData.faturaNumero} 
+              onChange={handleChange} 
+              onBlur={handleBlur} 
+              placeholder={isGeneratingNumber ? "Gerando número automaticamente..." : (isCotacao ? "Ex: COT-100" : "Ex: FTR-100")} 
+              required 
+              maxLength={20}
+              readOnly={true}
+            />
+            {isGeneratingNumber ? (
+              <div className="text-blue-500 text-xs mt-1 flex items-center">
+                <FaSpinner className="animate-spin mr-1" size={12} />
+                Gerando número automaticamente...
+              </div>
+            ) : formData[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] ? (
+              <div className="text-green-500 text-xs mt-1 flex items-center">
+                <FaCheck className="mr-1" size={12} />
+                Número gerado automaticamente
+              </div>
+            ) : null}
             {errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] && <div className="text-red-500 text-xs mt-1">{errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero']}</div>}
-            {isCheckingDocument && <div className="text-blue-500 text-xs mt-1 flex items-center"><FaSpinner className="animate-spin mr-1" size={12} />Verificando...</div>}
           </div>
           <div className="w-full md:w-1/2 px-2 mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">Data {isCotacao ? 'da Cotação' : 'da Fatura'} *</label>
@@ -522,7 +546,7 @@ const StepsList = memo(({ currentStep, onStepClick, validateAllPreviousSteps, is
 StepsList.displayName = 'StepsList';
 
 const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) => {
-  const { formData, items, errors, handleChange, handleBlur, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, updateFormData, empresaModificacoes, verificarModificacoesEmpresa, registrarEmpresaOriginal, limparModificacoesEmpresa, isCheckingDocument, validateForm } = useInvoiceForm(tipo);
+  const { formData, items, errors, handleChange, handleBlur, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, updateFormData, empresaModificacoes, verificarModificacoesEmpresa, registrarEmpresaOriginal, limparModificacoesEmpresa, isGeneratingNumber, validateForm } = useInvoiceForm(tipo);
   const { empresas, loading: empresasLoading, error: empresasError, refetch: refetchEmpresas } = useListarEmissores();
   const { empresaPadrao, loading: empresaPadraoLoading, error: empresaPadraoError, refetch: refetchEmpresaPadrao } = useEmpresaPadrao();
   const [currentStep, setCurrentStep] = useState(0);
@@ -564,7 +588,6 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
   const handleEmpresaChange = useCallback((empresa: Empresa) => { setSelectedEmpresa(empresa); fillEmitterData(empresa); registrarEmpresaOriginal(empresa); }, [fillEmitterData, registrarEmpresaOriginal]);
   const handleHtmlRendered = useCallback((html: string) => { setRenderedHtml(html); }, []);
   const toggleTemplateFullscreen = useCallback(() => { setIsTemplateFullscreen(!isTemplateFullscreen); }, [isTemplateFullscreen]);
-
 
   const validateStep = useCallback((step: number) => {
     const newErrors: Record<string, string> = {};
@@ -620,8 +643,6 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
       case 2:
         if (formData.tipo === 'fatura') {
           validateRequired(formData.faturaNumero, 'faturaNumero');
-          if (formData.faturaNumero && !/^[A-Z0-9_]+$/.test(formData.faturaNumero))
-            newErrors['faturaNumero'] = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
           validateRequired(formData.validezFatura, 'validezFatura');
           if (formData.validezFatura) {
             const dias = parseInt(formData.validezFatura);
@@ -630,8 +651,6 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
           }
         } else {
           validateRequired(formData.cotacaoNumero, 'cotacaoNumero');
-          if (formData.cotacaoNumero && !/^[A-Z0-9\-_]+$/.test(formData.cotacaoNumero))
-            newErrors['cotacaoNumero'] = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
           validateRequired(formData.validezCotacao, 'validezCotacao');
           if (formData.validezCotacao) {
             const dias = parseInt(formData.validezCotacao);
@@ -703,7 +722,7 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
       name: field, 
       value: '' 
     } 
-  } as any); // Usar 'any' para evitar problemas de tipo
+  } as any);
 }, [handleBlur]);
  const prepareDocumentData = useCallback(() => { return prepareInvoiceData(); }, [prepareInvoiceData]);
 
@@ -711,12 +730,12 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
     const stepComponents = {
       0: <EmitenteStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} empresas={empresas} selectedEmpresa={selectedEmpresa} onEmpresaChange={handleEmpresaChange} empresasLoading={loading} />,
       1: <DestinatarioStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} />,
-      2: <ItensStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} items={items} adicionarItem={adicionarItem} removerItem={removerItem} atualizarItem={atualizarItem} adicionarTaxa={adicionarTaxa} removerTaxa={removerTaxa} onItemBlur={handleItemBlur} isCheckingDocument={isCheckingDocument} />,
+      2: <ItensStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} items={items} adicionarItem={adicionarItem} removerItem={removerItem} atualizarItem={atualizarItem} adicionarTaxa={adicionarTaxa} removerTaxa={removerTaxa} onItemBlur={handleItemBlur} isGeneratingNumber={isGeneratingNumber} />,
       3: <PreviewStep invoiceData={prepareInvoiceData()} tipo={tipo} isFullscreen={isTemplateFullscreen} onToggleFullscreen={toggleTemplateFullscreen} onHtmlRendered={handleHtmlRendered} />,
       4: <Payment invoiceData={prepareDocumentData()} renderedHtml={renderedHtml} />
     };
     return stepComponents[currentStep as keyof typeof stepComponents] || null;
-  }, [currentStep, formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, isTemplateFullscreen, toggleTemplateFullscreen, handleHtmlRendered, renderedHtml, handleItemBlur, empresas, selectedEmpresa, handleEmpresaChange, loading, prepareDocumentData, tipo, isCheckingDocument]);
+  }, [currentStep, formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, isTemplateFullscreen, toggleTemplateFullscreen, handleHtmlRendered, renderedHtml, handleItemBlur, empresas, selectedEmpresa, handleEmpresaChange, loading, prepareDocumentData, tipo, isGeneratingNumber]);
 
   if (loading && empresas.length === 0) return (<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><FaSpinner className="animate-spin text-blue-500 text-4xl mb-4 mx-auto" /><p className="text-gray-600">Carregando dados das empresas...</p></div></div>);
   if (error && empresas.length === 0) return (<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md"><p className="font-bold">Erro ao carregar empresas</p><p className="text-sm">{error}</p><button onClick={refreshData} className="mt-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm">Tentar Novamente</button></div></div></div>);
@@ -766,7 +785,7 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
           <div className="flex-1 min-w-0">
             <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6 overflow-hidden">
               {renderStepContent()}
-              <NavigationButtons currentStep={currentStep} totalSteps={STEPS.length} onPrev={prevStep} onNext={nextStep} isNavigating={isNavigating || isCheckingDocument} />
+              <NavigationButtons currentStep={currentStep} totalSteps={STEPS.length} onPrev={prevStep} onNext={nextStep} isNavigating={isNavigating} />
             </div>
           </div>
         </div>

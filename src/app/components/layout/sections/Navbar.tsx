@@ -79,6 +79,8 @@ interface NavLinkProps {
   href: string;
   icon: string;
   label: string;
+  onClick?: () => void;
+  isLoading?: boolean;
 }
 
 interface DropdownLinkProps {
@@ -86,6 +88,7 @@ interface DropdownLinkProps {
   icon: string;
   label: string;
   onClick: () => void;
+  isLoading?: boolean;
 }
 
 // Hook personalizado para manipulação do avatar
@@ -133,52 +136,72 @@ const AvatarSkeleton = () => (
 );
 
 // Componentes reutilizáveis
-const NavLink = ({ href, icon, label }: NavLinkProps) => {
+const NavLink = ({ href, icon, label, onClick, isLoading = false }: NavLinkProps) => {
   const iconObj = ICONS[icon as keyof typeof ICONS];
 
   return (
-    <Link href={href} className="group" prefetch={false}>
-      <div className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium transition-all rounded-lg hover:bg-gray-50">
-        {iconObj && (
+    <Link 
+      href={href} 
+      className="group" 
+      prefetch={false}
+      onClick={onClick}
+    >
+      <div className={`flex items-center gap-2 text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium transition-all rounded-lg hover:bg-gray-50 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+        {isLoading ? (
           <FontAwesomeIcon
-            icon={iconObj}
-            className="text-xs text-gray-500 group-hover:text-indigo-500 transition-colors"
+            icon={ICONS.faSpinner}
+            className="text-xs text-gray-500 animate-spin"
           />
+        ) : (
+          iconObj && (
+            <FontAwesomeIcon
+              icon={iconObj}
+              className="text-xs text-gray-500 group-hover:text-indigo-500 transition-colors"
+            />
+          )
         )}
-        <span>{label}</span>
+        <span>{isLoading ? 'Carregando...' : label}</span>
       </div>
     </Link>
   );
 };
 
-const _DropdownLink = ({ href, icon, label, onClick }: DropdownLinkProps) => {
+const _DropdownLink = ({ href, icon, label, onClick, isLoading = false }: DropdownLinkProps) => {
   const iconObj = ICONS[icon as keyof typeof ICONS];
 
   return (
     <Link
       href={href}
       onClick={onClick}
-      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+      className={`flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
       prefetch={false}
     >
-      {iconObj && <FontAwesomeIcon icon={iconObj} className="text-gray-500" />}
-      <span>{label}</span>
+      {isLoading ? (
+        <FontAwesomeIcon icon={ICONS.faSpinner} className="text-gray-500 animate-spin" />
+      ) : (
+        iconObj && <FontAwesomeIcon icon={iconObj} className="text-gray-500" />
+      )}
+      <span>{isLoading ? 'Carregando...' : label}</span>
     </Link>
   );
 };
 
-const MobileDropdownLink = ({ href, icon, label, onClick }: DropdownLinkProps) => {
+const MobileDropdownLink = ({ href, icon, label, onClick, isLoading = false }: DropdownLinkProps) => {
   const iconObj = ICONS[icon as keyof typeof ICONS];
 
   return (
     <Link
       href={href}
       onClick={onClick}
-      className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+      className={`flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
       prefetch={false}
     >
-      {iconObj && <FontAwesomeIcon icon={iconObj} className="text-gray-500" />}
-      <span>{label}</span>
+      {isLoading ? (
+        <FontAwesomeIcon icon={ICONS.faSpinner} className="text-gray-500 animate-spin" />
+      ) : (
+        iconObj && <FontAwesomeIcon icon={iconObj} className="text-gray-500" />
+      )}
+      <span>{isLoading ? 'Carregando...' : label}</span>
     </Link>
   );
 };
@@ -188,10 +211,11 @@ export default function Navbar() {
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isNavigating, setIsNavigating] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const { user, isLoading, signOut } = useAuth();
   const router = useRouter();
 
-  // CORRIGIDO: Especificar o tipo HTMLDivElement explicitamente
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -214,6 +238,16 @@ export default function Navbar() {
   const closeDropdown = () => setDropdownOpen(false);
   const closeMobileDropdown = () => setMobileDropdownOpen(false);
 
+  const handleNavigate = async (route: string, label: string) => {
+    setIsNavigating(label);
+    closeDropdown();
+    closeMobileDropdown();
+    
+    // Pequeno delay para mostrar o loading
+    await new Promise(resolve => setTimeout(resolve, 25));
+    router.push(route);
+  };
+
   const handleNavigateToLogin = () => {
     setIsRedirecting(true);
     router.push(ROUTES.LOGIN);
@@ -221,11 +255,14 @@ export default function Navbar() {
 
   const handleSignOut = async () => {
     try {
+      setIsSigningOut(true);
       closeDropdown();
       closeMobileDropdown();
       await signOut();
     } catch (error) {
       console.error('Logout failed:', error);
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -249,7 +286,7 @@ export default function Navbar() {
             <button
               onClick={handleNavigateToLogin}
               disabled={isRedirecting}
-              className="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:border-indigo-300 hover:shadow-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
+              className="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:border-indigo-300 hover:shadow-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isRedirecting ? (
                 <>
@@ -268,18 +305,37 @@ export default function Navbar() {
             </button>
           ) : (
             <>
-              <NavLink href={ROUTES.DASHBOARD} icon="faGauge" label="Dashboard" />
-              <NavLink href={ROUTES.QUOTES_INVOICES} icon="faFileInvoice" label="Cotações & Faturas" />
-              <NavLink href={ROUTES.ENTITIES} icon="faCompany" label="Entidades" />
+              <NavLink 
+                href={ROUTES.DASHBOARD} 
+                icon="faGauge" 
+                label="Dashboard" 
+                onClick={() => handleNavigate(ROUTES.DASHBOARD, 'Dashboard')}
+                isLoading={isNavigating === 'Dashboard'}
+              />
+              <NavLink 
+                href={ROUTES.QUOTES_INVOICES} 
+                icon="faFileInvoice" 
+                label="Cotações & Faturas" 
+                onClick={() => handleNavigate(ROUTES.QUOTES_INVOICES, 'Cotações & Faturas')}
+                isLoading={isNavigating === 'Cotações & Faturas'}
+              />
+              <NavLink 
+                href={ROUTES.ENTITIES} 
+                icon="faCompany" 
+                label="Entidades" 
+                onClick={() => handleNavigate(ROUTES.ENTITIES, 'Entidades')}
+                isLoading={isNavigating === 'Entidades'}
+              />
 
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={toggleDropdown}
-                  className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-50 transition"
+                  className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
                   aria-expanded={dropdownOpen}
                   aria-label="Menu do usuário"
+                  disabled={isSigningOut}
                 >
-                  {isLoading ? (
+                  {isLoading || isSigningOut ? (
                     <AvatarSkeleton />
                   ) : (
                     <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow-sm hover:border-indigo-100 transition-colors">
@@ -303,7 +359,11 @@ export default function Navbar() {
                     </div>
                   )}
                   <div className={`transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`}>
-                    <FontAwesomeIcon icon={ICONS.faChevronDown} className="text-gray-500 text-xs" />
+                    {isSigningOut ? (
+                      <FontAwesomeIcon icon={ICONS.faSpinner} className="text-gray-500 text-xs animate-spin" />
+                    ) : (
+                      <FontAwesomeIcon icon={ICONS.faChevronDown} className="text-gray-500 text-xs" />
+                    )}
                   </div>
                 </button>
                 {dropdownOpen && (
@@ -337,11 +397,21 @@ export default function Navbar() {
                     <div className="py-1">
                       <button
                         onClick={handleSignOut}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 rounded-lg transition-colors"
+                        disabled={isSigningOut}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Sair da conta"
                       >
-                        <FontAwesomeIcon icon={ICONS.faSignOutAlt} />
-                        <span>Sair</span>
+                        {isSigningOut ? (
+                          <>
+                            <FontAwesomeIcon icon={ICONS.faSpinner} className="animate-spin" />
+                            <span>Saindo...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FontAwesomeIcon icon={ICONS.faSignOutAlt} />
+                            <span>Sair</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -355,14 +425,19 @@ export default function Navbar() {
         <div className="md:hidden relative" ref={mobileDropdownRef}>
           <button
             onClick={toggleMobileDropdown}
-            className="p-2 rounded-lg hover:bg-gray-100 transition active:scale-95"
+            className="p-2 rounded-lg hover:bg-gray-100 transition active:scale-95 disabled:opacity-50"
             aria-label="Menu"
             aria-expanded={mobileDropdownOpen}
+            disabled={isSigningOut}
           >
-            <FontAwesomeIcon
-              icon={mobileDropdownOpen ? ICONS.faXmark : ICONS.faBars}
-              className="text-lg"
-            />
+            {isSigningOut ? (
+              <FontAwesomeIcon icon={ICONS.faSpinner} className="text-lg animate-spin" />
+            ) : (
+              <FontAwesomeIcon
+                icon={mobileDropdownOpen ? ICONS.faXmark : ICONS.faBars}
+                className="text-lg"
+              />
+            )}
           </button>
 
           {mobileDropdownOpen && (
@@ -371,7 +446,7 @@ export default function Navbar() {
                 <button
                   onClick={handleNavigateToLogin}
                   disabled={isRedirecting}
-                  className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 mb-2"
+                  className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mb-2"
                 >
                   {isRedirecting ? (
                     <>
@@ -416,16 +491,44 @@ export default function Navbar() {
                     </div>
                   </div>
 
-                  <MobileDropdownLink href={ROUTES.DASHBOARD} icon="faGauge" label="Dashboard" onClick={closeMobileDropdown} />
-                  <MobileDropdownLink href={ROUTES.QUOTES_INVOICES} icon="faFileInvoice" label="Cotações & Faturas" onClick={closeMobileDropdown} />
-                  <MobileDropdownLink href={ROUTES.ENTITIES} icon="faCompany" label="Entidades" onClick={closeMobileDropdown} />
+                  <MobileDropdownLink 
+                    href={ROUTES.DASHBOARD} 
+                    icon="faGauge" 
+                    label="Dashboard" 
+                    onClick={() => handleNavigate(ROUTES.DASHBOARD, 'Dashboard')}
+                    isLoading={isNavigating === 'Dashboard'}
+                  />
+                  <MobileDropdownLink 
+                    href={ROUTES.QUOTES_INVOICES} 
+                    icon="faFileInvoice" 
+                    label="Cotações & Faturas" 
+                    onClick={() => handleNavigate(ROUTES.QUOTES_INVOICES, 'Cotações & Faturas')}
+                    isLoading={isNavigating === 'Cotações & Faturas'}
+                  />
+                  <MobileDropdownLink 
+                    href={ROUTES.ENTITIES} 
+                    icon="faCompany" 
+                    label="Entidades" 
+                    onClick={() => handleNavigate(ROUTES.ENTITIES, 'Entidades')}
+                    isLoading={isNavigating === 'Entidades'}
+                  />
                   <button
                     onClick={handleSignOut}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 rounded-lg transition-colors mt-1"
+                    disabled={isSigningOut}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 rounded-lg transition-colors mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Sair da conta"
                   >
-                    <FontAwesomeIcon icon={ICONS.faSignOutAlt} />
-                    <span>Sair</span>
+                    {isSigningOut ? (
+                      <>
+                        <FontAwesomeIcon icon={ICONS.faSpinner} className="animate-spin" />
+                        <span>Saindo...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FontAwesomeIcon icon={ICONS.faSignOutAlt} />
+                        <span>Sair</span>
+                      </>
+                    )}
                   </button>
                 </>
               )}

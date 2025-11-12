@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FormDataFatura, ItemFatura, TotaisFatura, TaxaItem, InvoiceData, TipoDocumento } from '@/types/invoice-types';
 
-// Interface local para resolver o erro
 interface Empresa {
   id: string;
   padrao: boolean;
@@ -37,31 +36,17 @@ const VALIDATION_RULES = {
   MAX_TAX_RATE: 100,
 } as const;
 
-const checkFaturaExistsDirect = async (numero: string): Promise<boolean> => {
+const generateNextDocumentNumber = async (tipo: TipoDocumento): Promise<string> => {
   try {
-    const response = await fetch('/api/document/invoice/find', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numero }),
-    });
+    const response = await fetch(`/api/document/next-number?tipo=${tipo}`);
+    if (!response.ok) throw new Error('Erro ao gerar número');
     const data = await response.json();
-    return data.success && data.data?.exists === true;
-  } catch {
-    return false;
-  }
-};
-
-const checkCotacaoExistsDirect = async (numero: string): Promise<boolean> => {
-  try {
-    const response = await fetch('/api/document/quotation/find', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numero }),
-    });
-    const data = await response.json();
-    return data.success && data.data?.exists === true;
-  } catch {
-    return false;
+    if (data.success) return data.data.numero;
+    throw new Error(data.error);
+  } catch (_error) {
+    const prefixo = tipo === 'fatura' ? 'FTR' : 'COT';
+    const fallback = Math.floor(Math.random() * 9000) + 1000;
+    return `${prefixo}_${String(fallback).padStart(4, '0')}`;
   }
 };
 
@@ -149,15 +134,36 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     camposModificados: {},
     houveModificacoes: false
   });
-  const [isCheckingDocument, setIsCheckingDocument] = useState(false);
+  const [isGeneratingNumber, setIsGeneratingNumber] = useState(false);
 
- const atualizarTermosAutomaticamente = useCallback((currentFormData: FormDataFatura) => {
-  const dias = currentFormData.tipo === 'cotacao'
-    ? parseInt(currentFormData.validezCotacao || '15') || 15 // ← valor padrão 15
-    : parseInt(currentFormData.validezFatura || '15') || 15; // ← valor padrão 15
-  const tipoDocumento = currentFormData.tipo === 'cotacao' ? 'cotação' : 'fatura';
-  return `Este ${tipoDocumento} é válido por ${dias} ${dias === 1 ? 'dia' : 'dias'} a partir da data de emissão.`;
-}, []);
+  const atualizarTermosAutomaticamente = useCallback((currentFormData: FormDataFatura) => {
+    const dias = currentFormData.tipo === 'cotacao'
+      ? parseInt(currentFormData.validezCotacao || '15') || 15
+      : parseInt(currentFormData.validezFatura || '15') || 15;
+    const tipoDocumento = currentFormData.tipo === 'cotacao' ? 'cotação' : 'fatura';
+    return `Este ${tipoDocumento} é válido por ${dias} ${dias === 1 ? 'dia' : 'dias'} a partir da data de emissão.`;
+  }, []);
+
+  const generateDocumentNumber = useCallback(async () => {
+    setIsGeneratingNumber(true);
+    try {
+      const numero = await generateNextDocumentNumber(formData.tipo);
+      if (formData.tipo === 'fatura') {
+        setFormData(prev => ({ ...prev, faturaNumero: numero }));
+      } else {
+        setFormData(prev => ({ ...prev, cotacaoNumero: numero }));
+      }
+    } catch (error) {
+      console.error('Erro ao gerar número:', error);
+    } finally {
+      setIsGeneratingNumber(false);
+    }
+  }, [formData.tipo]);
+
+  useEffect(() => {
+    generateDocumentNumber();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.tipo]);
 
   useEffect(() => {
     let shouldUpdate = false;
@@ -165,8 +171,8 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
 
     if (formData.dataFatura) {
       const diasValidade = formData.tipo === 'cotacao' 
-        ? formData.validezCotacao || 15 // ← valor padrão 15 
-        : formData.validezFatura || 15; // ← valor padrão 15
+        ? formData.validezCotacao || 15
+        : formData.validezFatura || 15;
       const novaDataValidade = calcularDataValidade(formData.dataFatura, diasValidade);
       if (formData.dataVencimento !== novaDataValidade) {
         updates.dataVencimento = novaDataValidade;
@@ -258,24 +264,8 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
 
   useEffect(() => { calcularTotais(); }, [calcularTotais]);
 
-  const checkDocumentExists = useCallback(async (numero: string): Promise<boolean> => {
-    if (!numero.trim()) return false;
-    setIsCheckingDocument(true);
-    try {
-      return formData.tipo === 'fatura' ? await checkFaturaExistsDirect(numero) : await checkCotacaoExistsDirect(numero);
-    } catch {
-      return false;
-    } finally {
-      setIsCheckingDocument(false);
-    }
-  }, [formData.tipo]);
-
   const validateField = async (name: string, value: string): Promise<string> => {
     if (!value.trim() && (name.includes('.nomeEmpresa') || name.includes('.nomeCompleto') || name.includes('.pais') || name.includes('.cidade') || name.includes('.telefone'))) {
-      return 'Campo obrigatório';
-    }
-    
-    if ((name === 'faturaNumero' && formData.tipo === 'fatura' && !value.trim()) || (name === 'cotacaoNumero' && formData.tipo === 'cotacao' && !value.trim())) {
       return 'Campo obrigatório';
     }
     
@@ -287,17 +277,6 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     
     if (name.includes('email') && value && !validateEmail(value)) return 'Email inválido';
     if (name.includes('telefone') && value && !validatePhone(value)) return 'Telefone inválido';
-    
-    if ((name === 'faturaNumero' || name === 'cotacaoNumero') && value) {
-      if (!/^[A-Z0-9]+$/.test(value)) {
-        return 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
-      }
-      const exists = await checkDocumentExists(value);
-      if (exists) {
-        const tipoDoc = formData.tipo === 'fatura' ? 'fatura' : 'cotação';
-        return `A ${tipoDoc} "${value}" já está registrada. Escolha outro número.`;
-      }
-    }
     
     if (value.length > VALIDATION_RULES.MAX_STRING_LENGTH) {
       return `Máximo ${VALIDATION_RULES.MAX_STRING_LENGTH} caracteres`;
@@ -367,10 +346,6 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       setFormData((prev) => ({ ...prev, [name]: sanitizedValue }));
     }
 
-    if ((name === 'faturaNumero' || name === 'cotacaoNumero') && errors[name]) {
-      setErrors(prev => { const newErrors = { ...prev }; delete newErrors[name]; return newErrors; });
-    }
-
     if (touched[name]) {
       validateField(name, value).then(error => {
         if (error) setErrors(prev => ({ ...prev, [name]: error }));
@@ -427,9 +402,9 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     const newErrors: Record<string, string> = {};
     const allFields = ['emitente.nomeEmpresa', 'emitente.pais', 'emitente.cidade', 'emitente.telefone', 'destinatario.nomeCompleto', 'destinatario.telefone'];
     if (formData.tipo === 'fatura') {
-      allFields.push('faturaNumero', 'validezFatura');
+      allFields.push('validezFatura');
     } else {
-      allFields.push('cotacaoNumero', 'validezCotacao');
+      allFields.push('validezCotacao');
     }
     allFields.push('dataFatura');
 
@@ -450,24 +425,12 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     if (formData.destinatario.email && !validateEmail(formData.destinatario.email)) newErrors['destinatario.email'] = 'Email inválido';
 
     if (formData.tipo === 'fatura') {
-      if (!formData.faturaNumero?.trim()) newErrors.faturaNumero = 'Campo obrigatório';
-      else if (!/^[A-Z0-9_]+$/.test(formData.faturaNumero)) newErrors.faturaNumero = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
-      else {
-        const exists = await checkDocumentExists(formData.faturaNumero);
-        if (exists) newErrors.faturaNumero = `A fatura "${formData.faturaNumero}" já está registrada. Escolha outro número.`;
-      }
       if (!formData.validezFatura?.trim()) newErrors.validezFatura = 'Campo obrigatório';
       else {
         const dias = parseInt(formData.validezFatura);
         if (dias < 1 || dias > 365) newErrors.validezFatura = 'Validade deve ser entre 1 e 365 dias';
       }
     } else {
-      if (!formData.cotacaoNumero?.trim()) newErrors.cotacaoNumero = 'Campo obrigatório';
-      else if (!/^[A-Z0-9_]+$/.test(formData.cotacaoNumero)) newErrors.cotacaoNumero = 'Use apenas letras maiúsculas, números e underscores (_) se espaçamentos';
-      else {
-        const exists = await checkDocumentExists(formData.cotacaoNumero);
-        if (exists) newErrors.cotacaoNumero = `A cotação "${formData.cotacaoNumero}" já está registrada. Escolha outro número.`;
-      }
       if (!formData.validezCotacao?.trim()) newErrors.validezCotacao = 'Campo obrigatório';
       else {
         const dias = parseInt(formData.validezCotacao);
@@ -524,7 +487,31 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     };
   };
 
-  return { formData, items, totais, errors, touched, isCheckingDocument, handleChange, handleBlur, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, validateForm, limparFormulario, calcularTotais, prepareInvoiceData, updateFormData, empresaModificacoes, verificarModificacoesEmpresa, registrarEmpresaOriginal, limparModificacoesEmpresa };
+  return { 
+    formData, 
+    items, 
+    totais, 
+    errors, 
+    touched, 
+    isGeneratingNumber,
+    handleChange, 
+    handleBlur, 
+    adicionarItem, 
+    removerItem, 
+    atualizarItem, 
+    adicionarTaxa, 
+    removerTaxa, 
+    validateForm, 
+    limparFormulario, 
+    calcularTotais, 
+    prepareInvoiceData, 
+    updateFormData, 
+    empresaModificacoes, 
+    verificarModificacoesEmpresa, 
+    registrarEmpresaOriginal, 
+    limparModificacoesEmpresa,
+    generateDocumentNumber
+  };
 };
 
 export default useInvoiceForm;

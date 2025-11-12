@@ -35,14 +35,16 @@ interface PaymentScreenProps {
 interface StatusMessageProps {
   type: 'success' | 'error' | 'info' | 'warning';
   message: string;
+  className?: string;
 }
 
-const StatusMessage: React.FC<StatusMessageProps> = ({ type, message }) => {
+// Componente de mensagem de status sem fundo
+const StatusMessage: React.FC<StatusMessageProps> = ({ type, message, className = '' }) => {
   const styles = {
-    success: 'bg-green-50 border-green-200 text-green-700',
-    error: 'bg-red-50 border-red-200 text-red-700',
-    info: 'bg-blue-50 border-blue-200 text-blue-700',
-    warning: 'bg-yellow-50 border-yellow-200 text-yellow-700'
+    success: 'text-green-600',
+    error: 'text-red-600',
+    info: 'text-blue-600',
+    warning: 'text-yellow-600'
   };
 
   const icons = {
@@ -53,9 +55,9 @@ const StatusMessage: React.FC<StatusMessageProps> = ({ type, message }) => {
   };
 
   return (
-    <div className={`p-3 border rounded-md flex items-start space-x-2 mb-4 ${styles[type]}`}>
+    <div className={`flex items-center space-x-2 text-sm ${styles[type]} ${className}`}>
       {icons[type]}
-      <span className="text-sm flex-1">{message}</span>
+      <span className="flex-1">{message}</span>
     </div>
   );
 };
@@ -165,12 +167,24 @@ const PaymentMethodDropdown: React.FC<{
   contactNumber: string;
   onMethodSelect: (method: string) => void;
   onContactChange: (value: string) => void;
+  errorMessage?: string;
+  successMessage?: string;
+  isProcessing: boolean;
+  isPaymentDisabled: boolean;
+  onProcessPayment: () => void;
+  dynamicDocumentData: any;
 }> = ({
   paymentMethods,
   selectedMethod,
   contactNumber,
   onMethodSelect,
-  onContactChange
+  onContactChange,
+  errorMessage,
+  successMessage,
+  isProcessing,
+  isPaymentDisabled,
+  onProcessPayment,
+  dynamicDocumentData
 }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const selectedMethodData = paymentMethods.find(method => method.id === selectedMethod);
@@ -236,33 +250,70 @@ const PaymentMethodDropdown: React.FC<{
         </div>
 
         {selectedMethodData && (
-          <div className="p-4 border-2 rounded-lg bg-red-50 border-red-200 transition-all">
-            <div className="flex items-center mb-3">
-              <PaymentMethodImage
-                methodId={selectedMethodData.id}
-                imagePath={selectedMethodData.imagePath}
-                className="w-8 h-8 mr-3"
-              />
-              <div>
-                <h4 className="font-semibold text-gray-800 text-base">{selectedMethodData.name}</h4>
-                <p className="text-gray-600 text-sm">{selectedMethodData.description}</p>
+          <div className="space-y-4">
+            <div className="p-4 border-2 rounded-lg bg-red-50 border-red-200 transition-all">
+              <div className="flex items-center mb-3">
+                <PaymentMethodImage
+                  methodId={selectedMethodData.id}
+                  imagePath={selectedMethodData.imagePath}
+                  className="w-8 h-8 mr-3"
+                />
+                <div>
+                  <h4 className="font-semibold text-gray-800 text-base">{selectedMethodData.name}</h4>
+                  <p className="text-gray-600 text-sm">{selectedMethodData.description}</p>
+                </div>
               </div>
-            </div>
 
-            <div className="mt-3">
-              <label className="block text-sm text-gray-700 mb-2 font-medium">
-                Seu número para confirmação:
-              </label>
-              <input
-                type="tel"
-                value={contactNumber}
-                onChange={(e) => onContactChange(e.target.value)}
-                placeholder="84 123 4567"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-colors"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Enviaremos uma confirmação para este número
-              </p>
+              <div className="mt-3">
+                <label className="block text-sm text-gray-700 mb-2 font-medium">
+                  Seu número para confirmação:
+                </label>
+                <input
+                  type="tel"
+                  value={contactNumber}
+                  onChange={(e) => onContactChange(e.target.value)}
+                  placeholder="84 123 4567"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-colors"
+                />
+                
+                {/* Mensagens de erro/sucesso APENAS abaixo do campo do número */}
+                <div className="mt-2">
+                  {errorMessage && (
+                    <StatusMessage 
+                      type="error" 
+                      message={errorMessage}
+                    />
+                  )}
+
+                  {successMessage && !errorMessage && (
+                    <StatusMessage 
+                      type="info" 
+                      message={successMessage}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Botão de pagamento abaixo do campo do número */}
+              <div className="mt-4">
+                <button
+                  onClick={onProcessPayment}
+                  disabled={isPaymentDisabled}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-semibold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed text-base transition-colors"
+                >
+                  {isProcessing ? (
+                    <>
+                      <FaSpinner className="animate-spin mr-2" />
+                      Processando...
+                    </>
+                  ) : (
+                    <>
+                      Pagar {dynamicDocumentData.amount}
+                      <FaArrowRight className="ml-2" />
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -378,14 +429,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
           </div>
         </div>
 
-        {successMessage && !errorMessage && (
-          <StatusMessage type="info" message={successMessage} />
-        )}
-
-        {errorMessage && (
-          <StatusMessage type="error" message={errorMessage} />
-        )}
-
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1">
             <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
@@ -416,6 +459,12 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
               contactNumber={contactNumber}
               onMethodSelect={setSelectedMethod}
               onContactChange={setContactNumber}
+              errorMessage={errorMessage ?? undefined}
+              successMessage={successMessage ?? undefined}
+              isProcessing={isProcessing}
+              isPaymentDisabled={isPaymentDisabled}
+              onProcessPayment={() => processPayment(renderedHtml)}
+              dynamicDocumentData={dynamicDocumentData}
             />
           </div>
 
@@ -474,24 +523,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
                 </button>
               </div>
 
-              <button
-                onClick={() => processPayment(renderedHtml)}
-                disabled={isPaymentDisabled}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-semibold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed mb-3 text-base transition-colors"
-              >
-                {isProcessing ? (
-                  <>
-                    <FaSpinner className="animate-spin mr-2" />
-                    Processando...
-                  </>
-                ) : (
-                  <>
-                    Pagar {dynamicDocumentData.amount}
-                    <FaArrowRight className="ml-2" />
-                  </>
-                )}
-              </button>
-
+              {/* Informações de segurança movidas para abaixo dos botões */}
               <div className="pt-3 border-t border-gray-200 text-center">
                 <div className="flex items-center justify-center text-gray-600 mb-2 text-sm">
                   <FaLock className="mr-2" />

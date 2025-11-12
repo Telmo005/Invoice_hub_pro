@@ -3,7 +3,7 @@ import React from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { FcGoogle } from 'react-icons/fc'
-import { FaFacebook } from 'react-icons/fa'
+import { FaFacebook, FaSpinner } from 'react-icons/fa'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { ROUTES } from '@/config/routes'
 
@@ -18,21 +18,25 @@ function LoginContent() {
 
   const handleLogin = async (provider: 'google' | 'facebook') => {
     try {
+      // MOSTRAR LOADING IMEDIATAMENTE
       setIsLoading(true)
       setCurrentProvider(provider)
       setError(null)
+      
+      // Pequeno delay para garantir que o spinner aparece
+      await new Promise(resolve => setTimeout(resolve, 50))
+      
       await signInWithOAuth(provider, redirectTo)
     } catch (err) {
       console.error("Login failed:", err)
+      setIsLoading(false)
+      setCurrentProvider(null)
 
       if (err instanceof Error) {
         setError(err.message || 'Falha ao fazer login. Por favor, tente novamente.')
       } else {
         setError('Falha ao fazer login. Por favor, tente novamente.')
       }
-    } finally {
-      setIsLoading(false)
-      setCurrentProvider(null)
     }
   }
 
@@ -82,15 +86,13 @@ function LoginContent() {
               <button
                 onClick={() => handleLogin('google')}
                 disabled={isLoading}
-                className="w-full relative inline-flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-50 transition-all duration-300 font-medium rounded-lg shadow hover:shadow-md transform hover:scale-[1.02] active:scale-95 px-8 py-3.5 text-gray-700 overflow-hidden group"
+                className="w-full relative inline-flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-50 transition-all duration-200 font-medium rounded-lg shadow hover:shadow-md px-8 py-3.5 text-gray-700 overflow-hidden group disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                <span className="relative z-10 flex items-center">
-                  {currentProvider === 'google' ? (
+                <span className="flex items-center justify-center w-full">
+                  {isLoading && currentProvider === 'google' ? (
                     <>
-                      <svg className="w-5 h-5 mr-3 animate-spin" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                      </svg>
-                      <span>CARREGANDO...</span>
+                      <FaSpinner className="w-5 h-5 mr-3 animate-spin text-blue-600" />
+                      <span className="text-gray-600">Abrindo Google...</span>
                     </>
                   ) : (
                     <>
@@ -99,7 +101,6 @@ function LoginContent() {
                     </>
                   )}
                 </span>
-                <span className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </button>
             </div>
 
@@ -107,15 +108,13 @@ function LoginContent() {
               <button
                 onClick={() => handleLogin('facebook')}
                 disabled={isLoading}
-                className="w-full relative inline-flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-50 transition-all duration-300 font-medium rounded-lg shadow hover:shadow-md transform hover:scale-[1.02] active:scale-95 px-8 py-3.5 text-gray-700 overflow-hidden group"
+                className="w-full relative inline-flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-50 transition-all duration-200 font-medium rounded-lg shadow hover:shadow-md px-8 py-3.5 text-gray-700 overflow-hidden group disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                <span className="relative z-10 flex items-center">
-                  {currentProvider === 'facebook' ? (
+                <span className="flex items-center justify-center w-full">
+                  {isLoading && currentProvider === 'facebook' ? (
                     <>
-                      <svg className="w-5 h-5 mr-3 animate-spin" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                      </svg>
-                      <span>CARREGANDO...</span>
+                      <FaSpinner className="w-5 h-5 mr-3 animate-spin text-blue-600" />
+                      <span className="text-gray-600">Abrindo Facebook...</span>
                     </>
                   ) : (
                     <>
@@ -124,7 +123,6 @@ function LoginContent() {
                     </>
                   )}
                 </span>
-                <span className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </button>
             </div>
 
@@ -176,7 +174,7 @@ export default function LoginPage() {
             Acesse sua conta
           </h2>
           <div className="mt-8 flex justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <FaSpinner className="animate-spin text-indigo-600 h-8 w-8" />
           </div>
         </div>
       </div>

@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
 
-// Interfaces para tipagem consistente
 interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -18,7 +17,7 @@ interface QuotationData {
   formData: {
     cotacaoNumero: string;
     dataFatura: string;
-    dataVencimento: string; // ✅ AGORA OBRIGATÓRIO
+    dataVencimento: string;
     ordemCompra?: string;
     termos?: string;
     moeda?: string;
@@ -38,7 +37,6 @@ interface RequestBody {
   documentData: QuotationData;
 }
 
-// Códigos de erro padronizados (MESMOS DA FATURA)
 const ERROR_CODES = {
   UNAUTHORIZED: 'UNAUTHORIZED',
   VALIDATION_ERROR: 'VALIDATION_ERROR', 
@@ -46,29 +44,6 @@ const ERROR_CODES = {
   DOCUMENT_ALREADY_EXISTS: 'DOCUMENT_ALREADY_EXISTS',
   INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
-
-// Função para verificar se documento já existe (MESMA DA FATURA)
-async function checkExistingDocument(
-  supabase: any, 
-  userId: string, 
-  documentNumber: string, 
-  tipo: string
-): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('documentos')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('numero_documento', documentNumber)
-    .eq('tipo_documento', tipo)
-    .maybeSingle();
-
-  if (error) {
-    console.error('Erro ao verificar documento existente:', error);
-    return false;
-  }
-
-  return !!data;
-}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -79,7 +54,6 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await supabaseServer();
     
-    // Verificar autenticação (MESMO DA FATURA)
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !authUser) {
@@ -106,7 +80,6 @@ export async function POST(request: NextRequest) {
 
     user = authUser;
 
-    // Validar e parsear corpo da requisição (MESMO DA FATURA)
     let body: RequestBody;
     try {
       body = await request.json();
@@ -130,7 +103,6 @@ export async function POST(request: NextRequest) {
 
     documentData = body.documentData;
 
-    // Validar dados obrigatórios (MESMO DA FATURA)
     if (!documentData) {
       await logger.log({
         action: 'api_call',
@@ -158,7 +130,6 @@ export async function POST(request: NextRequest) {
 
     const { formData, items, totais, logo, assinatura } = documentData;
 
-    // Log de tentativa de criação
     await logger.log({
       action: 'document_create',
       level: 'info',
@@ -175,10 +146,9 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // ✅ VALIDAÇÃO PADRONIZADA - MESMOS CAMPOS OBRIGATÓRIOS DA FATURA
     const missingFields = [];
     if (!formData?.cotacaoNumero) missingFields.push('cotacaoNumero');
-    if (!formData?.dataVencimento) missingFields.push('dataVencimento'); // ✅ AGORA OBRIGATÓRIO
+    if (!formData?.dataVencimento) missingFields.push('dataVencimento');
     if (!formData?.emitente) missingFields.push('emitente');
     if (!formData?.destinatario) missingFields.push('destinatario');
 
@@ -202,14 +172,13 @@ export async function POST(request: NextRequest) {
           message: 'Dados obrigatórios faltando',
           details: {
             missingFields,
-            required: ['cotacaoNumero', 'dataVencimento', 'emitente', 'destinatario'] // ✅ MESMO PADRÃO
+            required: ['cotacaoNumero', 'dataVencimento', 'emitente', 'destinatario']
           }
         }
       };
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    // Validar items (MESMO DA FATURA)
     if (!items || !Array.isArray(items) || items.length === 0) {
       await logger.log({
         action: 'api_call',
@@ -232,64 +201,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    // ✅ VERIFICAR SE DOCUMENTO JÁ EXISTE (MESMO DA FATURA)
-    const documentExists = await checkExistingDocument(
-      supabase, 
-      user.id, 
-      formData.cotacaoNumero, 
-      'cotacao'
-    );
-
-    if (documentExists) {
-      await logger.log({
-        action: 'document_create',
-        level: 'warn',
-        message: `Tentativa de criar cotação duplicada: ${formData.cotacaoNumero}`,
-        details: {
-          user: user.id,
-          numero: formData.cotacaoNumero,
-          tipo: 'cotacao'
-        }
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.DOCUMENT_ALREADY_EXISTS,
-          message: 'Esta cotação já foi criada anteriormente',
-          details: {
-            documentNumber: formData.cotacaoNumero,
-            suggestion: 'Verifique suas cotações criadas ou use um número diferente',
-            existingDocument: true
-          }
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 409 });
-    }
-
-    // ✅ ESTRUTURA PADRONIZADA PARA O BANCO (igual à fatura)
     const { data: result, error: functionError } = await supabase.rpc('criar_fatura_completa', {
       p_user_id: user.id,
       p_emitente: formData.emitente,
       p_destinatario: formData.destinatario,
       p_fatura: {
-        cotacaoNumero: formData.cotacaoNumero, // ✅ Nome do campo específico
+        cotacaoNumero: formData.cotacaoNumero,
         dataFatura: formData.dataFatura,
-        dataVencimento: formData.dataVencimento, // ✅ AGORA SEMPRE EXISTE
+        dataVencimento: formData.dataVencimento,
         ordemCompra: formData.ordemCompra,
         termos: formData.termos,
         moeda: formData.moeda || 'MT',
         metodoPagamento: formData.metodoPagamento,
         logoUrl: logo || null,
         assinaturaBase64: assinatura || null,
-        validezCotacao: formData.validezCotacao || 15 // ✅ Campo específico da cotação
+        validezCotacao: formData.validezCotacao || 15
       },
       p_itens: items || [],
       p_tipo_documento: 'cotacao',
       p_html_content: documentData.htmlContent || null
     });
 
-    // ✅ TRATAMENTO DE ERRO PADRONIZADO (MESMO DA FATURA)
     if (functionError) {
       await logger.logError(functionError, 'create_quotation_database', {
         user: user.id,
@@ -300,7 +232,6 @@ export async function POST(request: NextRequest) {
         validez: formData.validezCotacao
       });
 
-      // Tratamento específico para erro de documento duplicado
       if (functionError.code === 'P0001' && functionError.message.includes('Já existe um documento')) {
         const errorResponse: ApiResponse = {
           success: false,
@@ -357,7 +288,6 @@ export async function POST(request: NextRequest) {
 
     quotationId = result;
 
-    // Log de sucesso da criação
     await logger.logDocumentCreation('cotacao', result, {
       numero: formData.cotacaoNumero,
       totais: totais,
@@ -368,7 +298,6 @@ export async function POST(request: NextRequest) {
       dataVencimento: formData.dataVencimento
     });
 
-    // ✅ RESPOSTA PADRONIZADA (mesma estrutura da fatura)
     const successResponse: ApiResponse<{ id: string; numero: string }> = {
       success: true,
       data: {
@@ -405,12 +334,11 @@ export async function POST(request: NextRequest) {
   } finally {
     const duration = Date.now() - startTime;
     
-    // Log de performance da API
     await logger.logApiCall(
       '/api/document/quotation/create',
       'POST',
       duration,
-      quotationId !== null // Sucesso se quotationId foi definido
+      quotationId !== null
     );
   }
 }
