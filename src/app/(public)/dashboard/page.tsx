@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/app/hooks/useAuth';
 import LoadingOverlay from '@/app/components/ui/LoadingOverlay';
-import MainLayout from '@/app/components/layout/mainLayout';
+import MainLayout from '@/app/components/layout/MainLayout';
 import Footer from '@/app/components/layout/sections/Footer';
 
 const HeroSection = dynamic(() => import('@/app/components/layout/sections/HeroSection'), {
