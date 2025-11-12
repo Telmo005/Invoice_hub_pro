@@ -4,7 +4,6 @@ import { ReactNode } from 'react';
 import Head from 'next/head';
 import Navbar from '@/app/components/layout/sections/Navbar';
 import ToastNotification from '@/app/components/ui/ToastNotification';
-import { useAuth } from '@/app/hooks/useAuth';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import AuthProvider from '@/app/providers/AuthProvider'
 import { GlobalErrorBoundary } from '@/app/components/layout/GlobalErrorBoundary';

@@ -1,5 +1,4 @@
 'use client';
-import { useEffect, useState } from 'react';
 import { useToast } from '@/app/hooks/useToast';
 
 export default function ToastNotification() {

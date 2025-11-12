@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Template, TemplateRenderState, ZoomControls } from '@/types/template-types';
+import { TemplateRenderState, ZoomControls } from '@/types/template-types';
 import { InvoiceData, TipoDocumento } from '@/types/invoice-types';
 import { TemplateService, DocumentType } from '@/services/templateService';
 import { useDebounce } from '@/app/hooks/panels/useDebounce';
@@ -334,7 +334,8 @@ export const useTemplateManager = ({
       }
       
       // Clear any pending retries
-      retryCountRef.current.clear();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      retryCountRef.current?.clear();
     };
   }, []);
 
@@ -379,7 +380,6 @@ export const useTemplateManager = ({
     isZoomInDisabled,
     isZoomOutDisabled,
     fetchRenderedTemplate,
-    invoiceData,
-    tipo 
+    invoiceData
   ]);
 };

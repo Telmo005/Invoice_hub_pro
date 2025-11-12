@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerUser } from '@/lib/auth/server'
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const { user, error } = await getServerUser()
 
@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
           }
         : null,
     })
-  } catch (error) {
-    console.error('Auth API error:', error)
+  } catch (_error) {
+    console.error('Auth API error:', _error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

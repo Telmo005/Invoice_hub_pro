@@ -104,7 +104,7 @@ export class MpesaService {
 
       return result
 
-    } catch (error) {
+    } catch (_error) {
       const responseTime = Date.now() - startTime
       const result: HealthCheckResult = {
         success: false,
@@ -184,7 +184,7 @@ export class MpesaService {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        let errorText = await response.text()
+        const errorText = await response.text()
 
         // Tentar extrair mensagem do MPesa
         let mpesaErrorMessage = 'Erro ao processar pagamento'

@@ -28,7 +28,7 @@ export default function TestEmailPage() {
 
       const data = await response.json();
       setResult(data);
-    } catch (error) {
+    } catch (_error) {
       setResult({
         success: false,
         error: 'Erro de conexão com o servidor'

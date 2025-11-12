@@ -151,7 +151,7 @@ const NavLink = ({ href, icon, label }: NavLinkProps) => {
   );
 };
 
-const DropdownLink = ({ href, icon, label, onClick }: DropdownLinkProps) => {
+const _DropdownLink = ({ href, icon, label, onClick }: DropdownLinkProps) => {
   const iconObj = ICONS[icon as keyof typeof ICONS];
 
   return (

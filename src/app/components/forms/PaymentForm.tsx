@@ -73,7 +73,7 @@ const SuccessScreen: React.FC<{
   isGeneratingPdf,
   handleDownload
 }) => {
-    const DocumentIcon = dynamicDocumentData.type === 'cotacao' ? FaQuoteLeft : FaFileInvoice;
+    const _DocumentIcon = dynamicDocumentData.type === 'cotacao' ? FaQuoteLeft : FaFileInvoice;
 
     const getSuccessMessage = () => {
       return `${dynamicDocumentData.typeDisplay} criada com sucesso!`;
@@ -334,9 +334,9 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
     setSelectedMethod,
     setContactNumber,
     setIsPreviewOpen,
-    setErrorMessage,
+    setErrorMessage: _setErrorMessage,
     processPayment,
-    handleRetry,
+    handleRetry: _handleRetry,
     handleDownload,
     handleEmailSend,
     paymentMethods,

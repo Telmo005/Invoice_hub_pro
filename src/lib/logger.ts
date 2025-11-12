@@ -50,7 +50,7 @@ export class SystemLogger {
           method: 'GET'
         };
       }
-    } catch (error) {
+    } catch (_error) {
       return {
         ipAddress: 'unknown',
         userAgent: 'unknown',
@@ -115,9 +115,9 @@ export class SystemLogger {
           console.error('Log insertion error:', result.error.message);
         }
 
-      } catch (error) {
-        if (error instanceof Error && error.message !== 'Log timeout') {
-          console.error('Critical log error:', error);
+      } catch (_error) {
+        if (_error instanceof Error && _error.message !== 'Log timeout') {
+          console.error('Critical log error:', _error);
         }
       }
     };
@@ -150,7 +150,7 @@ export class SystemLogger {
           }
         });
 
-    } catch (error) {
+    } catch (_error) {
       this.isProcessing = false;
     }
   }

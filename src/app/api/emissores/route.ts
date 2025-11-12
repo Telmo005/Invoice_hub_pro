@@ -13,16 +13,6 @@ interface EmissorCreateData {
   padrao?: boolean
 }
 
-interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-  };
-}
-
 function validateEmissorData(data: any): { isValid: boolean; errors: string[]; validatedData?: EmissorCreateData } {
   const errors: string[] = []
 
@@ -57,7 +47,7 @@ function validateEmissorData(data: any): { isValid: boolean; errors: string[]; v
   return { isValid: true, errors: [], validatedData }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const supabase = await supabaseServer()
 
