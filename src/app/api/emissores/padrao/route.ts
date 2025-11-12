@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase-server'
 
 export async function GET(_request: NextRequest) {
-  const supabase = await supabaseServer()
-
   try {
+    const supabase = await supabaseServer()
+
     // Verificar autenticação
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -15,11 +15,20 @@ export async function GET(_request: NextRequest) {
       )
     }
 
-    // Buscar emissor padrão usando a função RPC
+    // Buscar emissor padrão
     const { data: emissorPadrao, error } = await supabase
-      .rpc('obter_emissor_padrao', { p_user_id: user.id })
+      .from('emissores')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('padrao', true)
+      .single()
 
     if (error) {
+      // Se não encontrou nenhum padrão, retorna null (não é erro)
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ empresa: null })
+      }
+      
       console.error('Erro ao buscar emissor padrão:', error)
       return NextResponse.json(
         { error: 'Erro ao carregar empresa padrão' },
@@ -27,27 +36,18 @@ export async function GET(_request: NextRequest) {
       )
     }
 
-    if (!emissorPadrao || emissorPadrao.length === 0) {
-      return NextResponse.json(
-        { error: 'Nenhuma empresa padrão definida' },
-        { status: 404 }
-      )
-    }
-
-    const emissor = emissorPadrao[0]
-
     // Transformar para formato do frontend
     const empresa = {
-      id: emissor.id,
-      nome: emissor.nome_empresa,
-      nuip: emissor.documento,
-      pais: emissor.pais,
-      cidade: emissor.cidade,
-      endereco: emissor.bairro,
-      telefone: emissor.telefone,
-      email: emissor.email,
-      pessoa_contato: emissor.pessoa_contato,
-      padrao: emissor.padrao
+      id: emissorPadrao.id,
+      nome: emissorPadrao.nome_empresa,
+      nuip: emissorPadrao.documento,
+      pais: emissorPadrao.pais,
+      cidade: emissorPadrao.cidade,
+      endereco: emissorPadrao.bairro,
+      telefone: emissorPadrao.telefone,
+      email: emissorPadrao.email,
+      pessoa_contato: emissorPadrao.pessoa_contato,
+      padrao: emissorPadrao.padrao
     }
 
     return NextResponse.json({ empresa })
@@ -59,4 +59,15 @@ export async function GET(_request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  })
 }

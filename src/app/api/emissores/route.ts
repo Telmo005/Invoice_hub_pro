@@ -68,6 +68,7 @@ export async function GET(_request: NextRequest) {
       .order('updated_at', { ascending: false })
 
     if (error) {
+      console.error('Erro ao carregar emissores:', error)
       return NextResponse.json(
         { error: 'Erro ao carregar empresas' },
         { status: 500 }
@@ -89,7 +90,8 @@ export async function GET(_request: NextRequest) {
 
     return NextResponse.json({ empresas })
 
-  } catch {
+  } catch (error) {
+    console.error('Erro interno:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
@@ -122,12 +124,21 @@ export async function POST(request: NextRequest) {
 
     const validatedData = validation.validatedData
 
+    // Se está marcando como padrão, remover padrão de outros
     if (validatedData.padrao) {
-      await supabase
+      const { error: clearError } = await supabase
         .from('emissores')
         .update({ padrao: false })
         .eq('user_id', user.id)
         .eq('padrao', true)
+
+      if (clearError) {
+        console.error('Erro ao limpar padrão:', clearError)
+        return NextResponse.json(
+          { error: 'Erro ao atualizar empresas' },
+          { status: 500 }
+        )
+      }
     }
 
     const { data: novoEmissor, error } = await supabase
@@ -148,6 +159,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
+      console.error('Erro ao criar emissor:', error)
       if (error.code === '23505') {
         return NextResponse.json(
           { error: 'Já existe uma empresa com este documento' },
@@ -167,10 +179,22 @@ export async function POST(request: NextRequest) {
       message: 'Empresa criada com sucesso'
     }, { status: 201 })
 
-  } catch {
+  } catch (error) {
+    console.error('Erro interno:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
     )
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  })
 }

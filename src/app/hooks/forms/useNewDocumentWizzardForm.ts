@@ -192,7 +192,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
 
     const mapeamentoCampos = {
       nomeEmpresa: 'nome',
-      documento: 'nuit',
+      documento: 'nuip',
       pais: 'pais',
       cidade: 'cidade',
       bairro: 'endereco',
