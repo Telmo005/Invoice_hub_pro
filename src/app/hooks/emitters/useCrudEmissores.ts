@@ -65,7 +65,7 @@ export function useCrudEmissores(): UseCrudEmissoresReturn {
 
         try {
             const response = await fetch(`/api/emissores/${id}`, {
-                method: 'PUT',
+                method: 'PATCH', // ✅ CORRIGIDO: PUT → PATCH
                 headers: {
                     'Content-Type': 'application/json',
                 },

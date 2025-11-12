@@ -202,7 +202,7 @@ export default function HeroSection() {
         >
           <div className="relative aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
             <Image
-              src="/invoice-mockup-premium.JPG"
+              src="/invoice-mockup-premium.jpg"
               alt="Fatura profissional em destaque"
               fill
               priority

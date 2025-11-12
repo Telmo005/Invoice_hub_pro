@@ -331,7 +331,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           createErrorResponse(
             ERROR_CODES.MPESA_UNAVAILABLE,
-            'Serviço MPesa temporariamente indisponível',
+            'Serviço temporariamente indisponível',
             'Tente novamente em alguns minutos',
             paymentResult.message,
             true
