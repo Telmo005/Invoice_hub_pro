@@ -1,7 +1,7 @@
 'use client'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { ROUTES } from '@/config/routes'
 
@@ -31,6 +31,38 @@ export default function AuthProvider({
     )
   )
 
+  // Debounce refs to avoid multiple rapid router navigations/refreshes
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerRefresh = () => {
+    if (refreshTimerRef.current) return;
+    refreshTimerRef.current = setTimeout(() => {
+      try {
+        router.refresh();
+      } finally {
+        if (refreshTimerRef.current) {
+          clearTimeout(refreshTimerRef.current);
+          refreshTimerRef.current = null;
+        }
+      }
+    }, 150);
+  };
+
+  const triggerPushHome = (path = ROUTES.HOME) => {
+    if (pushTimerRef.current) return;
+    pushTimerRef.current = setTimeout(() => {
+      try {
+        router.push(path);
+      } finally {
+        if (pushTimerRef.current) {
+          clearTimeout(pushTimerRef.current);
+          pushTimerRef.current = null;
+        }
+      }
+    }, 150);
+  };
+
   useEffect(() => {
     const getInitialSession = async () => {
       try {
@@ -50,9 +82,9 @@ export default function AuthProvider({
       setIsLoading(false)
 
       if (event === 'SIGNED_IN') {
-        router.refresh()
+        triggerRefresh();
       } else if (event === 'SIGNED_OUT') {
-        router.refresh()
+        triggerRefresh();
       }
     })
 
@@ -83,8 +115,9 @@ export default function AuthProvider({
     try {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
-      router.push(ROUTES.HOME)
-      router.refresh()
+      // Use debounced navigation/refresh to avoid duplicate requests
+      triggerPushHome(ROUTES.HOME)
+      triggerRefresh()
     } catch (error) {
       console.error('Error signing out:', error)
       throw error
