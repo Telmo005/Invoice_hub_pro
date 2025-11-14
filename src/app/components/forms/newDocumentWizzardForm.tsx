@@ -8,8 +8,7 @@ import { formatCurrency } from '@/lib/formatUtils';
 import { Empresa } from '@/types/emissor-type';
 import { useListarEmissores } from '@/app/hooks/emitters/useListarEmissores';
 import { useEmpresaPadrao } from '@/app/hooks/emitters/useEmpresaPadrao';
-import { TipoDocumento } from '@/types/invoice-types';
-import { ItemFatura } from '@/types/invoice-types'; 
+import { TipoDocumento, ItemFatura } from '@/types/invoice-types'; 
 
 const roboto = Roboto({ weight: ['300', '400', '700'], subsets: ['latin'], variable: '--font-roboto' });
 
@@ -345,14 +344,14 @@ const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresa
           <FormField id="emitente.documento" label="Documento" type="text" value={formData.emitente.documento} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.documento']} placeholder="NUIT - 123456789" halfWidth maxLength={20} disabled={localLoading} />
         </div>
         <div className="flex flex-wrap -mx-2">
-          <FormField id="emitente.pais" label="País *" type="text" value={formData.emitente.pais} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.pais']} placeholder="Moçambique" required halfWidth maxLength={60} disabled={localLoading} />
-          <FormField id="emitente.cidade" label="Cidade *" type="text" value={formData.emitente.cidade} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.cidade']} placeholder="Maputo" required halfWidth maxLength={60} disabled={localLoading} />
+          <FormField id="emitente.pais" label="País *" type="text" value={formData.emitente.pais} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.pais']} placeholder="Moçambique" required halfWidth maxLength={15} disabled={localLoading} />
+          <FormField id="emitente.cidade" label="Cidade *" type="text" value={formData.emitente.cidade} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.cidade']} placeholder="Maputo" required halfWidth maxLength={30} disabled={localLoading} />
         </div>
         <div className="flex flex-wrap -mx-2">
-          <FormField id="emitente.bairro" label="Endereço Completo *" type="text" value={formData.emitente.bairro} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.bairro']} placeholder="Alto Maé A, Av. 24 de Julho, Casa 123" required maxLength={60} disabled={localLoading} />
+          <FormField id="emitente.bairro" label="Endereço Completo *" type="text" value={formData.emitente.bairro} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.bairro']} placeholder="Alto Maé A, Av. 24 de Julho, Casa 123" required maxLength={80} disabled={localLoading} />
         </div>
         <div className="flex flex-wrap -mx-2">
-          <FormField id="emitente.telefone" label="Telefone *" type="tel" value={formData.emitente.telefone} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.telefone']} placeholder="+258 83 123 4567" required halfWidth maxLength={20} disabled={localLoading} />
+          <FormField id="emitente.telefone" label="Telefone *" type="tel" value={formData.emitente.telefone} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.telefone']} placeholder="+258 83 123 4567" required halfWidth maxLength={18} disabled={localLoading} />
           <FormField id="emitente.email" label="Email" type="email" value={formData.emitente.email} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.email']} placeholder="Email@gmail.com" halfWidth maxLength={60} disabled={localLoading} />
         </div>
       </div>
@@ -368,18 +367,18 @@ const DestinatarioStep = memo(({ formData, errors, handleChange, handleBlur }: D
       <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg"><div className="flex items-center justify-between"><div className="flex items-center"><div><h4 className="text-lg font-semibold mb-2">Dados do Destinatário</h4><p className="text-sm text-blue-600">{isCotacao ? 'Informe os dados do cliente que receberá a cotação.' : 'Informe os dados do destinatário ou empresa que receberá a fatura.'}</p></div></div></div></div>
       <div className="space-y-3">
         <div className="flex flex-wrap -mx-2">
-          <FormField id="destinatario.nomeCompleto" label="Nome Completo *" type="text" value={formData.destinatario.nomeCompleto} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.nomeCompleto']} placeholder="Nome completo do destinatário" required halfWidth maxLength={60} />
+          <FormField id="destinatario.nomeCompleto" label="Nome Completo *" type="text" value={formData.destinatario.nomeCompleto} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.nomeCompleto']} placeholder="Nome completo do destinatário" required halfWidth maxLength={70} />
           <FormField id="destinatario.documento" label="Documento" type="text" value={formData.destinatario.documento} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.documento']} placeholder="NUIT - 123456789" halfWidth maxLength={20} />
         </div>
         <div className="flex flex-wrap -mx-2">
-          <FormField id="destinatario.pais" label="País *" type="text" value={formData.destinatario.pais} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.pais']} placeholder="Moçambique" required halfWidth maxLength={60} />
-          <FormField id="destinatario.cidade" label="Cidade *" type="text" value={formData.destinatario.cidade} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.cidade']} placeholder="Matola" required halfWidth maxLength={60} />
+          <FormField id="destinatario.pais" label="País *" type="text" value={formData.destinatario.pais} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.pais']} placeholder="Moçambique" required halfWidth maxLength={15} />
+          <FormField id="destinatario.cidade" label="Cidade *" type="text" value={formData.destinatario.cidade} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.cidade']} placeholder="Matola" required halfWidth maxLength={30} />
         </div>
         <div className="flex flex-wrap -mx-2">
-          <FormField id="destinatario.bairro" label="Endereço Completo *" type="text" value={formData.destinatario.bairro} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.bairro']} placeholder="Av. das Indústrias, Bairro 3, Casa 45" maxLength={60} />
+          <FormField id="destinatario.bairro" label="Endereço Completo *" type="text" value={formData.destinatario.bairro} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.bairro']} placeholder="Av. das Indústrias, Bairro 3, Casa 45" required maxLength={80} />
         </div>
         <div className="flex flex-wrap -mx-2">
-          <FormField id="destinatario.telefone" label="Telefone *" type="tel" value={formData.destinatario.telefone} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.telefone']} placeholder="+258 84 123 4567" required halfWidth maxLength={20} />
+          <FormField id="destinatario.telefone" label="Telefone *" type="tel" value={formData.destinatario.telefone} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.telefone']} placeholder="+258 84 123 4567" required halfWidth maxLength={18} />
           <FormField id="destinatario.email" label="Email" type="email" value={formData.destinatario.email} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.email']} placeholder="Email@gmail.com" halfWidth maxLength={60} />
         </div>
       </div>
@@ -390,7 +389,32 @@ DestinatarioStep.displayName = 'DestinatarioStep';
 
 const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, onItemBlur, isGeneratingNumber }: ItensStepProps) => {
   const isCotacao = formData.tipo === 'cotacao';
+  
+  const calcularSubtotal = useCallback(() => {
+    return items.reduce((total, item) => {
+      const subtotalItem = item.quantidade * item.precoUnitario;
+      const taxasItem = item.taxas.reduce((sum: number, tax: any) => 
+        tax.tipo === 'percent' ? sum + (subtotalItem * tax.valor) / 100 : sum + tax.valor, 0);
+      return total + subtotalItem + taxasItem;
+    }, 0);
+  }, [items]);
+
+  const calcularDescontoTotal = useCallback(() => {
+    const subtotal = calcularSubtotal();
+    if (formData.tipoDesconto === 'percent') {
+      return (subtotal * (formData.desconto || 0)) / 100;
+    }
+    return formData.desconto || 0;
+  }, [formData.tipoDesconto, formData.desconto, calcularSubtotal]);
+
+  const calcularTotalFinal = useCallback(() => {
+    const subtotal = calcularSubtotal();
+    const desconto = calcularDescontoTotal();
+    return Math.max(0, subtotal - desconto);
+  }, [calcularSubtotal, calcularDescontoTotal]);
+
   const formatarData = (data: string) => new Date(data).toLocaleDateString('pt-MZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  
   const handleValidityChange = (e: React.ChangeEvent<HTMLInputElement>, isCotacao: boolean) => {
     const value = e.target.value;
     const fieldName = isCotacao ? "validezCotacao" : "validezFatura";
@@ -400,23 +424,58 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
     }
   };
 
+  const handleDescontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      handleChange(e);
+    }
+  };
+
+  const handleDescontoBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '') {
+      handleChange({ 
+        target: { 
+          name: 'desconto', 
+          value: 0 
+        } 
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    }
+    handleBlur(e);
+  };
+
   return (
     <div className="w-full">
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <div className="flex items-center justify-between">
-          <div className="flex items-center"><span className="text-2xl mr-3">{isCotacao ? '📄' : '📄'}</span><div><h5 className="text-blue-800">{isCotacao ? 'Itens da cotação' : 'Itens da Fatura'}</h5><p className="text-sm text-blue-600">{isCotacao ? 'Lista dos produtos e serviços incluídos nesta cotação.' : 'Lista dos produtos e serviços incluídos nesta fatura.'}</p></div></div>
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${isCotacao ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>{isCotacao ? 'COTAÇÃO' : 'FATURA'}</span>
+          <div className="flex items-center">
+            <span className="text-2xl mr-3">{isCotacao ? '📄' : '📄'}</span>
+            <div>
+              <h5 className="text-blue-800">{isCotacao ? 'Itens da cotação' : 'Itens da Fatura'}</h5>
+              <p className="text-sm text-blue-600">
+                {isCotacao ? 'Lista dos produtos e serviços incluídos nesta cotação.' : 'Lista dos produtos e serviços incluídos nesta fatura.'}
+              </p>
+            </div>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${isCotacao ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+            {isCotacao ? 'COTAÇÃO' : 'FATURA'}
+          </span>
         </div>
       </div>
+
       <div className="space-y-4">
         <div className="flex flex-wrap -mx-2">
           <div className="w-full md:w-1/2 px-2 mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">{isCotacao ? 'Número da Cotação *' : 'Número da Fatura *'}</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {isCotacao ? 'Número da Cotação *' : 'Número da Fatura *'}
+            </label>
             <input 
               type="text" 
               id={isCotacao ? "cotacaoNumero" : "faturaNumero"} 
               name={isCotacao ? "cotacaoNumero" : "faturaNumero"} 
-              className={`w-full bg-gray-50 p-2 border rounded text-sm ${errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] ? 'border-red-500' : 'border-gray-300'} ${isGeneratingNumber ? 'bg-gray-50' : ''}`} 
+              className={`w-full bg-gray-50 p-2 border rounded text-sm ${
+                errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] ? 'border-red-500' : 'border-gray-300'
+              } ${isGeneratingNumber ? 'bg-gray-50' : ''}`} 
               value={isCotacao ? (formData.cotacaoNumero || '') : formData.faturaNumero} 
               onChange={handleChange} 
               onBlur={handleBlur} 
@@ -436,59 +495,290 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
                 Número gerado automaticamente
               </div>
             ) : null}
-            {errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] && <div className="text-red-500 text-xs mt-1">{errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero']}</div>}
+            {errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] && (
+              <div className="text-red-500 text-xs mt-1">
+                {errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero']}
+              </div>
+            )}
           </div>
           <div className="w-full md:w-1/2 px-2 mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Data {isCotacao ? 'da Cotação' : 'da Fatura'} *</label>
-            <input type="date" id="dataFatura" name="dataFatura" className={`w-full p-2 border rounded text-sm ${errors['dataFatura'] ? 'border-red-500' : 'border-gray-300'}`} value={formData.dataFatura} onChange={handleChange} onBlur={handleBlur} required />
-            {errors['dataFatura'] && <div className="text-red-500 text-xs mt-1">{errors['dataFatura']}</div>}
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Data {isCotacao ? 'da Cotação' : 'da Fatura'} *
+            </label>
+            <input 
+              type="date" 
+              id="dataFatura" 
+              name="dataFatura" 
+              className={`w-full p-2 border rounded text-sm ${
+                errors['dataFatura'] ? 'border-red-500' : 'border-gray-300'
+              }`} 
+              value={formData.dataFatura} 
+              onChange={handleChange} 
+              onBlur={handleBlur} 
+              required 
+            />
+            {errors['dataFatura'] && (
+              <div className="text-red-500 text-xs mt-1">{errors['dataFatura']}</div>
+            )}
           </div>
         </div>
-        <div className={`border rounded-lg p-4 mb-4 ${isCotacao ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'}`}>
+
+        <div className={`border rounded-lg p-4 mb-4 ${
+          isCotacao ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'
+        }`}>
           <h5 className="font-semibold mb-3 text-gray-800">Validade do Documento</h5>
           <div className="flex flex-wrap -mx-2">
             <div className="w-full md:w-1/2 px-2 mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Validade (dias) *</label>
-              <input type="text" inputMode="numeric" pattern="[0-9]*" id={isCotacao ? "validezCotacao" : "validezFatura"} name={isCotacao ? "validezCotacao" : "validezFatura"} className={`w-full p-2 border rounded text-sm ${errors[isCotacao ? 'validezCotacao' : 'validezFatura'] ? 'border-red-500' : 'border-gray-300'}`} value={isCotacao ? (formData.validezCotacao === '0' ? '' : formData.validezCotacao) : (formData.validezFatura === '0' ? '' : formData.validezFatura)} onChange={(e) => handleValidityChange(e, isCotacao)} onBlur={(e) => { if (e.target.value === '') handleChange({ target: { name: isCotacao ? "validezCotacao" : "validezFatura", value: '15' } } as React.ChangeEvent<HTMLInputElement>); handleBlur(e); }} onFocus={(e) => e.target.select()} required />
-              {errors[isCotacao ? 'validezCotacao' : 'validezFatura'] && <div className="text-red-500 text-xs mt-1">{errors[isCotacao ? 'validezCotacao' : 'validezFatura']}</div>}
-              <div className="text-xs text-gray-500 mt-1">{isCotacao ? 'Padrão: 15 dias. Digite o número de dias de validade.' : 'Padrão: 15 dias. Digite o número de dias para vencimento.'}</div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Validade (dias) *
+              </label>
+              <input 
+                type="text" 
+                inputMode="numeric" 
+                pattern="[0-9]*" 
+                id={isCotacao ? "validezCotacao" : "validezFatura"} 
+                name={isCotacao ? "validezCotacao" : "validezFatura"} 
+                className={`w-full p-2 border rounded text-sm ${
+                  errors[isCotacao ? 'validezCotacao' : 'validezFatura'] ? 'border-red-500' : 'border-gray-300'
+                }`} 
+                value={isCotacao ? (formData.validezCotacao === '0' ? '' : formData.validezCotacao) : (formData.validezFatura === '0' ? '' : formData.validezFatura)} 
+                onChange={(e) => handleValidityChange(e, isCotacao)} 
+                onBlur={(e) => { 
+                  if (e.target.value === '') handleChange({ 
+                    target: { 
+                      name: isCotacao ? "validezCotacao" : "validezFatura", 
+                      value: '15' 
+                    } 
+                  } as React.ChangeEvent<HTMLInputElement>); 
+                  handleBlur(e); 
+                }} 
+                onFocus={(e) => e.target.select()} 
+                required 
+              />
+              {errors[isCotacao ? 'validezCotacao' : 'validezFatura'] && (
+                <div className="text-red-500 text-xs mt-1">
+                  {errors[isCotacao ? 'validezCotacao' : 'validezFatura']}
+                </div>
+              )}
+              <div className="text-xs text-gray-500 mt-1">
+                {isCotacao ? 'Padrão: 15 dias. Digite o número de dias de validade.' : 'Padrão: 15 dias. Digite o número de dias para vencimento.'}
+              </div>
             </div>
             <div className="w-full md:w-1/2 px-2 mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">{isCotacao ? 'Data de Validade Calculada' : 'Data de Vencimento Calculada'}</label>
-              <div className="w-full p-2 border border-gray-300 rounded text-sm bg-gray-50">{formatarData(formData.dataVencimento)}</div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {isCotacao ? 'Data de Validade Calculada' : 'Data de Vencimento Calculada'}
+              </label>
+              <div className="w-full p-2 border border-gray-300 rounded text-sm bg-gray-50">
+                {formatarData(formData.dataVencimento)}
+              </div>
               <div className="text-xs text-gray-500 mt-1">Calculado automaticamente</div>
             </div>
           </div>
-          <div className="mt-2 p-2 bg-white rounded border"><p className="text-xs text-gray-700"><strong>Resumo:</strong> {isCotacao ? 'Esta cotação' : 'Esta fatura'} emitida em {formatarData(formData.dataFatura)} será válida até {formatarData(formData.dataVencimento)} ({isCotacao ? formData.validezCotacao : formData.validezFatura} {parseInt(isCotacao ? formData.validezCotacao : formData.validezFatura) === 1 ? 'dia' : 'dias'} de validade).</p></div>
+          <div className="mt-2 p-2 bg-white rounded border">
+            <p className="text-xs text-gray-700">
+              <strong>Resumo:</strong> {isCotacao ? 'Esta cotação' : 'Esta fatura'} emitida em {formatarData(formData.dataFatura)} será válida até {formatarData(formData.dataVencimento)} ({isCotacao ? formData.validezCotacao : formData.validezFatura} {parseInt(isCotacao ? formData.validezCotacao : formData.validezFatura) === 1 ? 'dia' : 'dias'} de validade).
+            </p>
+          </div>
         </div>
+
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="overflow-x-auto" style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
             <table className="min-w-[600px] w-full border-collapse">
               <thead className="bg-gray-100">
-                <tr><th className="px-2 py-2 border text-xs font-medium text-gray-700 text-center w-16">Qtd</th><th className="px-2 py-2 border text-xs font-medium text-gray-700 w-32">Descrição</th><th className="px-2 py-2 border text-xs font-medium text-gray-700 text-right w-24">Preço</th><th className="px-2 py-2 border text-xs font-medium text-gray-700 text-center w-32">Taxas</th><th className="px-2 py-2 border text-xs font-medium text-gray-700 text-right w-24">Total</th><th className="px-2 py-2 border text-xs font-medium text-gray-700 text-center w-12">Ações</th></tr>
+                <tr>
+                  <th className="px-2 py-2 border text-xs font-medium text-gray-700 text-center w-16">Qtd</th>
+                  <th className="px-2 py-2 border text-xs font-medium text-gray-700 w-32">Descrição</th>
+                  <th className="px-2 py-2 border text-xs font-medium text-gray-700 text-right w-24">Preço</th>
+                  <th className="px-2 py-2 border text-xs font-medium text-gray-700 text-center w-32">Taxas</th>
+                  <th className="px-2 py-2 border text-xs font-medium text-gray-700 text-right w-24">Total</th>
+                  <th className="px-2 py-2 border text-xs font-medium text-gray-700 text-center w-12">Ações</th>
+                </tr>
               </thead>
               <tbody>
-                {items.map((item) => (<ItemRow key={item.id} item={item} currency={formData.moeda} onUpdate={(field, value) => atualizarItem(item.id, field as keyof ItemFatura, value)} onRemove={() => removerItem(item.id)} onAddTax={() => adicionarTaxa(item.id)} onRemoveTax={(taxaIndex) => removerTaxa(item.id, taxaIndex)} errors={errors} onBlur={onItemBlur} />))}
+                {items.map((item) => (
+                  <ItemRow 
+                    key={item.id} 
+                    item={item} 
+                    currency={formData.moeda} 
+                    onUpdate={(field, value) => atualizarItem(item.id, field as keyof ItemFatura, value)} 
+                    onRemove={() => removerItem(item.id)} 
+                    onAddTax={() => adicionarTaxa(item.id)} 
+                    onRemoveTax={(taxaIndex) => removerTaxa(item.id, taxaIndex)} 
+                    errors={errors} 
+                    onBlur={onItemBlur} 
+                  />
+                ))}
               </tbody>
             </table>
           </div>
         </div>
-        <button type="button" className="w-full md:w-auto mt-3 px-3 py-2 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors flex items-center justify-center" onClick={adicionarItem}><FaPlus className="mr-1" size={10} /> Adicionar Item</button>
+
+        <button 
+          type="button" 
+          className="w-full md:w-auto mt-3 px-3 py-2 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors flex items-center justify-center" 
+          onClick={adicionarItem}
+        >
+          <FaPlus className="mr-1" size={10} /> Adicionar Item
+        </button>
+
+        {/* SEÇÃO DE DESCONTO NO TOTAL */}
+        <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4">
+          <h5 className="font-semibold mb-4 text-gray-800 flex items-center">
+            <FaPlus className="text-green-500 mr-2" size={14} />
+            Desconto no Total
+          </h5>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3">
+                <label className="block text-sm font-medium text-gray-700 w-24">
+                  Tipo de Desconto:
+                </label>
+                <select 
+                  id="tipoDesconto"
+                  name="tipoDesconto"
+                  className="flex-1 p-2 border border-gray-300 rounded text-sm"
+                  value={formData.tipoDesconto || 'fixed'}
+                  onChange={handleChange}
+                >
+                  <option value="fixed">Valor Fixo ({formData.moeda})</option>
+                  <option value="percent">Percentual (%)</option>
+                </select>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <label className="block text-sm font-medium text-gray-700 w-24">
+                  {formData.tipoDesconto === 'percent' ? 'Percentual:' : 'Valor:'}
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  id="desconto"
+                  name="desconto"
+                  className={`flex-1 p-2 border rounded text-sm ${
+                    errors['desconto'] ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  value={formData.desconto === 0 ? '' : formData.desconto?.toString() || ''}
+                  onChange={handleDescontoChange}
+                  onBlur={handleDescontoBlur}
+                  placeholder={formData.tipoDesconto === 'percent' ? '0' : '0.00'}
+                  onFocus={(e) => e.target.select()}
+                />
+                <span className="text-sm text-gray-600 w-8">
+                  {formData.tipoDesconto === 'percent' ? '%' : formData.moeda}
+                </span>
+              </div>
+              {errors['desconto'] && (
+                <div className="text-red-500 text-xs mt-1">{errors['desconto']}</div>
+              )}
+              
+              {formData.desconto > 0 && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                  <strong>Desconto aplicado:</strong> {formData.tipoDesconto === 'percent' 
+                    ? `${formData.desconto}% do total`
+                    : `${formatCurrency(formData.desconto, formData.moeda)} de desconto`
+                  }
+                </div>
+              )}
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h6 className="font-semibold mb-3 text-gray-700 border-b pb-2">Resumo Financeiro</h6>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Subtotal ({items.length} itens):</span>
+                  <span className="font-medium">{formatCurrency(calcularSubtotal(), formData.moeda)}</span>
+                </div>
+                
+                {calcularDescontoTotal() > 0 && (
+                  <>
+                    <div className="flex justify-between text-red-600">
+                      <span>Desconto:</span>
+                      <span>-{formatCurrency(calcularDescontoTotal(), formData.moeda)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>
+                        {formData.tipoDesconto === 'percent' 
+                          ? `(${formData.desconto}% aplicado)`
+                          : `(desconto fixo)`
+                        }
+                      </span>
+                      <span>
+                        {formData.tipoDesconto === 'percent' 
+                          ? `${formatCurrency(calcularDescontoTotal(), formData.moeda)}`
+                          : ''
+                        }
+                      </span>
+                    </div>
+                  </>
+                )}
+                
+                <div className="flex justify-between border-t pt-2 mt-2">
+                  <span className="font-semibold text-base">Total Final:</span>
+                  <span className="font-bold text-lg text-green-600">
+                    {formatCurrency(calcularTotalFinal(), formData.moeda)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="flex flex-wrap -mx-2 mt-4">
           <div className="w-full md:w-1/2 px-2 mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">Moeda</label>
-            <select id="moeda" name="moeda" className="w-full p-2 border rounded border-gray-300 text-sm" value={formData.moeda} onChange={handleChange} onBlur={handleBlur}><option value="MT">MT</option><option value="$">$ (USD)</option><option value="€">€ (EUR)</option><option value="R$">R$ (BRL)</option></select>
+            <select 
+              id="moeda" 
+              name="moeda" 
+              className="w-full p-2 border rounded border-gray-300 text-sm" 
+              value={formData.moeda} 
+              onChange={handleChange} 
+              onBlur={handleBlur}
+            >
+              <option value="MT">MT</option>
+              <option value="$">$ (USD)</option>
+              <option value="€">€ (EUR)</option>
+              <option value="R$">R$ (BRL)</option>
+            </select>
           </div>
         </div>
+
         <div className="w-full px-2 mb-3">
-          <label className="block text-sm font-medium text-gray-700 mb-1">{isCotacao ? 'Termos da Cotação' : 'Termos e Condições'}</label>
-          <textarea id="termos" name="termos" className="w-full p-2 border rounded border-gray-300 text-sm" rows={3} value={formData.termos} onChange={handleChange} onBlur={handleBlur} maxLength={260} placeholder={isCotacao ? 'Termos e condições específicos para esta cotação...' : 'Termos e condições de pagamento...'} />
-          <div className="text-xs text-gray-500 mt-1">{isCotacao ? 'Os termos são atualizados automaticamente com a validade informada.' : 'Os termos são atualizados automaticamente com base na validade informada.'}</div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {isCotacao ? 'Termos da Cotação' : 'Termos e Condições'}
+          </label>
+          <textarea 
+            id="termos" 
+            name="termos" 
+            className="w-full p-2 border rounded border-gray-300 text-sm" 
+            rows={3} 
+            value={formData.termos} 
+            onChange={handleChange} 
+            onBlur={handleBlur} 
+            maxLength={260} 
+            placeholder={isCotacao ? 'Termos e condições específicos para esta cotação...' : 'Termos e condições de pagamento...'} 
+          />
+          <div className="text-xs text-gray-500 mt-1">
+            {isCotacao ? 'Os termos são atualizados automaticamente com a validade informada.' : 'Os termos são atualizados automaticamente com base na validade informada.'}
+          </div>
         </div>
+
         {!isCotacao && (
           <div className="w-full px-2 mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Métodos de Pagamento</label>
-            <textarea id="metodoPagamento" name="metodoPagamento" className="w-full p-2 border rounded border-gray-300 text-sm" rows={3} value={formData.metodoPagamento} onChange={handleChange} onBlur={handleBlur} maxLength={260} placeholder="Especifique os métodos de pagamento aceitos..." />
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Métodos de Pagamento
+            </label>
+            <textarea 
+              id="metodoPagamento" 
+              name="metodoPagamento" 
+              className="w-full p-2 border rounded border-gray-300 text-sm" 
+              rows={3} 
+              value={formData.metodoPagamento} 
+              onChange={handleChange} 
+              onBlur={handleBlur} 
+              maxLength={260} 
+              placeholder="Especifique os métodos de pagamento aceitos..." 
+            />
           </div>
         )}
       </div>
@@ -659,6 +949,14 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
           }
         }
         validateRequired(formData.dataFatura, 'dataFatura');
+        
+        if (formData.desconto < 0) {
+          newErrors['desconto'] = 'Desconto não pode ser negativo';
+        }
+        if (formData.tipoDesconto === 'percent' && formData.desconto > 100) {
+          newErrors['desconto'] = 'Desconto percentual não pode ser maior que 100%';
+        }
+        
         items.forEach((item) => {
           if (!item.descricao.trim())
             newErrors[`item-${item.id}-descricao`] = 'Descrição obrigatória';

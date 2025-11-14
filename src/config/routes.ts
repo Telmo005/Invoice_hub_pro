@@ -16,7 +16,7 @@ export const ROUTES = {
   INVOICES: '/invoices',
   QUOTES_INVOICES: '/pages/documents/overview',
   INVOICES_NEW: '/pages/invoices/new',
-  QUOTATIONS_NEW: 'pages/quotations/new',
+  QUOTATIONS_NEW: '/pages/quotations/new',
 
   // Rotas da API
   API: {

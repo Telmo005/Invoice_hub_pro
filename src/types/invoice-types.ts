@@ -49,7 +49,11 @@ export interface FormDataFatura {
   
   // Campos específicos de COTAÇÃO (opcionais para fatura)
   cotacaoNumero?: string;
-  validezCotacao?: string; 
+  validezCotacao?: string;
+
+  // Campos de desconto - ADICIONADOS
+  desconto: number;
+  tipoDesconto: 'fixed' | 'percent';
 }
 
 /**
@@ -85,7 +89,7 @@ export interface TaxaItem {
 }
 
 /**
- * Totais consolidados da fatura
+ * Totais consolidados da fatura - ATUALIZADO COM DESCONTO
  */
 export interface TotaisFatura {
   subtotal: number;
@@ -95,6 +99,7 @@ export interface TotaisFatura {
     nome: string;
     valor: number;
   }[];
+  desconto: number; // ADICIONADO
 }
 
 /**

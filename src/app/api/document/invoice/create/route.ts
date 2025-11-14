@@ -24,6 +24,9 @@ interface InvoiceData {
     metodoPagamento?: string;
     emitente: any;
     destinatario: any;
+    // NOVOS CAMPOS DE DESCONTO
+    desconto?: number;
+    tipoDesconto?: 'fixed' | 'percent';
   };
   items: any[];
   totais?: any;
@@ -141,7 +144,10 @@ export async function POST(request: NextRequest) {
         destinatario: formData?.destinatario?.nomeCompleto,
         totalItens: items?.length,
         valorTotal: totais?.totalFinal,
-        dataVencimento: formData?.dataVencimento
+        dataVencimento: formData?.dataVencimento,
+        // NOVO: Log do desconto
+        desconto: formData?.desconto,
+        tipoDesconto: formData?.tipoDesconto
       }
     });
 
@@ -199,21 +205,81 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
+    // VALIDAÇÃO DO DESCONTO (NOVO)
+    if (formData.desconto && formData.desconto < 0) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Desconto negativo não permitido',
+        details: {
+          user: user.id,
+          numero: formData.faturaNumero,
+          desconto: formData.desconto
+        }
+      });
+
+      const errorResponse: ApiResponse = {
+        success: false,
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'Desconto inválido',
+          details: {
+            invalidField: 'desconto',
+            message: 'Desconto não pode ser negativo'
+          }
+        }
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
+
+    if (formData.tipoDesconto === 'percent' && formData.desconto && formData.desconto > 100) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Desconto percentual acima de 100%',
+        details: {
+          user: user.id,
+          numero: formData.faturaNumero,
+          desconto: formData.desconto,
+          tipoDesconto: formData.tipoDesconto
+        }
+      });
+
+      const errorResponse: ApiResponse = {
+        success: false,
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'Desconto percentual inválido',
+          details: {
+            invalidField: 'desconto',
+            message: 'Desconto percentual não pode ser maior que 100%'
+          }
+        }
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
+
+    // PREPARAR DADOS DA FATURA COM DESCONTO (ATUALIZADO)
+    const faturaData = {
+      faturaNumero: formData.faturaNumero,
+      dataFatura: formData.dataFatura,
+      dataVencimento: formData.dataVencimento,
+      ordemCompra: formData.ordemCompra,
+      termos: formData.termos,
+      moeda: formData.moeda || 'MT',
+      metodoPagamento: formData.metodoPagamento,
+      logoUrl: logo || null,
+      assinaturaBase64: assinatura || null,
+      // NOVOS CAMPOS DE DESCONTO
+      desconto: formData.desconto || 0,
+      tipoDesconto: formData.tipoDesconto || 'fixed'
+    };
+
     const { data: result, error: functionError } = await supabase.rpc('criar_fatura_completa', {
       p_user_id: user.id,
       p_emitente: formData.emitente,
       p_destinatario: formData.destinatario,
-      p_fatura: {
-        faturaNumero: formData.faturaNumero,
-        dataFatura: formData.dataFatura,
-        dataVencimento: formData.dataVencimento,
-        ordemCompra: formData.ordemCompra,
-        termos: formData.termos,
-        moeda: formData.moeda || 'MT',
-        metodoPagamento: formData.metodoPagamento,
-        logoUrl: logo || null,
-        assinaturaBase64: assinatura || null
-      },
+      p_fatura: faturaData,
       p_itens: items || [],
       p_tipo_documento: 'fatura',
       p_html_content: documentData.htmlContent || null
@@ -225,7 +291,10 @@ export async function POST(request: NextRequest) {
         numero: formData.faturaNumero,
         databaseError: functionError.message,
         databaseCode: functionError.code,
-        databaseHint: functionError.hint
+        databaseHint: functionError.hint,
+        // NOVO: Log do desconto no erro
+        desconto: formData.desconto,
+        tipoDesconto: formData.tipoDesconto
       });
 
       if (functionError.code === 'P0001' && functionError.message.includes('Já existe um documento')) {
@@ -266,7 +335,9 @@ export async function POST(request: NextRequest) {
         message: 'Resultado vazio da função de criação de fatura',
         details: {
           user: user.id,
-          numero: formData.faturaNumero
+          numero: formData.faturaNumero,
+          desconto: formData.desconto,
+          tipoDesconto: formData.tipoDesconto
         }
       });
 
@@ -289,14 +360,34 @@ export async function POST(request: NextRequest) {
       items: { length: items.length },
       emitente: formData.emitente,
       destinatario: formData.destinatario,
-      dataVencimento: formData.dataVencimento
+      dataVencimento: formData.dataVencimento,
+      // NOVO: Log do desconto na criação
+      desconto: {
+        valor: formData.desconto,
+        tipo: formData.tipoDesconto,
+        aplicado: totais?.desconto || 0
+      }
     });
 
-    const successResponse: ApiResponse<{ id: string; numero: string }> = {
+    const successResponse: ApiResponse<{ 
+      id: string; 
+      numero: string;
+      desconto?: {
+        valor: number;
+        tipo: string;
+        aplicado: number;
+      }
+    }> = {
       success: true,
       data: {
         id: result,
-        numero: formData.faturaNumero
+        numero: formData.faturaNumero,
+        // NOVO: Incluir informações de desconto na resposta
+        desconto: {
+          valor: formData.desconto || 0,
+          tipo: formData.tipoDesconto || 'fixed',
+          aplicado: totais?.desconto || 0
+        }
       }
     };
 
@@ -310,7 +401,10 @@ export async function POST(request: NextRequest) {
       invoiceId,
       durationMs: duration,
       endpoint: '/api/document/invoice/create',
-      numero: documentData?.formData?.faturaNumero
+      numero: documentData?.formData?.faturaNumero,
+      // NOVO: Log do desconto no erro inesperado
+      desconto: documentData?.formData?.desconto,
+      tipoDesconto: documentData?.formData?.tipoDesconto
     });
 
     const errorResponse: ApiResponse = {
@@ -332,7 +426,13 @@ export async function POST(request: NextRequest) {
       '/api/document/invoice/create',
       'POST',
       duration,
-      invoiceId !== null
+      invoiceId !== null,
+      // NOVO: Incluir informações de desconto no log final
+      {
+        numero: documentData?.formData?.faturaNumero,
+        desconto: documentData?.formData?.desconto,
+        tipoDesconto: documentData?.formData?.tipoDesconto
+      }
     );
   }
 }

@@ -259,6 +259,13 @@ export default function Navbar() {
       closeDropdown();
       closeMobileDropdown();
       await signOut();
+      // Garantia adicional: redireciona para a página inicial após logout
+      try {
+        router.replace(ROUTES.HOME);
+      } catch (_) {
+        // fallback para forçar reload caso o router falhe
+        try { window.location.href = ROUTES.HOME; } catch (_) { /* ignore */ }
+      }
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
