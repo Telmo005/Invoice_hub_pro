@@ -25,7 +25,12 @@ export default function AuthProvider({
   const router = useRouter()
 
   // Use singleton Supabase client to avoid multiple GoTrueClient instances
-  const supabase = getSupabaseClient() as SupabaseClient
+  // Initialize only on client-side (this runs after hydration)
+  const supabaseRef = useRef<SupabaseClient | null>(null)
+  if (!supabaseRef.current && typeof window !== 'undefined') {
+    supabaseRef.current = getSupabaseClient()
+  }
+  const supabase = supabaseRef.current as SupabaseClient
 
   // Debounce refs to avoid multiple rapid router navigations/refreshes
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

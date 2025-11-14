@@ -16,9 +16,16 @@ export function useAuth() {
   const authCheckInProgressRef = useRef(false);
   
   // Get the Supabase client instance (singleton pattern)
-  const client = getSupabaseClient();
+  // Initialize only on client-side
+  const supabaseRef = useRef<ReturnType<typeof getSupabaseClient> | null>(null);
+  if (!supabaseRef.current && typeof window !== 'undefined') {
+    supabaseRef.current = getSupabaseClient();
+  }
+  const client = supabaseRef.current;
 
   const getCurrentSession = useCallback(async (forceRefresh = false) => {
+    if (!client) return null;
+    
     const now = Date.now();
     if (!forceRefresh && sessionCache && (now - cacheTimestamp) < CACHE_DURATION) {
       return sessionCache;
@@ -31,7 +38,7 @@ export function useAuth() {
     authCheckInProgressRef.current = true;
 
     try {
-      const { data: { session }, error } = await client!.auth.getSession();
+      const { data: { session }, error } = await client.auth.getSession();
       
       if (error) throw error;
 
@@ -74,30 +81,34 @@ export function useAuth() {
     initializeAuth();
 
     let stateChangeTimeout: NodeJS.Timeout;
+    let subscription: any = null;
     
-    const { data: { subscription } } = client!.auth.onAuthStateChange(
-      async (event: string, session: Session | null) => {
-        clearTimeout(stateChangeTimeout);
-        
-        stateChangeTimeout = setTimeout(async () => {
-          if (!mountedRef.current) return;
-
-          sessionCache = session;
-          cacheTimestamp = Date.now();
+    if (client) {
+      const { data: { subscription: sub } } = client.auth.onAuthStateChange(
+        async (event: string, session: Session | null) => {
+          clearTimeout(stateChangeTimeout);
           
-          setUser(session?.user ?? null);
+          stateChangeTimeout = setTimeout(async () => {
+            if (!mountedRef.current) return;
 
-          if (event === 'SIGNED_IN') {
-            router.refresh();
-          } else if (event === 'SIGNED_OUT') {
-            sessionCache = null;
-            router.push('/login');
-          } else if (event === 'TOKEN_REFRESHED') {
             sessionCache = session;
-          }
-        }, 100);
-      }
-    );
+            cacheTimestamp = Date.now();
+            
+            setUser(session?.user ?? null);
+
+            if (event === 'SIGNED_IN') {
+              router.refresh();
+            } else if (event === 'SIGNED_OUT') {
+              sessionCache = null;
+              router.push('/login');
+            } else if (event === 'TOKEN_REFRESHED') {
+              sessionCache = session;
+            }
+          }, 100);
+        }
+      );
+      subscription = sub;
+    }
 
     return () => {
       mountedRef.current = false;
@@ -107,9 +118,11 @@ export function useAuth() {
   }, [getCurrentSession, client, router]);
 
   const login = useCallback(async (credentials: { email: string; password: string }) => {
+    if (!client) throw new Error('Supabase client not available');
+    
     setIsLoading(true);
     try {
-      const { data, error } = await client!.auth.signInWithPassword(credentials);
+      const { data, error } = await client.auth.signInWithPassword(credentials);
       
       if (error) throw error;
 
@@ -127,8 +140,10 @@ export function useAuth() {
   }, [client, router]);
 
   const logout = useCallback(async () => {
+    if (!client) throw new Error('Supabase client not available');
+    
     try {
-      const { error } = await client!.auth.signOut();
+      const { error } = await client.auth.signOut();
       
       if (error) throw error;
 
