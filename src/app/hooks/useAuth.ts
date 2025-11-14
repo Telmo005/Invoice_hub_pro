@@ -19,6 +19,24 @@ export function useAuth() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  // Reuse a global client if one already exists to avoid multiple GoTrueClient
+  // instances in the same browser context which can lead to the warning:
+  // "Multiple GoTrueClient instances detected in the same browser context.".
+  // We store the client on `window.__supabase_client` so different hooks/modules
+  // can reuse the same underlying client.
+  const supabaseRef = useRef<any | null>(null);
+  if (!supabaseRef.current) {
+    if (typeof window !== 'undefined' && (window as any).__supabase_client) {
+      supabaseRef.current = (window as any).__supabase_client;
+    } else {
+      supabaseRef.current = supabase;
+      if (typeof window !== 'undefined') {
+        (window as any).__supabase_client = supabaseRef.current;
+      }
+    }
+  }
+  const client = supabaseRef.current;
+
   const getCurrentSession = useCallback(async (forceRefresh = false) => {
     const now = Date.now();
     if (!forceRefresh && sessionCache && (now - cacheTimestamp) < CACHE_DURATION) {
