@@ -1,6 +1,6 @@
 import React, { useState, useCallback, memo, useEffect } from 'react';
 import { Roboto } from 'next/font/google';
-import { FaPlus, FaExclamationTriangle, FaArrowRight, FaArrowLeft, FaCheck, FaSpinner, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaExclamationTriangle, FaArrowRight, FaArrowLeft, FaCheck, FaSpinner, FaTimes, FaSync } from 'react-icons/fa';
 import useInvoiceForm from '@/app/hooks/forms/useNewDocumentWizzardForm';
 import TemplateSlider from '@/app/components/panels/slider';
 import Payment from '@/app/components/forms/PaymentForm';
@@ -51,6 +51,7 @@ interface ItensStepProps {
   removerTaxa: (id: number, taxaIndex: number) => void;
   onItemBlur: (field: string) => void;
   isGeneratingNumber: boolean;
+  generateDocumentNumber: () => Promise<void>;
 }
 
 interface PreviewStepProps {
@@ -387,7 +388,7 @@ const DestinatarioStep = memo(({ formData, errors, handleChange, handleBlur }: D
 });
 DestinatarioStep.displayName = 'DestinatarioStep';
 
-const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, onItemBlur, isGeneratingNumber }: ItensStepProps) => {
+const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, onItemBlur, isGeneratingNumber, generateDocumentNumber }: ItensStepProps) => {
   const isCotacao = formData.tipo === 'cotacao';
   
   const calcularSubtotal = useCallback(() => {
@@ -469,21 +470,36 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {isCotacao ? 'Número da Cotação *' : 'Número da Fatura *'}
             </label>
-            <input 
-              type="text" 
-              id={isCotacao ? "cotacaoNumero" : "faturaNumero"} 
-              name={isCotacao ? "cotacaoNumero" : "faturaNumero"} 
-              className={`w-full bg-gray-50 p-2 border rounded text-sm ${
-                errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] ? 'border-red-500' : 'border-gray-300'
-              } ${isGeneratingNumber ? 'bg-gray-50' : ''}`} 
-              value={isCotacao ? (formData.cotacaoNumero || '') : formData.faturaNumero} 
-              onChange={handleChange} 
-              onBlur={handleBlur} 
-              placeholder={isGeneratingNumber ? "Gerando número automaticamente..." : (isCotacao ? "Ex: COT-100" : "Ex: FTR-100")} 
-              required 
-              maxLength={20}
-              readOnly={true}
-            />
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                id={isCotacao ? "cotacaoNumero" : "faturaNumero"} 
+                name={isCotacao ? "cotacaoNumero" : "faturaNumero"} 
+                className={`flex-1 bg-gray-50 p-2 border rounded text-sm ${
+                  errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] ? 'border-red-500' : 'border-gray-300'
+                } ${isGeneratingNumber ? 'bg-gray-50' : ''}`} 
+                value={isCotacao ? (formData.cotacaoNumero || '') : formData.faturaNumero} 
+                onChange={handleChange} 
+                onBlur={handleBlur} 
+                placeholder={isGeneratingNumber ? "Gerando número automaticamente..." : (isCotacao ? "Ex: COT-100" : "Ex: FTR-100")} 
+                required 
+                maxLength={20}
+                readOnly={true}
+              />
+              <button
+                type="button"
+                className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                onClick={generateDocumentNumber}
+                disabled={isGeneratingNumber}
+                title={isCotacao ? "Gerar novo número de cotação" : "Gerar novo número de fatura"}
+              >
+                {isGeneratingNumber ? (
+                  <FaSpinner className="animate-spin" size={14} />
+                ) : (
+                  <FaSync size={14} />
+                )}
+              </button>
+            </div>
             {isGeneratingNumber ? (
               <div className="text-blue-500 text-xs mt-1 flex items-center">
                 <FaSpinner className="animate-spin mr-1" size={12} />
@@ -836,7 +852,7 @@ const StepsList = memo(({ currentStep, onStepClick, validateAllPreviousSteps, is
 StepsList.displayName = 'StepsList';
 
 const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) => {
-  const { formData, items, errors, handleChange, handleBlur, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, updateFormData, empresaModificacoes, verificarModificacoesEmpresa, registrarEmpresaOriginal, limparModificacoesEmpresa, isGeneratingNumber, validateForm } = useInvoiceForm(tipo);
+  const { formData, items, errors, handleChange, handleBlur, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, updateFormData, empresaModificacoes, verificarModificacoesEmpresa, registrarEmpresaOriginal, limparModificacoesEmpresa, isGeneratingNumber, validateForm, generateDocumentNumber } = useInvoiceForm(tipo);
   const { empresas, loading: empresasLoading, error: empresasError, refetch: refetchEmpresas } = useListarEmissores();
   const { empresaPadrao, loading: empresaPadraoLoading, error: empresaPadraoError, refetch: refetchEmpresaPadrao } = useEmpresaPadrao();
   const [currentStep, setCurrentStep] = useState(0);
@@ -1028,12 +1044,12 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
     const stepComponents = {
       0: <EmitenteStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} empresas={empresas} selectedEmpresa={selectedEmpresa} onEmpresaChange={handleEmpresaChange} empresasLoading={loading} />,
       1: <DestinatarioStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} />,
-      2: <ItensStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} items={items} adicionarItem={adicionarItem} removerItem={removerItem} atualizarItem={atualizarItem} adicionarTaxa={adicionarTaxa} removerTaxa={removerTaxa} onItemBlur={handleItemBlur} isGeneratingNumber={isGeneratingNumber} />,
+      2: <ItensStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} items={items} adicionarItem={adicionarItem} removerItem={removerItem} atualizarItem={atualizarItem} adicionarTaxa={adicionarTaxa} removerTaxa={removerTaxa} onItemBlur={handleItemBlur} isGeneratingNumber={isGeneratingNumber} generateDocumentNumber={generateDocumentNumber} />,
       3: <PreviewStep invoiceData={prepareInvoiceData()} tipo={tipo} isFullscreen={isTemplateFullscreen} onToggleFullscreen={toggleTemplateFullscreen} onHtmlRendered={handleHtmlRendered} />,
       4: <Payment invoiceData={prepareDocumentData()} renderedHtml={renderedHtml} />
     };
     return stepComponents[currentStep as keyof typeof stepComponents] || null;
-  }, [currentStep, formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, isTemplateFullscreen, toggleTemplateFullscreen, handleHtmlRendered, renderedHtml, handleItemBlur, empresas, selectedEmpresa, handleEmpresaChange, loading, prepareDocumentData, tipo, isGeneratingNumber]);
+  }, [currentStep, formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, isTemplateFullscreen, toggleTemplateFullscreen, handleHtmlRendered, renderedHtml, handleItemBlur, empresas, selectedEmpresa, handleEmpresaChange, loading, prepareDocumentData, tipo, isGeneratingNumber, generateDocumentNumber]);
 
   if (loading && empresas.length === 0) return (<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><FaSpinner className="animate-spin text-blue-500 text-4xl mb-4 mx-auto" /><p className="text-gray-600">Carregando dados das empresas...</p></div></div>);
   if (error && empresas.length === 0) return (<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md"><p className="font-bold">Erro ao carregar empresas</p><p className="text-sm">{error}</p><button onClick={refreshData} className="mt-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm">Tentar Novamente</button></div></div></div>);

@@ -242,7 +242,7 @@ class TemplateService {
               <td class="text-center">${escapeHtml(quantidade.toString())}</td>
               <td>${escapeHtml(item.descricao || 'Item sem descrição')}</td>
               <td class="text-right">${formatCurrency(precoUnitario, moeda)}</td>
-              <td class="text-right">${taxasTexto || ''}</td>
+              <td class="text-right">${taxasTexto || '0,00'}</td>
               <td class="text-right">${formatCurrency(totalItem, moeda)}</td>
             </tr>
           `;

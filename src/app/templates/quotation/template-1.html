@@ -55,9 +55,9 @@
                 page-break-after: avoid !important;
                 page-break-inside: avoid !important;
             }
-            
+
             /* Esconde outros elementos da página durante a impressão */
-            body > *:not(.t1-isolated) {
+            body>*:not(.t1-isolated) {
                 display: none !important;
             }
         }
@@ -296,12 +296,12 @@
                     <span id="subtotal" class="total-value text-right">33000 MT</span>
                 </div>
                 <div class="total-line">
-                    <span class="total-label">Descontos:</span>
-                    <span class="total-value text-right"></span>
-                </div>
-                <div class="total-line">
                     <span class="total-label">Impostos:</span>
                     <span id="taxas-total" class="total-value text-right">Carregando...</span>
+                </div>
+                <div class="total-line">
+                    <span class="total-label">Desconto:</span>
+                    <span id="desconto" class="total-value text-right"></span>
                 </div>
                 <div class="total-line grand-total">
                     <span>TOTAL:</span>
