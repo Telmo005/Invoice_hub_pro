@@ -161,7 +161,8 @@ class TemplateService {
           'ordem-compra': f.ordemCompra || ' ',
           'metodo-pagamento': f.metodoPagamento || ' ',
           'moeda-pagamento': f.moeda || ' ',
-          'termos-pagamento': f.termos || ' '
+          'termos-pagamento': f.termos || ' ',
+          'desconto': f.desconto || '0'
         };
 
         // Mapeamentos específicos por tipo
@@ -263,6 +264,7 @@ class TemplateService {
         const moeda = data.formData?.moeda || 'MZN';
         const totaisMappings = {
           'subtotal': formatCurrency(data.totais.subtotal || 0, moeda),
+          'desconto': formatCurrency(data.totais.desconto || 0, moeda),
           'total-final': formatCurrency(data.totais.totalFinal || 0, moeda),
           'taxas-total': formatCurrency(data.totais.totalTaxas || 0, moeda),
           'total-final-balance': formatCurrency(data.totais.totalFinal || 0, moeda),

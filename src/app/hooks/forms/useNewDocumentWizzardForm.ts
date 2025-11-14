@@ -1,4 +1,4 @@
-// app/hooks/useInvoiceForm.ts
+// app/hooks/forms/useNewDocumentWizzardForm.ts
 import { useState, useEffect, useCallback } from 'react';
 import { FormDataFatura, ItemFatura, TotaisFatura, TaxaItem, InvoiceData, TipoDocumento } from '@/types/invoice-types';
 
@@ -34,6 +34,9 @@ const VALIDATION_RULES = {
   MAX_PRICE: 99999999.99,
   MIN_TAX_RATE: 0,
   MAX_TAX_RATE: 100,
+  MIN_DISCOUNT: 0,
+  MAX_DISCOUNT_PERCENT: 100,
+  MAX_DISCOUNT_AMOUNT: 99999999.99,
 } as const;
 
 const generateNextDocumentNumber = async (tipo: TipoDocumento): Promise<string> => {
@@ -107,7 +110,9 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     moeda: 'MT',
     metodoPagamento: '',
     validezCotacao: '15',
-    validezFatura: '15'
+    validezFatura: '15',
+    desconto: 0,
+    tipoDesconto: 'fixed'
   };
 
   const defaultItem: ItemFatura = {
@@ -115,7 +120,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     quantidade: 1,
     descricao: '',
     precoUnitario: 0,
-    taxas: [{ nome: 'IVA', valor: 16, tipo: 'percent' }],
+    taxas: [],
     totalItem: 0,
   };
 
@@ -126,6 +131,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     totalTaxas: 0,
     totalFinal: 0,
     taxasDetalhadas: [],
+    desconto: 0
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -162,8 +168,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
 
   useEffect(() => {
     generateDocumentNumber();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.tipo]);
+  }, [formData.tipo, generateDocumentNumber]);
 
   useEffect(() => {
     let shouldUpdate = false;
@@ -189,7 +194,6 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     if (shouldUpdate) {
       setFormData(prev => ({ ...prev, ...updates }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.dataFatura, formData.dataVencimento, formData.validezCotacao, formData.validezFatura, formData.tipo, formData.termos, atualizarTermosAutomaticamente]);
 
   const verificarModificacoesEmpresa = useCallback((empresaOriginal: Empresa, dadosAtuais: FormDataFatura['emitente']) => {
@@ -226,6 +230,17 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     setEmpresaModificacoes({ empresaOriginal: null, camposModificados: {}, houveModificacoes: false });
   }, []);
 
+  const calcularDesconto = useCallback((subtotal: number): number => {
+    if (formData.tipoDesconto === 'percent') {
+      const percentual = Math.max(VALIDATION_RULES.MIN_DISCOUNT, 
+        Math.min(VALIDATION_RULES.MAX_DISCOUNT_PERCENT, formData.desconto || 0));
+      return (subtotal * percentual) / 100;
+    } else {
+      return Math.max(VALIDATION_RULES.MIN_DISCOUNT, 
+        Math.min(VALIDATION_RULES.MAX_DISCOUNT_AMOUNT, formData.desconto || 0));
+    }
+  }, [formData.tipoDesconto, formData.desconto]);
+
   const calcularTotais = useCallback(() => {
     let subtotal = 0;
     let totalTaxas = 0;
@@ -258,27 +273,58 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       }
     });
 
+    const desconto = calcularDesconto(subtotal);
+    const totalFinal = Math.max(0, subtotal + totalTaxas - desconto);
+
     const taxasDetalhadas = Object.entries(taxasMap).map(([nome, valor]) => ({ nome, valor: Number(valor.toFixed(2)) }));
-    setTotais({ subtotal: Number(subtotal.toFixed(2)), totalTaxas: Number(totalTaxas.toFixed(2)), totalFinal: Number((subtotal + totalTaxas).toFixed(2)), taxasDetalhadas });
-  }, [items]);
+    
+    setTotais({ 
+      subtotal: Number(subtotal.toFixed(2)), 
+      totalTaxas: Number(totalTaxas.toFixed(2)), 
+      totalFinal: Number(totalFinal.toFixed(2)), 
+      taxasDetalhadas,
+      desconto: Number(desconto.toFixed(2))
+    });
+  }, [items, calcularDesconto]);
 
-  useEffect(() => { calcularTotais(); }, [calcularTotais]);
+  useEffect(() => { 
+    calcularTotais(); 
+  }, [calcularTotais]);
 
-  const validateField = async (name: string, value: string): Promise<string> => {
-    if (!value.trim() && (name.includes('.nomeEmpresa') || name.includes('.nomeCompleto') || name.includes('.pais') || name.includes('.cidade') || name.includes('.telefone'))) {
+  const validateField = async (name: string, value: any): Promise<string> => {
+    const stringValue = typeof value === 'number' ? value.toString() : String(value || '');
+    
+    if (!stringValue.trim() && (name.includes('.nomeEmpresa') || name.includes('.nomeCompleto') || name.includes('.pais') || name.includes('.cidade') || name.includes('.telefone'))) {
       return 'Campo obrigatório';
     }
     
-    if ((name === 'validezCotacao' || name === 'validezFatura') && !value.trim()) return 'Campo obrigatório';
-    if ((name === 'validezCotacao' || name === 'validezFatura') && value) {
-      const dias = parseInt(value);
+    if ((name === 'validezCotacao' || name === 'validezFatura') && !stringValue.trim()) return 'Campo obrigatório';
+    if ((name === 'validezCotacao' || name === 'validezFatura') && stringValue) {
+      const dias = parseInt(stringValue);
       if (dias < 1 || dias > 365) return 'Validade deve ser entre 1 e 365 dias';
     }
     
-    if (name.includes('email') && value && !validateEmail(value)) return 'Email inválido';
-    if (name.includes('telefone') && value && !validatePhone(value)) return 'Telefone inválido';
+    if (name === 'desconto') {
+      const numValue = parseFloat(stringValue);
+      if (isNaN(numValue) || numValue < VALIDATION_RULES.MIN_DISCOUNT) {
+        return 'Desconto não pode ser negativo';
+      }
+      
+      if (formData.tipoDesconto === 'percent' && numValue > VALIDATION_RULES.MAX_DISCOUNT_PERCENT) {
+        return 'Desconto percentual não pode ser maior que 100%';
+      }
+      
+      if (formData.tipoDesconto === 'fixed' && numValue > VALIDATION_RULES.MAX_DISCOUNT_AMOUNT) {
+        return `Desconto não pode ser maior que ${VALIDATION_RULES.MAX_DISCOUNT_AMOUNT}`;
+      }
+      
+      return '';
+    }
     
-    if (value.length > VALIDATION_RULES.MAX_STRING_LENGTH) {
+    if (name.includes('email') && stringValue && !validateEmail(stringValue)) return 'Email inválido';
+    if (name.includes('telefone') && stringValue && !validatePhone(stringValue)) return 'Telefone inválido';
+    
+    if (stringValue.length > VALIDATION_RULES.MAX_STRING_LENGTH) {
       return `Máximo ${VALIDATION_RULES.MAX_STRING_LENGTH} caracteres`;
     }
     
@@ -288,7 +334,14 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
   const handleBlur = async (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setTouched(prev => ({ ...prev, [name]: true }));
-    const error = await validateField(name, value);
+    
+    let processedValue: any = value;
+    if (name === 'desconto') {
+      processedValue = value === '' ? 0 : parseFloat(value) || 0;
+      setFormData(prev => ({ ...prev, [name]: processedValue }));
+    }
+    
+    const error = await validateField(name, processedValue);
     if (error) {
       setErrors(prev => ({ ...prev, [name]: error }));
     } else {
@@ -300,7 +353,13 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     const { name, value, type } = e.target;
     let sanitizedValue: any = value;
 
-    if (name === 'validezCotacao' || name === 'validezFatura') {
+    if (name === 'desconto') {
+      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+        sanitizedValue = value;
+      } else {
+        return;
+      }
+    } else if (name === 'validezCotacao' || name === 'validezFatura') {
       const numValue = parseInt(value) || 1;
       sanitizedValue = Math.max(1, Math.min(365, numValue)).toString();
       setFormData((prev) => ({ ...prev, [name]: sanitizedValue }));
@@ -311,9 +370,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
         });
       }
       return;
-    }
-
-    if (name.includes('telefone') || name.includes('email')) {
+    } else if (name.includes('telefone') || name.includes('email')) {
       if (name.startsWith('emitente.')) {
         const field = name.split('.')[1] as keyof FormDataFatura['emitente'];
         setFormData((prev) => ({ ...prev, emitente: { ...prev.emitente, [field]: value } }));
@@ -328,9 +385,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
         });
       }
       return;
-    }
-
-    if (type === 'number') {
+    } else if (type === 'number') {
       sanitizedValue = value === '' ? '' : parseFloat(value) || 0;
     } else {
       sanitizedValue = value;
@@ -356,7 +411,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
 
   const adicionarItem = () => {
     const novoId = items.length > 0 ? Math.max(...items.map((i) => i.id)) + 1 : 1;
-    setItems([...items, { id: novoId, quantidade: 1, descricao: '', precoUnitario: 0, taxas: [{ nome: 'IVA', valor: 16, tipo: 'percent' }], totalItem: 0 }]);
+    setItems([...items, { id: novoId, quantidade: 1, descricao: '', precoUnitario: 0, taxas: [], totalItem: 0 }]);
   };
 
   const removerItem = (id: number) => {
@@ -438,10 +493,17 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       }
     }
 
+    if (formData.desconto < VALIDATION_RULES.MIN_DISCOUNT) {
+      newErrors['desconto'] = 'Desconto não pode ser negativo';
+    }
+    if (formData.tipoDesconto === 'percent' && formData.desconto > VALIDATION_RULES.MAX_DISCOUNT_PERCENT) {
+      newErrors['desconto'] = 'Desconto percentual não pode ser maior que 100%';
+    }
+
     items.forEach((item, index) => {
-      if (!item.descricao.trim()) newErrors[`item-${index}-descricao`] = 'Descrição obrigatória';
-      if (item.quantidade < VALIDATION_RULES.MIN_QUANTITY) newErrors[`item-${index}-quantidade`] = `Quantidade mínima: ${VALIDATION_RULES.MIN_QUANTITY}`;
-      if (item.precoUnitario < VALIDATION_RULES.MIN_PRICE) newErrors[`item-${index}-preco`] = 'Preço unitário inválido';
+      if (!item.descricao.trim()) newErrors[`item-${item.id}-descricao`] = 'Descrição obrigatória';
+      if (item.quantidade < VALIDATION_RULES.MIN_QUANTITY) newErrors[`item-${item.id}-quantidade`] = `Quantidade mínima: ${VALIDATION_RULES.MIN_QUANTITY}`;
+      if (item.precoUnitario < VALIDATION_RULES.MIN_PRICE) newErrors[`item-${item.id}-preco`] = 'Preço unitário inválido';
     });
 
     if (!formData.dataFatura) newErrors.dataFatura = 'Data da fatura é obrigatória';
@@ -453,7 +515,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
   const limparFormulario = () => {
     setFormData(defaultFormData);
     setItems([{ ...defaultItem }]);
-    setTotais({ subtotal: 0, totalTaxas: 0, totalFinal: 0, taxasDetalhadas: [] });
+    setTotais({ subtotal: 0, totalTaxas: 0, totalFinal: 0, taxasDetalhadas: [], desconto: 0 });
     setErrors({});
     setTouched({});
     setEmpresaModificacoes({ empresaOriginal: null, camposModificados: {}, houveModificacoes: false });
@@ -462,6 +524,11 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
   const prepareInvoiceData = (): InvoiceData => {
     const safeFormData = JSON.parse(JSON.stringify(formData));
     const safeItems = JSON.parse(JSON.stringify(items));
+    
+    const subtotal = totais.subtotal;
+    const desconto = calcularDesconto(subtotal);
+    const totalFinal = Math.max(0, subtotal + totais.totalTaxas - desconto);
+
     return {
       tipo: formData.tipo,
       formData: {
@@ -472,7 +539,9 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
         moeda: safeFormData.moeda === 'MT' ? 'MZN' : safeFormData.moeda,
         metodoPagamento: sanitizeString(safeFormData.metodoPagamento).slice(0, VALIDATION_RULES.MAX_TERMS_LENGTH),
         validezFatura: safeFormData.validezFatura,
-        validezCotacao: safeFormData.validezCotacao
+        validezCotacao: safeFormData.validezCotacao,
+        desconto: safeFormData.desconto,
+        tipoDesconto: safeFormData.tipoDesconto
       },
       items: safeItems.map((item: ItemFatura) => ({
         id: item.id,
@@ -482,8 +551,15 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
         taxas: item.taxas.map(taxa => ({ nome: sanitizeString(taxa.nome), valor: taxa.valor, tipo: taxa.tipo })),
         totalItem: item.quantidade * item.precoUnitario + item.taxas.reduce((sum, tax) => tax.tipo === 'percent' ? sum + (item.quantidade * item.precoUnitario * tax.valor) / 100 : sum + tax.valor, 0)
       })),
-      totais: { subtotal: totais.subtotal, totalTaxas: totais.totalTaxas, totalFinal: totais.totalFinal, taxasDetalhadas: totais.taxasDetalhadas },
-      logo: null, assinatura: null
+      totais: { 
+        subtotal: totais.subtotal, 
+        totalTaxas: totais.totalTaxas, 
+        totalFinal: totalFinal, 
+        taxasDetalhadas: totais.taxasDetalhadas,
+        desconto: desconto
+      },
+      logo: null, 
+      assinatura: null
     };
   };
 

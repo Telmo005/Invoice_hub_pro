@@ -326,14 +326,17 @@ export class TemplateService {
         dataFatura: '',
         dataVencimento: '',
         moeda: 'MZN',
-        termos: ''
+        termos: '',
+        desconto: 0,
+        tipoDesconto: 'fixed'
       },
       items: [],
       totais: { 
         subtotal: 0, 
         totalTaxas: 0, 
         totalFinal: 0, 
-        taxasDetalhadas: [] 
+        taxasDetalhadas: [],
+        desconto: 0
       }
     };
   }
@@ -341,6 +344,7 @@ export class TemplateService {
   private getEmptyQuotationData(): Partial<QuotationData> {
     return {
       formData: {
+        tipo: 'cotacao',
         emitente: { 
           nomeEmpresa: '',
           documento: '',
@@ -365,14 +369,17 @@ export class TemplateService {
         moeda: 'MZN',
         metodoPagamento: '',
         termos: '',
-        validezCotacao: 15
+        desconto: 0,
+        tipoDesconto: 'fixed',
+        validezCotacao: ''
       },
       items: [],
       totais: { 
         subtotal: 0, 
         totalTaxas: 0, 
         totalFinal: 0, 
-        taxasDetalhadas: [] 
+        taxasDetalhadas: [],
+        desconto: 0
       }
     };
   }

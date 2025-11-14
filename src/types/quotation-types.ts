@@ -1,210 +1,222 @@
-/**
- * Tipos específicos para cotações
- */
-
-// Importar InvoiceData se necessário, ou usar tipos locais
-import { InvoiceData } from './invoice-types';
+// types/invoice-types.ts
+export type TipoDocumento = 'fatura' | 'cotacao';
 
 /**
- * Dados principais do formulário da cotação
+ * Tipos relacionados a emissor de fatura/cotação
  */
-export interface FormDataCotacao {
-    emitente: Emitente;
-    destinatario: Destinatario;
-    cotacaoNumero: string;
-    dataFatura: string;
-    ordemCompra?: string;
-    dataVencimento: string;
-    termos: string;
-    moeda: string;
-    metodoPagamento: string;
-    validezCotacao: number; // dias de validade
-    dataExpiracao?: string; // data calculada de expiração
+export interface Emitente {
+  nomeEmpresa: string;
+  documento: string;
+  pais: string;
+  cidade: string;
+  bairro: string;
+  pessoaContato?: string;
+  email: string;
+  telefone: string;
 }
 
 /**
- * Tipos para os itens da cotação (pode reutilizar ItemFatura se for igual)
+ * Tipos relacionados ao destinatário da fatura/cotação
  */
-export interface ItemCotacao {
-    id: number;
-    quantidade: number;
-    descricao: string;
-    precoUnitario: number;
-    taxas: TaxaItem[];
-    totalItem: number;
+export interface Destinatario {
+  nomeCompleto: string;
+  documento?: string;
+  pais?: string;
+  cidade?: string;
+  bairro?: string;
+  email: string;
+  telefone: string;
 }
 
 /**
- * Totais consolidados da cotação (pode reutilizar TotaisFatura se for igual)
+ * Dados principais do formulário - UNIFICADO PARA FATURAS E COTAÇÕES
  */
-export interface TotaisCotacao {
-    subtotal: number;
-    totalTaxas: number;
-    totalFinal: number;
-    taxasDetalhadas: {
-        nome: string;
-        valor: number;
-    }[];
+export interface FormDataDocumento {
+  // Campos comuns
+  tipo: TipoDocumento;
+  emitente: Emitente;
+  destinatario: Destinatario;
+  dataFatura: string;
+  ordemCompra?: string;
+  termos: string;
+  moeda: string;
+  
+  // Campos de desconto - ADICIONADOS
+  desconto: number;
+  tipoDesconto: 'fixed' | 'percent';
+  
+  // Campos específicos de FATURA (opcionais para cotação)
+  faturaNumero?: string;
+  dataVencimento?: string;
+  metodoPagamento?: string;
+  validezFatura?: string; 
+  
+  // Campos específicos de COTAÇÃO (opcionais para fatura)
+  cotacaoNumero?: string;
+  validezCotacao?: string;
+  dataExpiracao?: string; // data calculada de expiração
 }
 
 /**
- * Tipo principal que representa uma cotação completa
+ * Tipos para os itens da fatura/cotação
  */
-export interface QuotationData {
-    formData: FormDataCotacao;
-    items: ItemCotacao[];
-    totais: TotaisCotacao;
-    logo?: string | null;
-    assinatura?: string | null;
-    tipoDocumento?: 'cotacao'; // para identificar o tipo
-    htmlContent?: string;
+export interface ItemDocumento {
+  id: number;
+  quantidade: number;
+  descricao: string;
+  precoUnitario: number;
+  taxas: TaxaItem[];
+  totalItem: number;
 }
+
+export interface Pessoa {
+  nomeEmpresa: string;
+  documento: string;
+  pais: string;
+  cidade: string;
+  bairro: string;
+  email: string;
+  telefone: string;
+  pessoaContato?: string;
+}
+
+/**
+ * Tipos para taxas aplicadas aos itens
+ */
+export interface TaxaItem {
+  nome: string;
+  valor: number;
+  tipo: 'percent' | 'fixed';
+}
+
+/**
+ * Totais consolidados da fatura/cotação - ATUALIZADO COM DESCONTO
+ */
+export interface TotaisDocumento {
+  subtotal: number;
+  totalTaxas: number;
+  totalFinal: number;
+  taxasDetalhadas: {
+    nome: string;
+    valor: number;
+  }[];
+  desconto: number; // ADICIONADO
+}
+
+/**
+ * Tipo principal que representa um documento completo (fatura ou cotação)
+ */
+export interface DocumentoData {
+  tipo: TipoDocumento; 
+  formData: FormDataDocumento; 
+  items: ItemDocumento[];
+  totais: TotaisDocumento;
+  logo?: string | null;
+  assinatura?: string | null;
+  htmlContent?: string;
+}
+
+// ALIASES PARA COMPATIBILIDADE COM CÓDIGO EXISTENTE
+export type FormDataFatura = FormDataDocumento;
+export type FormDataCotacao = FormDataDocumento;
+export type ItemFatura = ItemDocumento;
+export type ItemCotacao = ItemDocumento;
+export type TotaisFatura = TotaisDocumento;
+export type TotaisCotacao = TotaisDocumento;
+export type InvoiceData = DocumentoData;
+export type QuotationData = DocumentoData;
 
 /**
  * Tipo para o objeto armazenado no Map temporário
  */
-export interface StoredQuotation {
-    data: QuotationData;
-    createdAt: number;
+export interface StoredDocumento {
+  data: DocumentoData;
+  createdAt: number;
 }
 
-/**
- * Tipo para a resposta de criação de cotação
- */
-export interface QuotationResponse {
-    id: string;
-    dataExpiracao: string;
-}
+// ALIASES PARA COMPATIBILIDADE
+export type StoredInvoice = StoredDocumento;
+export type StoredQuotation = StoredDocumento;
 
 /**
- * Tipo para parâmetros de busca de cotação
+ * Tipo para a resposta de criação de documento
  */
-export interface GetQuotationParams {
-    id: string;
+export interface DocumentoResponse {
+  id: string;
+  tipo: TipoDocumento;
+  numero: string;
+  dataExpiracao?: string;
 }
+
+// ALIASES PARA COMPATIBILIDADE
+export type InvoiceResponse = DocumentoResponse;
+export type QuotationResponse = DocumentoResponse;
+
+/**
+ * Tipo para parâmetros de busca de documento
+ */
+export interface GetDocumentoParams {
+  id: string;
+}
+
+// ALIASES PARA COMPATIBILIDADE
+export type GetInvoiceParams = GetDocumentoParams;
+export type GetQuotationParams = GetDocumentoParams;
 
 /**
  * Tipo para atualização de status de cotação
  */
 export interface UpdateQuotationStatus {
-    id: string;
-    status: 'ativa' | 'expirada' | 'convertida' | 'cancelada';
+  id: string;
+  status: 'ativa' | 'expirada' | 'convertida' | 'cancelada';
 }
 
 /**
  * Tipo para conversão de cotação para fatura
  */
 export interface ConvertQuotationToInvoice {
-    cotacaoId: string;
-    faturaNumero: string;
-    dataVencimento: string;
-}
-
-// =============================================
-// TIPOS COMPARTILHADOS (exportados do invoice-types)
-// =============================================
-
-/**
- * Tipos relacionados a emissor (compartilhado)
- */
-export interface Emitente {
-    nomeEmpresa: string;
-    documento: string;
-    pais: string;
-    cidade: string;
-    bairro: string;
-    pessoaContato?: string;
-    email: string;
-    telefone: string;
+  cotacaoId: string;
+  faturaNumero: string;
+  dataVencimento: string;
 }
 
 /**
- * Tipos relacionados ao destinatário (compartilhado)
+ * Tipo para validação de documento
  */
-export interface Destinatario {
-    nomeCompleto: string;
-    documento?: string;
-    pais?: string;
-    cidade?: string;
-    bairro?: string;
-    email: string;
-    telefone: string;
+export interface DocumentoValidation {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
 }
 
+// ALIAS PARA COMPATIBILIDADE
+export type QuotationValidation = DocumentoValidation;
+
 /**
- * Tipos para taxas aplicadas aos itens (compartilhado)
+ * Tipo para estatísticas de documentos
  */
-export interface TaxaItem {
-    nome: string;
-    valor: number;
-    tipo: 'percent' | 'fixed';
+export interface DocumentoStats {
+  total: number;
+  ativas: number;
+  expiradas: number;
+  convertidas: number;
+  valorTotal: number;
 }
 
+// ALIAS PARA COMPATIBILIDADE
+export type QuotationStats = DocumentoStats;
+
 /**
- * Tipo para pessoa (compartilhado)
+ * Tipo para filtros de busca de documentos
  */
-export interface Pessoa {
-    nomeEmpresa: string;
-    documento: string;
-    pais: string;
-    cidade: string;
-    bairro: string;
-    email: string;
-    telefone: string;
-    pessoaContato?: string;
+export interface DocumentoFilters {
+  tipo?: TipoDocumento;
+  status?: 'ativa' | 'expirada' | 'convertida' | 'cancelada';
+  dataInicio?: string;
+  dataFim?: string;
+  emitente?: string;
+  destinatario?: string;
 }
 
-/**
- * Tipo unificado para documentos
- */
-export type TipoDocumento = 'fatura' | 'cotacao';
-
-/**
- * Tipo para documento genérico (pode ser fatura ou cotação)
- */
-export type DocumentoData = InvoiceData | QuotationData;
-
-/**
- * Tipo para resposta genérica de documento
- */
-export interface DocumentoResponse {
-    id: string;
-    tipo: TipoDocumento;
-    numero: string;
-    dataExpiracao?: string;
-}
-
-// =============================================
-// UTILITY TYPES
-// =============================================
-
-/**
- * Tipo para validação de cotação
- */
-export interface QuotationValidation {
-    isValid: boolean;
-    errors: string[];
-    warnings: string[];
-}
-
-/**
- * Tipo para estatísticas de cotações
- */
-export interface QuotationStats {
-    total: number;
-    ativas: number;
-    expiradas: number;
-    convertidas: number;
-    valorTotal: number;
-}
-
-/**
- * Tipo para filtros de busca de cotações
- */
-export interface QuotationFilters {
-    status?: 'ativa' | 'expirada' | 'convertida' | 'cancelada';
-    dataInicio?: string;
-    dataFim?: string;
-    emitente?: string;
-    destinatario?: string;
-}
+// ALIAS PARA COMPATIBILIDADE
+export type QuotationFilters = DocumentoFilters;

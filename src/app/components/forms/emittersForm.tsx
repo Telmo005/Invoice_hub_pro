@@ -1049,7 +1049,7 @@ const Screen = () => {
                       error={formErrors.pais}
                       placeholder="Digite o país"
                       required
-                      maxLength={60}
+                      maxLength={15}
                       halfWidth
                       disabled={isProcessing}
                     />
@@ -1062,7 +1062,7 @@ const Screen = () => {
                       error={formErrors.cidade}
                       placeholder="Digite a cidade"
                       required
-                      maxLength={60}
+                      maxLength={30}
                       halfWidth
                       disabled={isProcessing}
                     />
@@ -1075,7 +1075,7 @@ const Screen = () => {
                       error={formErrors.endereco}
                       placeholder="Rua da Resistência, nº 245, Bairro Alto-Maé"
                       required
-                      maxLength={60}
+                      maxLength={80}
                       disabled={isProcessing}
                     />
                     <FormField
@@ -1087,7 +1087,7 @@ const Screen = () => {
                       error={formErrors.telefone}
                       placeholder="Digite o telefone"
                       required
-                      maxLength={20}
+                      maxLength={18}
                       halfWidth
                       disabled={isProcessing}
                     />
