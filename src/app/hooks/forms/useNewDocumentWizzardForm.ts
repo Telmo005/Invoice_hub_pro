@@ -194,7 +194,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     if (shouldUpdate) {
       setFormData(prev => ({ ...prev, ...updates }));
     }
-  }, [formData.dataFatura, formData.dataVencimento, formData.validezCotacao, formData.validezFatura, formData.tipo, formData.termos, atualizarTermosAutomaticamente]);
+  }, [formData.dataFatura, formData.dataVencimento, formData.validezCotacao, formData.validezFatura, formData.tipo, formData.termos, atualizarTermosAutomaticamente, formData]); // CORRIGIDO: adicionado formData como dependência
 
   const verificarModificacoesEmpresa = useCallback((empresaOriginal: Empresa, dadosAtuais: FormDataFatura['emitente']) => {
     const camposModificados: Record<string, { original: string; atual: string }> = {};
@@ -489,7 +489,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
             else setErrors(prev => { const newErrors = { ...prev }; delete newErrors[fieldName]; return newErrors; });
           }
         }
-      } catch (e) {
+      } catch (_e) { // CORRIGIDO: renomeado para _e
         // ignore validation errors
       }
     })();
@@ -500,7 +500,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
   };
 
   const removerTaxa = (itemId: number, taxaIndex: number) => {
-    setItems(items.map((item) => item.id === itemId ? { ...item, taxas: item.taxas.filter((_, index) => index !== taxaIndex) } : item));
+    setItems(items.map((item) => item.id === itemId ? { ...item, taxas: item.taxas.filter((_, _index) => _index !== taxaIndex) } : item)); // CORRIGIDO: renomeado para _index
   };
 
   const updateFormData = useCallback((newData: Partial<FormDataFatura>) => {
@@ -558,7 +558,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       newErrors['desconto'] = 'Desconto percentual não pode ser maior que 100%';
     }
 
-    items.forEach((item, index) => {
+    items.forEach((item, _index) => { // CORRIGIDO: renomeado para _index
       if (!item.descricao.trim()) {
         newErrors[`item-${item.id}-descricao`] = 'Descrição obrigatória';
         newTouched[`item-${item.id}-descricao`] = true;

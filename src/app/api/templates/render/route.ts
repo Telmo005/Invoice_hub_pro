@@ -22,6 +22,7 @@ interface DocumentData {
     moeda?: string;
     termos?: string;
     validezCotacao?: number;
+    desconto?: string; // ADICIONADO: propriedade desconto
   };
   items: any[];
   totais: any;
@@ -162,7 +163,7 @@ class TemplateService {
           'metodo-pagamento': f.metodoPagamento || ' ',
           'moeda-pagamento': f.moeda || ' ',
           'termos-pagamento': f.termos || ' ',
-          'desconto': f.desconto || '0'
+          'desconto': f.desconto || '0' // AGORA VÁLIDO: propriedade existe na interface
         };
 
         // Mapeamentos específicos por tipo

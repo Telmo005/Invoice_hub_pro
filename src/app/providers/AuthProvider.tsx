@@ -1,6 +1,6 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import { createContext, useContext, useEffect, useState, useRef } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { ROUTES } from '@/config/routes'
 import getSupabaseClient from '@/lib/supabase-client'
@@ -36,7 +36,7 @@ export default function AuthProvider({
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const triggerRefresh = () => {
+  const triggerRefresh = useCallback(() => {
     if (refreshTimerRef.current) return;
     refreshTimerRef.current = setTimeout(() => {
       try {
@@ -48,9 +48,9 @@ export default function AuthProvider({
         }
       }
     }, 150);
-  };
+  }, [router]);
 
-  const triggerPushHome = (path = ROUTES.HOME) => {
+  const triggerPushHome = useCallback((path = ROUTES.HOME) => {
     if (pushTimerRef.current) return;
     pushTimerRef.current = setTimeout(() => {
       try {
@@ -62,7 +62,7 @@ export default function AuthProvider({
         }
       }
     }, 150);
-  };
+  }, [router]);
 
   useEffect(() => {
     const getInitialSession = async () => {
@@ -92,7 +92,7 @@ export default function AuthProvider({
     return () => {
       subscription.unsubscribe()
     }
-  }, [router, supabase])
+  }, [router, supabase, triggerRefresh]) // CORRIGIDO: adicionado triggerRefresh como dependência
 
   const signInWithOAuth = async (provider: 'google' | 'facebook', redirectTo?: string) => {
     setIsLoading(true)
