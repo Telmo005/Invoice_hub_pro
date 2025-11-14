@@ -57,25 +57,30 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
     scrollToTemplate(templateIndex);
   }, [handleTemplateSelect, scrollToTemplate, templates]);
 
+  // Usa Tailwind ao invés de Bootstrap para melhor performance
   const containerClasses = isFullscreen 
-    ? 'position-fixed top-0 start-0 w-100 h-100 bg-white z-1050 p-3' 
-    : '';
+    ? 'fixed inset-0 bg-white z-50 p-4 overflow-hidden flex flex-col' 
+    : 'w-full';
 
-  const previewHeight = isFullscreen ? 'calc(100vh - 150px)' : '500px';
+  const previewHeight = isFullscreen ? 'calc(100vh - 160px)' : '500px';
 
   return (
     <div className={containerClasses}>
-      <div className="mb-3 p-3 bg-light rounded">
-        <div className="d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">
-            {tipo === 'cotacao' ? '📄 Modelos de Cotação' : '📄 Modelos de Fatura'}
+      {/* Header */}
+      <div className="mb-4 p-3 bg-gray-100 rounded-lg flex justify-between items-center">
+        <div>
+          <h5 className="text-lg font-semibold mb-1">
+            📄 {tipo === 'cotacao' ? 'Modelos de Cotação' : 'Modelos de Fatura'}
           </h5>
-          <span className={`badge ${tipo === 'cotacao' ? 'bg-success' : 'bg-primary'}`}>
-            {tipo === 'cotacao' ? 'COTAÇÃO' : 'FATURA'}
-          </span>
         </div>
+        <span className={`px-3 py-1 rounded-full text-white text-xs font-bold ${
+          tipo === 'cotacao' ? 'bg-green-500' : 'bg-blue-500'
+        }`}>
+          {tipo === 'cotacao' ? 'COTAÇÃO' : 'FATURA'}
+        </span>
       </div>
 
+      {/* Template Selection */}
       <TemplateNavigationPanel
         templates={templates}
         selectedTemplateId={selectedTemplateId}
@@ -86,20 +91,23 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
         tipo={tipo}
       />
 
-      <PreviewPanel
-        templateName={selectedTemplate.name}
-        zoomLevel={zoomLevel}
-        isFullscreen={isFullscreen}
-        previewHeight={previewHeight}
-        isRendering={renderState.isLoading}
-        error={renderState.error}
-        renderedHtml={renderState.html}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onToggleFullscreen={onToggleFullscreen}
-        isZoomInDisabled={isZoomInDisabled}
-        isZoomOutDisabled={isZoomOutDisabled}
-      />
+      {/* Preview */}
+      <div className="flex-1 overflow-hidden">
+        <PreviewPanel
+          templateName={selectedTemplate.name}
+          zoomLevel={zoomLevel}
+          isFullscreen={isFullscreen}
+          previewHeight={previewHeight}
+          isRendering={renderState.isLoading}
+          error={renderState.error}
+          renderedHtml={renderState.html}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onToggleFullscreen={onToggleFullscreen}
+          isZoomInDisabled={isZoomInDisabled}
+          isZoomOutDisabled={isZoomOutDisabled}
+        />
+      </div>
     </div>
   );
 };
@@ -124,24 +132,26 @@ const TemplateNavigationPanel: React.FC<TemplateNavigationPanelProps> = ({
   tipo
 }) => {
   return (
-    <>
-      <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
+    <div className="mb-4">
+      {/* Navigation buttons + template carousel */}
+      <div className="flex items-center justify-center gap-2 mb-3">
         <button
           onClick={() => onNavigation('prev')}
-          className="btn btn-sm btn-light rounded-circle"
+          className="shrink-0 p-2 bg-gray-200 hover:bg-gray-300 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={!navigation.hasPrev}
           aria-label="Modelo anterior"
         >
-          <FiChevronLeft />
+          <FiChevronLeft size={20} />
         </button>
 
+        {/* Template carousel - lightweight scroll container */}
         <div 
           ref={templatesContainerRef}
-          className="d-flex overflow-auto pb-3 gap-3 px-2 align-items-stretch"
+          className="flex gap-3 overflow-x-auto flex-1 px-2 pb-2 scroll-smooth"
           style={{ 
-            scrollbarWidth: 'thin',
             scrollBehavior: 'smooth',
-            maxWidth: '100%'
+            maxWidth: '100%',
+            scrollbarWidth: 'thin',
           }}
         >
           {templates.map((template) => (
@@ -156,20 +166,21 @@ const TemplateNavigationPanel: React.FC<TemplateNavigationPanelProps> = ({
 
         <button
           onClick={() => onNavigation('next')}
-          className="btn btn-sm btn-light rounded-circle"
+          className="shrink-0 p-2 bg-gray-200 hover:bg-gray-300 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={!navigation.hasNext}
           aria-label="Próximo modelo"
         >
-          <FiChevronRight />
+          <FiChevronRight size={20} />
         </button>
       </div>
 
-      <div className="d-md-none text-center mb-2">
-        <small className="text-muted">
+      {/* Mobile hint */}
+      <div className="md:hidden text-center mb-2">
+        <small className="text-gray-500">
           {tipo === 'cotacao' ? 'Deslize para ver mais modelos de cotação' : 'Deslize para ver mais modelos de fatura'}
         </small>
       </div>
-    </>
+    </div>
   );
 };
 
