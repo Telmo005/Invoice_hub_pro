@@ -1,9 +1,9 @@
 'use client'
-import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { ROUTES } from '@/config/routes'
+import getSupabaseClient from '@/lib/supabase-client'
 
 type AuthContextType = {
   supabase: SupabaseClient
@@ -24,12 +24,8 @@ export default function AuthProvider({
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  const [supabase] = useState(() => 
-    createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-  )
+  // Use singleton Supabase client to avoid multiple GoTrueClient instances
+  const supabase = getSupabaseClient() as SupabaseClient
 
   // Debounce refs to avoid multiple rapid router navigations/refreshes
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

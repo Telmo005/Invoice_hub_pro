@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient, Session, User } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
+import getSupabaseClient from '@/lib/supabase-client';
 
 let sessionCache: Session | null = null;
 let cacheTimestamp = 0;
@@ -14,28 +15,8 @@ export function useAuth() {
   const mountedRef = useRef(true);
   const authCheckInProgressRef = useRef(false);
   
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
-  // Reuse a global client if one already exists to avoid multiple GoTrueClient
-  // instances in the same browser context which can lead to the warning:
-  // "Multiple GoTrueClient instances detected in the same browser context.".
-  // We store the client on `window.__supabase_client` so different hooks/modules
-  // can reuse the same underlying client.
-  const supabaseRef = useRef<any | null>(null);
-  if (!supabaseRef.current) {
-    if (typeof window !== 'undefined' && (window as any).__supabase_client) {
-      supabaseRef.current = (window as any).__supabase_client;
-    } else {
-      supabaseRef.current = supabase;
-      if (typeof window !== 'undefined') {
-        (window as any).__supabase_client = supabaseRef.current;
-      }
-    }
-  }
-  const client = supabaseRef.current;
+  // Get the Supabase client instance (singleton pattern)
+  const client = getSupabaseClient();
 
   const getCurrentSession = useCallback(async (forceRefresh = false) => {
     const now = Date.now();
@@ -50,7 +31,7 @@ export function useAuth() {
     authCheckInProgressRef.current = true;
 
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const { data: { session }, error } = await client!.auth.getSession();
       
       if (error) throw error;
 
@@ -64,7 +45,7 @@ export function useAuth() {
     } finally {
       authCheckInProgressRef.current = false;
     }
-  }, [supabase]);
+  }, [client]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -94,8 +75,8 @@ export function useAuth() {
 
     let stateChangeTimeout: NodeJS.Timeout;
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    const { data: { subscription } } = client!.auth.onAuthStateChange(
+      async (event: string, session: Session | null) => {
         clearTimeout(stateChangeTimeout);
         
         stateChangeTimeout = setTimeout(async () => {
@@ -123,12 +104,12 @@ export function useAuth() {
       clearTimeout(stateChangeTimeout);
       subscription.unsubscribe();
     };
-  }, [getCurrentSession, supabase, router]);
+  }, [getCurrentSession, client, router]);
 
   const login = useCallback(async (credentials: { email: string; password: string }) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword(credentials);
+      const { data, error } = await client!.auth.signInWithPassword(credentials);
       
       if (error) throw error;
 
@@ -143,11 +124,11 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
     }
-  }, [supabase, router]);
+  }, [client, router]);
 
   const logout = useCallback(async () => {
     try {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await client!.auth.signOut();
       
       if (error) throw error;
 
@@ -158,7 +139,7 @@ export function useAuth() {
     } catch (error) {
       throw error;
     }
-  }, [supabase, router]);
+  }, [client, router]);
 
   const refreshSession = useCallback(async () => {
     return await getCurrentSession(true);
