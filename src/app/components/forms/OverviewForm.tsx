@@ -1,6 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   FiFileText,
   FiSearch,
@@ -16,6 +16,9 @@ import {
   FiArrowRight,
   FiArrowLeft,
   FiLoader,
+  FiMinus,
+  FiPlus,
+  FiDownload,
   FiExternalLink
 } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -23,7 +26,7 @@ import { Roboto } from 'next/font/google';
 import { useList } from '@/app/hooks/document/useList';
 import { useDelete } from '@/app/hooks/document/useDelete';
 import { useDocumentManager } from '@/app/hooks/document/useDocumentManager';
-import { FaInfoCircle, FaFilePdf, FaEnvelope, FaSpinner } from 'react-icons/fa';
+import { FaInfoCircle, FaSpinner } from 'react-icons/fa';
 
 // Font configuration
 const roboto = Roboto({
@@ -208,7 +211,6 @@ interface DocumentPreviewModalProps {
   isLoading: boolean;
   error: string | null;
   onDownload: (documentNumber?: string) => void;
-  onEmailSend: (documentNumber?: string) => void;
   isGeneratingPdf: boolean;
 }
 
@@ -220,9 +222,46 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   isLoading,
   error,
   onDownload,
-  onEmailSend,
   isGeneratingPdf
 }) => {
+  const [zoom, setZoom] = useState<number>(1);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  const handleZoomIn = () => setZoom((z) => Math.min(2, Math.round((z + 0.1) * 10) / 10));
+  const handleZoomOut = () => setZoom((z) => Math.max(0.3, Math.round((z - 0.1) * 10) / 10));
+  const handleZoomReset = () => setZoom(1);
+
+  useEffect(() => {
+    if (!documentHtml || !contentRef.current) return;
+
+    const root = contentRef.current;
+    const selectors = ['.t1-isolated', '.invoice-template-isolated', '.t3-isolated'];
+
+    selectors.forEach((sel) => {
+      root.querySelectorAll<HTMLElement>(sel).forEach((el) => {
+        // Override template enforced styles with inline important rules
+        el.style.setProperty('background', 'transparent', 'important');
+        el.style.setProperty('box-shadow', 'none', 'important');
+        el.style.setProperty('width', 'auto', 'important');
+        el.style.setProperty('max-width', '100%', 'important');
+        el.style.setProperty('height', 'auto', 'important');
+        el.style.setProperty('min-width', '0', 'important');
+        el.style.setProperty('min-height', '0', 'important');
+        el.style.setProperty('padding', '0', 'important');
+        el.style.setProperty('margin', '0 auto', 'important');
+        el.style.setProperty('transform', 'none', 'important');
+        el.style.setProperty('overflow', 'visible', 'important');
+      });
+    });
+
+    // Also make sure inner containers don't force large paddings
+    root.querySelectorAll<HTMLElement>('.invoice-container, .invoice, .invoice-container').forEach((c) => {
+      c.style.setProperty('padding', '0', 'important');
+      c.style.setProperty('box-shadow', 'none', 'important');
+      c.style.setProperty('max-width', '100%', 'important');
+    });
+  }, [documentHtml]);
+
   if (!isOpen) return null;
 
   return (
@@ -234,7 +273,7 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-xl"
       >
         {/* Header do Modal */}
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:justify-between sm:items-center bg-white sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${documentData?.tipo === 'fatura' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
               <FiFileText className="h-5 w-5" />
@@ -255,28 +294,49 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mt-3 sm:mt-0">
             {/* Botões de Ação */}
             <button
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-md font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               onClick={() => onDownload(documentData?.numero)}
               disabled={isGeneratingPdf || !documentHtml}
+              title="Download PDF"
             >
               {isGeneratingPdf ? (
                 <FaSpinner className="animate-spin h-4 w-4" />
               ) : (
-                <FaFilePdf className="h-4 w-4" />
+                <FiDownload className="h-4 w-4" />
               )}
-              {isGeneratingPdf ? 'Gerando PDF...' : 'Download PDF'}
+              <span className="hidden md:inline">{isGeneratingPdf ? 'Gerando PDF...' : 'Download'}</span>
             </button>
 
-            <button
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md font-medium text-sm transition-colors shadow-sm"
-              onClick={() => onEmailSend(documentData?.numero)}
-            >
-              <FaEnvelope className="h-4 w-4" />
-              Enviar Email
-            </button>
+            {/* Zoom controls */}
+            <div className="flex items-center gap-2 ml-2">
+              <button
+                onClick={handleZoomOut}
+                className="p-2 bg-gray-100 hover:bg-gray-200 rounded text-sm"
+                aria-label="Diminuir zoom"
+                title="Diminuir zoom"
+              >
+                <FiMinus className="h-4 w-4 text-gray-700" />
+              </button>
+              <button
+                onClick={handleZoomReset}
+                className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm hidden sm:inline"
+                aria-label="Reset zoom"
+                title="Resetar zoom"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                onClick={handleZoomIn}
+                className="p-2 bg-gray-100 hover:bg-gray-200 rounded text-sm"
+                aria-label="Aumentar zoom"
+                title="Aumentar zoom"
+              >
+                <FiPlus className="h-4 w-4 text-gray-700" />
+              </button>
+            </div>
 
             <button
               onClick={onClose}
@@ -317,12 +377,18 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           )}
 
           {documentHtml && !isLoading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="bg-white p-8 shadow-sm mx-auto max-w-4xl rounded-lg border border-gray-200"
-              dangerouslySetInnerHTML={{ __html: documentHtml }}
-            />
+            <div className="mx-auto max-w-4xl">
+              <div ref={contentRef} className="overflow-auto w-full" style={{ width: `${100 / (zoom || 1)}%` }}>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="origin-top-left"
+                  style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
+                >
+                  <div dangerouslySetInnerHTML={{ __html: documentHtml }} />
+                </motion.div>
+              </div>
+            </div>
           )}
         </div>
 
@@ -656,15 +722,7 @@ export default function DocumentsPage() {
     }
   }, [documentHtml, selectedDocument, secureLog]);
 
-  // ✅ FUNÇÃO: Envio de email
-  const handleEmailSend = useCallback((documentNumber?: string) => {
-    const docNumber = documentNumber || selectedDocument?.numero;
-    const docType = selectedDocument?.tipo === 'fatura' ? 'fatura' : 'cotação';
-    const subject = encodeURIComponent(`Dúvidas sobre ${docType} ${docNumber}`);
-    const body = encodeURIComponent(`Olá,\n\nTenho dúvidas sobre a ${docType} ${docNumber}.\n\nPodem ajudar?\n\nObrigado!`);
-
-    window.open(`mailto:digitalhub.midia@gmail.com?subject=${subject}&body=${body}`, '_blank');
-  }, [selectedDocument]);
+  // (Email sending removed) — kept in codebase intentionally omitted from preview UI.
 
   // ✅ FUNÇÃO: Fechar Preview
   const handleClosePreview = useCallback(() => {
@@ -1026,7 +1084,7 @@ export default function DocumentsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
               <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-2">
                 <div className="flex items-start">
-                  <FaInfoCircle className="text-blue-500 mt-0.5 mr-1 flex-shrink-0" size={10} />
+                  <FaInfoCircle className="text-blue-500 mt-0.5 mr-1 shrink-0" size={10} />
                   <div className="text-xs text-blue-700">
                     Total de Faturas em Rascunho
                     <h4 className="text-sm font-bold mt-1">{draftStats.draftInvoices}</h4>
@@ -1035,7 +1093,7 @@ export default function DocumentsPage() {
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-2">
                 <div className="flex items-start">
-                  <FaInfoCircle className="text-blue-500 mt-0.5 mr-1 flex-shrink-0" size={10} />
+                  <FaInfoCircle className="text-blue-500 mt-0.5 mr-1 shrink-0" size={10} />
                   <div className="text-xs text-blue-700">
                     Total de Cotações em Rascunho
                     <h4 className="text-sm font-bold mt-1">{draftStats.draftQuotes}</h4>
@@ -1206,7 +1264,6 @@ export default function DocumentsPage() {
         isLoading={isLoadingHtml}
         error={htmlError}
         onDownload={handleDownload}
-        onEmailSend={handleEmailSend}
         isGeneratingPdf={isGeneratingPdf}
       />
 

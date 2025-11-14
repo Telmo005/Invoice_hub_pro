@@ -1,9 +1,9 @@
 'use client'
-import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { ROUTES } from '@/config/routes'
+import getSupabaseClient from '@/lib/supabase-client'
 
 type AuthContextType = {
   supabase: SupabaseClient
@@ -24,12 +24,45 @@ export default function AuthProvider({
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  const [supabase] = useState(() => 
-    createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-  )
+  // Use singleton Supabase client to avoid multiple GoTrueClient instances
+  // Initialize only on client-side (this runs after hydration)
+  const supabaseRef = useRef<SupabaseClient | null>(null)
+  if (!supabaseRef.current && typeof window !== 'undefined') {
+    supabaseRef.current = getSupabaseClient()
+  }
+  const supabase = supabaseRef.current as SupabaseClient
+
+  // Debounce refs to avoid multiple rapid router navigations/refreshes
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerRefresh = useCallback(() => {
+    if (refreshTimerRef.current) return;
+    refreshTimerRef.current = setTimeout(() => {
+      try {
+        router.refresh();
+      } finally {
+        if (refreshTimerRef.current) {
+          clearTimeout(refreshTimerRef.current);
+          refreshTimerRef.current = null;
+        }
+      }
+    }, 150);
+  }, [router]);
+
+  const triggerPushHome = useCallback((path = ROUTES.HOME) => {
+    if (pushTimerRef.current) return;
+    pushTimerRef.current = setTimeout(() => {
+      try {
+        router.push(path);
+      } finally {
+        if (pushTimerRef.current) {
+          clearTimeout(pushTimerRef.current);
+          pushTimerRef.current = null;
+        }
+      }
+    }, 150);
+  }, [router]);
 
   useEffect(() => {
     const getInitialSession = async () => {
@@ -50,16 +83,16 @@ export default function AuthProvider({
       setIsLoading(false)
 
       if (event === 'SIGNED_IN') {
-        router.refresh()
+        triggerRefresh();
       } else if (event === 'SIGNED_OUT') {
-        router.refresh()
+        triggerRefresh();
       }
     })
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [router, supabase])
+  }, [router, supabase, triggerRefresh]) // CORRIGIDO: adicionado triggerRefresh como dependência
 
   const signInWithOAuth = async (provider: 'google' | 'facebook', redirectTo?: string) => {
     setIsLoading(true)
@@ -83,8 +116,9 @@ export default function AuthProvider({
     try {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
-      router.push(ROUTES.HOME)
-      router.refresh()
+      // Use debounced navigation/refresh to avoid duplicate requests
+      triggerPushHome(ROUTES.HOME)
+      triggerRefresh()
     } catch (error) {
       console.error('Error signing out:', error)
       throw error

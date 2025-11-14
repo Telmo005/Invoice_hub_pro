@@ -7,6 +7,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fatura Simplificada</title>
     <style>
+        /* Reset para garantir centralização */
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+        }
+
         /* Reset e base - ISOLADO para o template */
         .invoice-template-isolated {
             all: initial;
@@ -231,6 +245,14 @@
 
         /* Impressão em A4 */
         @media print {
+            html, body {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+            }
+
             .invoice-template-isolated {
                 background: #fff !important;
                 padding: 0 !important;
@@ -238,6 +260,10 @@
                 width: 210mm !important;
                 min-height: 297mm !important;
                 box-shadow: none !important;
+                margin: 0 !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
             }
 
             .invoice-template-isolated .invoice-container {
@@ -343,7 +369,7 @@
                         <td id="taxas-total">0 MZN</td>
                     </tr>
                     <tr>
-                        <th>Descontos</th>
+                        <th>Desconto</th>
                         <td id="desconto">0 MZN</td>
                     </tr>
                     <tr>

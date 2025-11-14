@@ -10,6 +10,20 @@
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Roboto:wght@300;400;500&display=swap"
         rel="stylesheet">
     <style>
+        /* Reset para garantir centralização */
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+        }
+
         /* RESET ESPECÍFICO - Isola apenas o template sem afetar o resto */
         .t1-isolated {
             all: initial;
@@ -46,6 +60,14 @@
 
         /* Configuração de página para impressão */
         @media print {
+            html, body {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+            }
+
             .t1-isolated {
                 width: 210mm !important;
                 height: 297mm !important;
@@ -54,6 +76,9 @@
                 box-shadow: none !important;
                 page-break-after: avoid !important;
                 page-break-inside: avoid !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
             }
             
             /* Esconde outros elementos da página durante a impressão */
@@ -300,7 +325,7 @@
                     <span id="taxas-total" class="total-value text-right">Carregando...</span>
                 </div>
                 <div class="total-line">
-                    <span class="total-label">Descontos:</span>
+                    <span class="total-label">Desconto:</span>
                     <span id="desconto" class="total-value text-right"></span>
                 </div>
                 <div class="total-line grand-total">
