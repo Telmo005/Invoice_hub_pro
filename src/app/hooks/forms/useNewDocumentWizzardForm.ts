@@ -327,6 +327,30 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     if (stringValue.length > VALIDATION_RULES.MAX_STRING_LENGTH) {
       return `Máximo ${VALIDATION_RULES.MAX_STRING_LENGTH} caracteres`;
     }
+
+    // Item-level quick validations (item-<id>-descricao, item-<id>-quantidade, item-<id>-preco)
+    const itemDescMatch = name.match(/^item-(\d+)-descricao$/);
+    if (itemDescMatch) {
+      if (!stringValue.trim()) return 'Descrição obrigatória';
+      if (stringValue.length > VALIDATION_RULES.MAX_DESCRIPTION_LENGTH) return `Máximo ${VALIDATION_RULES.MAX_DESCRIPTION_LENGTH} caracteres`;
+      return '';
+    }
+
+    const itemQtdMatch = name.match(/^item-(\d+)-quantidade$/);
+    if (itemQtdMatch) {
+      const num = parseInt(stringValue) || 0;
+      if (num < VALIDATION_RULES.MIN_QUANTITY) return `Quantidade mínima: ${VALIDATION_RULES.MIN_QUANTITY}`;
+      if (num > VALIDATION_RULES.MAX_QUANTITY) return `Quantidade máxima: ${VALIDATION_RULES.MAX_QUANTITY}`;
+      return '';
+    }
+
+    const itemPrecoMatch = name.match(/^item-(\d+)-preco$/);
+    if (itemPrecoMatch) {
+      const num = parseFloat(stringValue) || 0;
+      if (num < VALIDATION_RULES.MIN_PRICE) return 'Preço unitário inválido';
+      if (num > VALIDATION_RULES.MAX_PRICE) return `Preço máximo: ${VALIDATION_RULES.MAX_PRICE}`;
+      return '';
+    }
     
     return '';
   };
@@ -435,6 +459,40 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       }));
     }
     setItems(items.map((item) => (item.id === id ? { ...item, [campo]: sanitizedValue } : item)));
+
+    // If the user already touched this item field, run quick validation to update inline errors
+    (async () => {
+      try {
+        if (campo === 'descricao') {
+          const fieldName = `item-${id}-descricao`;
+          if (touched[fieldName]) {
+            const err = await validateField(fieldName, sanitizedValue);
+            if (err) setErrors(prev => ({ ...prev, [fieldName]: err }));
+            else setErrors(prev => { const newErrors = { ...prev }; delete newErrors[fieldName]; return newErrors; });
+          }
+        }
+
+        if (campo === 'quantidade') {
+          const fieldName = `item-${id}-quantidade`;
+          if (touched[fieldName]) {
+            const err = await validateField(fieldName, sanitizedValue);
+            if (err) setErrors(prev => ({ ...prev, [fieldName]: err }));
+            else setErrors(prev => { const newErrors = { ...prev }; delete newErrors[fieldName]; return newErrors; });
+          }
+        }
+
+        if (campo === 'precoUnitario') {
+          const fieldName = `item-${id}-preco`;
+          if (touched[fieldName]) {
+            const err = await validateField(fieldName, sanitizedValue);
+            if (err) setErrors(prev => ({ ...prev, [fieldName]: err }));
+            else setErrors(prev => { const newErrors = { ...prev }; delete newErrors[fieldName]; return newErrors; });
+          }
+        }
+      } catch (e) {
+        // ignore validation errors
+      }
+    })();
   };
 
   const adicionarTaxa = (itemId: number) => {
@@ -501,9 +559,18 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     }
 
     items.forEach((item, index) => {
-      if (!item.descricao.trim()) newErrors[`item-${item.id}-descricao`] = 'Descrição obrigatória';
-      if (item.quantidade < VALIDATION_RULES.MIN_QUANTITY) newErrors[`item-${item.id}-quantidade`] = `Quantidade mínima: ${VALIDATION_RULES.MIN_QUANTITY}`;
-      if (item.precoUnitario < VALIDATION_RULES.MIN_PRICE) newErrors[`item-${item.id}-preco`] = 'Preço unitário inválido';
+      if (!item.descricao.trim()) {
+        newErrors[`item-${item.id}-descricao`] = 'Descrição obrigatória';
+        newTouched[`item-${item.id}-descricao`] = true;
+      }
+      if (item.quantidade < VALIDATION_RULES.MIN_QUANTITY) {
+        newErrors[`item-${item.id}-quantidade`] = `Quantidade mínima: ${VALIDATION_RULES.MIN_QUANTITY}`;
+        newTouched[`item-${item.id}-quantidade`] = true;
+      }
+      if (item.precoUnitario < VALIDATION_RULES.MIN_PRICE) {
+        newErrors[`item-${item.id}-preco`] = 'Preço unitário inválido';
+        newTouched[`item-${item.id}-preco`] = true;
+      }
     });
 
     if (!formData.dataFatura) newErrors.dataFatura = 'Data da fatura é obrigatória';

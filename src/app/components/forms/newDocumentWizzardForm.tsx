@@ -8,7 +8,7 @@ import { formatCurrency } from '@/lib/formatUtils';
 import { Empresa } from '@/types/emissor-type';
 import { useListarEmissores } from '@/app/hooks/emitters/useListarEmissores';
 import { useEmpresaPadrao } from '@/app/hooks/emitters/useEmpresaPadrao';
-import { TipoDocumento, ItemFatura } from '@/types/invoice-types'; 
+import { TipoDocumento, ItemFatura } from '@/types/invoice-types';
 
 const roboto = Roboto({ weight: ['300', '400', '700'], subsets: ['latin'], variable: '--font-roboto' });
 
@@ -24,7 +24,7 @@ interface EmitenteStepProps {
   formData: any;
   errors: Record<string, string>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
-  handleBlur: (e: React.FocusEvent<HTMLInputElement |HTMLSelectElement | HTMLTextAreaElement>) => void;
+  handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   empresas: Empresa[];
   selectedEmpresa: Empresa | null;
   onEmpresaChange: (empresa: Empresa) => void;
@@ -35,14 +35,14 @@ interface DestinatarioStepProps {
   formData: any;
   errors: Record<string, string>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
-  handleBlur: (e: React.FocusEvent<HTMLInputElement |HTMLSelectElement  | HTMLTextAreaElement>) => void;
+  handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
 }
 
 interface ItensStepProps {
   formData: any;
   errors: Record<string, string>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
-  handleBlur: (e: React.FocusEvent<HTMLInputElement| HTMLSelectElement  | HTMLTextAreaElement>) => void;
+  handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   items: any[];
   adicionarItem: () => void;
   removerItem: (id: number) => void;
@@ -144,10 +144,12 @@ const ItemRow = memo(({
     <tr className="hover:bg-gray-50 border-b">
       <td className="p-1 border-r text-sm w-16">
         <input
+          id={`item-${item.id}-quantidade`}
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
-          className="w-full p-1 border rounded text-center text-xs"
+          aria-invalid={!!errors[`item-${item.id}-quantidade`]}
+          className={`w-full p-1 border rounded text-center text-xs ${errors[`item-${item.id}-quantidade`] ? 'border-red-500' : 'border-gray-300'}`}
           value={item.quantidade === 0 ? '' : item.quantidade.toString()}
           onChange={(e) => {
             const value = e.target.value;
@@ -163,8 +165,10 @@ const ItemRow = memo(({
       </td>
       <td className="p-1 border-r text-sm w-32">
         <input
+          id={`item-${item.id}-descricao`}
           type="text"
-          className="w-full p-1 border rounded text-xs"
+          aria-invalid={!!errors[`item-${item.id}-descricao`]}
+          className={`w-full p-1 border rounded text-xs ${errors[`item-${item.id}-descricao`] ? 'border-red-500' : 'border-gray-300'}`}
           value={item.descricao}
           onChange={(e) => onUpdate('descricao', e.target.value)}
           onBlur={() => onBlur(`item-${item.id}-descricao`)}
@@ -174,9 +178,11 @@ const ItemRow = memo(({
       </td>
       <td className="p-1 border-r text-sm w-24">
         <input
+          id={`item-${item.id}-preco`}
           type="text"
           inputMode="decimal"
-          className="w-full p-1 border rounded text-right text-xs"
+          aria-invalid={!!errors[`item-${item.id}-preco`]}
+          className={`w-full p-1 border rounded text-right text-xs ${errors[`item-${item.id}-preco`] ? 'border-red-500' : 'border-gray-300'}`}
           value={item.precoUnitario === 0 ? '' : item.precoUnitario.toString()}
           onChange={(e) => {
             const value = e.target.value;
@@ -390,11 +396,11 @@ DestinatarioStep.displayName = 'DestinatarioStep';
 
 const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, onItemBlur, isGeneratingNumber, generateDocumentNumber }: ItensStepProps) => {
   const isCotacao = formData.tipo === 'cotacao';
-  
+
   const calcularSubtotal = useCallback(() => {
     return items.reduce((total, item) => {
       const subtotalItem = item.quantidade * item.precoUnitario;
-      const taxasItem = item.taxas.reduce((sum: number, tax: any) => 
+      const taxasItem = item.taxas.reduce((sum: number, tax: any) =>
         tax.tipo === 'percent' ? sum + (subtotalItem * tax.valor) / 100 : sum + tax.valor, 0);
       return total + subtotalItem + taxasItem;
     }, 0);
@@ -415,7 +421,7 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
   }, [calcularSubtotal, calcularDescontoTotal]);
 
   const formatarData = (data: string) => new Date(data).toLocaleDateString('pt-MZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  
+
   const handleValidityChange = (e: React.ChangeEvent<HTMLInputElement>, isCotacao: boolean) => {
     const value = e.target.value;
     const fieldName = isCotacao ? "validezCotacao" : "validezFatura";
@@ -435,11 +441,11 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
   const handleDescontoBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value === '') {
-      handleChange({ 
-        target: { 
-          name: 'desconto', 
-          value: 0 
-        } 
+      handleChange({
+        target: {
+          name: 'desconto',
+          value: 0
+        }
       } as unknown as React.ChangeEvent<HTMLInputElement>);
     }
     handleBlur(e);
@@ -471,24 +477,23 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
               {isCotacao ? 'Número da Cotação *' : 'Número da Fatura *'}
             </label>
             <div className="flex gap-2">
-              <input 
-                type="text" 
-                id={isCotacao ? "cotacaoNumero" : "faturaNumero"} 
-                name={isCotacao ? "cotacaoNumero" : "faturaNumero"} 
-                className={`flex-1 bg-gray-50 p-2 border rounded text-sm ${
-                  errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] ? 'border-red-500' : 'border-gray-300'
-                } ${isGeneratingNumber ? 'bg-gray-50' : ''}`} 
-                value={isCotacao ? (formData.cotacaoNumero || '') : formData.faturaNumero} 
-                onChange={handleChange} 
-                onBlur={handleBlur} 
-                placeholder={isGeneratingNumber ? "Gerando número automaticamente..." : (isCotacao ? "Ex: COT-100" : "Ex: FTR-100")} 
-                required 
+              <input
+                type="text"
+                id={isCotacao ? "cotacaoNumero" : "faturaNumero"}
+                name={isCotacao ? "cotacaoNumero" : "faturaNumero"}
+                className={`flex-1 bg-gray-50 p-2 border rounded text-sm ${errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] ? 'border-red-500' : 'border-gray-300'
+                  } ${isGeneratingNumber ? 'bg-gray-50' : ''}`}
+                value={isCotacao ? (formData.cotacaoNumero || '') : formData.faturaNumero}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder={isGeneratingNumber ? "Gerando número automaticamente..." : (isCotacao ? "Ex: COT-100" : "Ex: FTR-100")}
+                required
                 maxLength={20}
                 readOnly={true}
               />
               <button
                 type="button"
-                className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="h-6 px-1 py-0 mt-2 leading-none text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 onClick={generateDocumentNumber}
                 disabled={isGeneratingNumber}
                 title={isCotacao ? "Gerar novo número de cotação" : "Gerar novo número de fatura"}
@@ -521,17 +526,16 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Data {isCotacao ? 'da Cotação' : 'da Fatura'} *
             </label>
-            <input 
-              type="date" 
-              id="dataFatura" 
-              name="dataFatura" 
-              className={`w-full p-2 border rounded text-sm ${
-                errors['dataFatura'] ? 'border-red-500' : 'border-gray-300'
-              }`} 
-              value={formData.dataFatura} 
-              onChange={handleChange} 
-              onBlur={handleBlur} 
-              required 
+            <input
+              type="date"
+              id="dataFatura"
+              name="dataFatura"
+              className={`w-full p-2 border rounded text-sm ${errors['dataFatura'] ? 'border-red-500' : 'border-gray-300'
+                }`}
+              value={formData.dataFatura}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              required
             />
             {errors['dataFatura'] && (
               <div className="text-red-500 text-xs mt-1">{errors['dataFatura']}</div>
@@ -539,37 +543,35 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
           </div>
         </div>
 
-        <div className={`border rounded-lg p-4 mb-4 ${
-          isCotacao ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'
-        }`}>
+        <div className={`border rounded-lg p-4 mb-4 ${isCotacao ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'
+          }`}>
           <h5 className="font-semibold mb-3 text-gray-800">Validade do Documento</h5>
           <div className="flex flex-wrap -mx-2">
             <div className="w-full md:w-1/2 px-2 mb-3">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Validade (dias) *
               </label>
-              <input 
-                type="text" 
-                inputMode="numeric" 
-                pattern="[0-9]*" 
-                id={isCotacao ? "validezCotacao" : "validezFatura"} 
-                name={isCotacao ? "validezCotacao" : "validezFatura"} 
-                className={`w-full p-2 border rounded text-sm ${
-                  errors[isCotacao ? 'validezCotacao' : 'validezFatura'] ? 'border-red-500' : 'border-gray-300'
-                }`} 
-                value={isCotacao ? (formData.validezCotacao === '0' ? '' : formData.validezCotacao) : (formData.validezFatura === '0' ? '' : formData.validezFatura)} 
-                onChange={(e) => handleValidityChange(e, isCotacao)} 
-                onBlur={(e) => { 
-                  if (e.target.value === '') handleChange({ 
-                    target: { 
-                      name: isCotacao ? "validezCotacao" : "validezFatura", 
-                      value: '15' 
-                    } 
-                  } as React.ChangeEvent<HTMLInputElement>); 
-                  handleBlur(e); 
-                }} 
-                onFocus={(e) => e.target.select()} 
-                required 
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                id={isCotacao ? "validezCotacao" : "validezFatura"}
+                name={isCotacao ? "validezCotacao" : "validezFatura"}
+                className={`w-full p-2 border rounded text-sm ${errors[isCotacao ? 'validezCotacao' : 'validezFatura'] ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                value={isCotacao ? (formData.validezCotacao === '0' ? '' : formData.validezCotacao) : (formData.validezFatura === '0' ? '' : formData.validezFatura)}
+                onChange={(e) => handleValidityChange(e, isCotacao)}
+                onBlur={(e) => {
+                  if (e.target.value === '') handleChange({
+                    target: {
+                      name: isCotacao ? "validezCotacao" : "validezFatura",
+                      value: '15'
+                    }
+                  } as React.ChangeEvent<HTMLInputElement>);
+                  handleBlur(e);
+                }}
+                onFocus={(e) => e.target.select()}
+                required
               />
               {errors[isCotacao ? 'validezCotacao' : 'validezFatura'] && (
                 <div className="text-red-500 text-xs mt-1">
@@ -612,16 +614,16 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
               </thead>
               <tbody>
                 {items.map((item) => (
-                  <ItemRow 
-                    key={item.id} 
-                    item={item} 
-                    currency={formData.moeda} 
-                    onUpdate={(field, value) => atualizarItem(item.id, field as keyof ItemFatura, value)} 
-                    onRemove={() => removerItem(item.id)} 
-                    onAddTax={() => adicionarTaxa(item.id)} 
-                    onRemoveTax={(taxaIndex) => removerTaxa(item.id, taxaIndex)} 
-                    errors={errors} 
-                    onBlur={onItemBlur} 
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    currency={formData.moeda}
+                    onUpdate={(field, value) => atualizarItem(item.id, field as keyof ItemFatura, value)}
+                    onRemove={() => removerItem(item.id)}
+                    onAddTax={() => adicionarTaxa(item.id)}
+                    onRemoveTax={(taxaIndex) => removerTaxa(item.id, taxaIndex)}
+                    errors={errors}
+                    onBlur={onItemBlur}
                   />
                 ))}
               </tbody>
@@ -629,9 +631,9 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
           </div>
         </div>
 
-        <button 
-          type="button" 
-          className="w-full md:w-auto mt-3 px-3 py-2 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors flex items-center justify-center" 
+        <button
+          type="button"
+          className="w-full md:w-auto mt-3 px-3 py-2 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors flex items-center justify-center"
           onClick={adicionarItem}
         >
           <FaPlus className="mr-1" size={10} /> Adicionar Item
@@ -643,14 +645,14 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
             <FaPlus className="text-green-500 mr-2" size={14} />
             Desconto no Total
           </h5>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <label className="block text-sm font-medium text-gray-700 w-24">
                   Tipo de Desconto:
                 </label>
-                <select 
+                <select
                   id="tipoDesconto"
                   name="tipoDesconto"
                   className="flex-1 p-2 border border-gray-300 rounded text-sm"
@@ -661,7 +663,7 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
                   <option value="percent">Percentual (%)</option>
                 </select>
               </div>
-              
+
               <div className="flex items-center space-x-3">
                 <label className="block text-sm font-medium text-gray-700 w-24">
                   {formData.tipoDesconto === 'percent' ? 'Percentual:' : 'Valor:'}
@@ -671,9 +673,8 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
                   inputMode="decimal"
                   id="desconto"
                   name="desconto"
-                  className={`flex-1 p-2 border rounded text-sm ${
-                    errors['desconto'] ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`flex-1 p-2 border rounded text-sm ${errors['desconto'] ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   value={formData.desconto === 0 ? '' : formData.desconto?.toString() || ''}
                   onChange={handleDescontoChange}
                   onBlur={handleDescontoBlur}
@@ -687,10 +688,10 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
               {errors['desconto'] && (
                 <div className="text-red-500 text-xs mt-1">{errors['desconto']}</div>
               )}
-              
+
               {formData.desconto > 0 && (
                 <div className="p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-                  <strong>Desconto aplicado:</strong> {formData.tipoDesconto === 'percent' 
+                  <strong>Desconto aplicado:</strong> {formData.tipoDesconto === 'percent'
                     ? `${formData.desconto}% do total`
                     : `${formatCurrency(formData.desconto, formData.moeda)} de desconto`
                   }
@@ -705,7 +706,7 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
                   <span className="text-gray-600">Subtotal ({items.length} itens):</span>
                   <span className="font-medium">{formatCurrency(calcularSubtotal(), formData.moeda)}</span>
                 </div>
-                
+
                 {calcularDescontoTotal() > 0 && (
                   <>
                     <div className="flex justify-between text-red-600">
@@ -714,13 +715,13 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
                     </div>
                     <div className="flex justify-between text-xs text-gray-500">
                       <span>
-                        {formData.tipoDesconto === 'percent' 
+                        {formData.tipoDesconto === 'percent'
                           ? `(${formData.desconto}% aplicado)`
                           : `(desconto fixo)`
                         }
                       </span>
                       <span>
-                        {formData.tipoDesconto === 'percent' 
+                        {formData.tipoDesconto === 'percent'
                           ? `${formatCurrency(calcularDescontoTotal(), formData.moeda)}`
                           : ''
                         }
@@ -728,7 +729,7 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
                     </div>
                   </>
                 )}
-                
+
                 <div className="flex justify-between border-t pt-2 mt-2">
                   <span className="font-semibold text-base">Total Final:</span>
                   <span className="font-bold text-lg text-green-600">
@@ -743,12 +744,12 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
         <div className="flex flex-wrap -mx-2 mt-4">
           <div className="w-full md:w-1/2 px-2 mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">Moeda</label>
-            <select 
-              id="moeda" 
-              name="moeda" 
-              className="w-full p-2 border rounded border-gray-300 text-sm" 
-              value={formData.moeda} 
-              onChange={handleChange} 
+            <select
+              id="moeda"
+              name="moeda"
+              className="w-full p-2 border rounded border-gray-300 text-sm"
+              value={formData.moeda}
+              onChange={handleChange}
               onBlur={handleBlur}
             >
               <option value="MT">MT</option>
@@ -763,16 +764,16 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {isCotacao ? 'Termos da Cotação' : 'Termos e Condições'}
           </label>
-          <textarea 
-            id="termos" 
-            name="termos" 
-            className="w-full p-2 border rounded border-gray-300 text-sm" 
-            rows={3} 
-            value={formData.termos} 
-            onChange={handleChange} 
-            onBlur={handleBlur} 
-            maxLength={260} 
-            placeholder={isCotacao ? 'Termos e condições específicos para esta cotação...' : 'Termos e condições de pagamento...'} 
+          <textarea
+            id="termos"
+            name="termos"
+            className="w-full p-2 border rounded border-gray-300 text-sm"
+            rows={3}
+            value={formData.termos}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            maxLength={260}
+            placeholder={isCotacao ? 'Termos e condições específicos para esta cotação...' : 'Termos e condições de pagamento...'}
           />
           <div className="text-xs text-gray-500 mt-1">
             {isCotacao ? 'Os termos são atualizados automaticamente com a validade informada.' : 'Os termos são atualizados automaticamente com base na validade informada.'}
@@ -784,16 +785,16 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Métodos de Pagamento
             </label>
-            <textarea 
-              id="metodoPagamento" 
-              name="metodoPagamento" 
-              className="w-full p-2 border rounded border-gray-300 text-sm" 
-              rows={3} 
-              value={formData.metodoPagamento} 
-              onChange={handleChange} 
-              onBlur={handleBlur} 
-              maxLength={260} 
-              placeholder="Especifique os métodos de pagamento aceitos..." 
+            <textarea
+              id="metodoPagamento"
+              name="metodoPagamento"
+              className="w-full p-2 border rounded border-gray-300 text-sm"
+              rows={3}
+              value={formData.metodoPagamento}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              maxLength={260}
+              placeholder="Especifique os métodos de pagamento aceitos..."
             />
           </div>
         )}
@@ -895,6 +896,15 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
   const handleHtmlRendered = useCallback((html: string) => { setRenderedHtml(html); }, []);
   const toggleTemplateFullscreen = useCallback(() => { setIsTemplateFullscreen(!isTemplateFullscreen); }, [isTemplateFullscreen]);
 
+  const handleItemBlur = useCallback((field: string) => {
+    handleBlur({
+      target: {
+        name: field,
+        value: ''
+      }
+    } as any);
+  }, [handleBlur]);
+
   const validateStep = useCallback((step: number) => {
     const newErrors: Record<string, string> = {};
     const invalidFields: string[] = [];
@@ -965,26 +975,38 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
           }
         }
         validateRequired(formData.dataFatura, 'dataFatura');
-        
+
         if (formData.desconto < 0) {
           newErrors['desconto'] = 'Desconto não pode ser negativo';
         }
         if (formData.tipoDesconto === 'percent' && formData.desconto > 100) {
           newErrors['desconto'] = 'Desconto percentual não pode ser maior que 100%';
         }
-        
+
         items.forEach((item) => {
-          if (!item.descricao.trim())
-            newErrors[`item-${item.id}-descricao`] = 'Descrição obrigatória';
-          if (item.quantidade < 1)
-            newErrors[`item-${item.id}-quantidade`] = 'Quantidade mínima: 1';
-          if (item.precoUnitario < 0)
-            newErrors[`item-${item.id}-preco`] = 'Preço não pode ser negativo';
+          if (!item.descricao.trim()) {
+            const field = `item-${item.id}-descricao`;
+            newErrors[field] = 'Descrição obrigatória';
+            invalidFields.push(field);
+            try { handleItemBlur(field); } catch { /* ignore */ }
+          }
+          if (item.quantidade < 1) {
+            const field = `item-${item.id}-quantidade`;
+            newErrors[field] = `Quantidade mínima: 1`;
+            invalidFields.push(field);
+            try { handleItemBlur(field); } catch { /* ignore */ }
+          }
+          if (item.precoUnitario < 0) {
+            const field = `item-${item.id}-preco`;
+            newErrors[field] = 'Preço não pode ser negativo';
+            invalidFields.push(field);
+            try { handleItemBlur(field); } catch { /* ignore */ }
+          }
         });
         break;
     }
     return { isValid: Object.keys(newErrors).length === 0, invalidFields, newErrors };
-  }, [formData, items]);
+  }, [formData, items, handleItemBlur]);
 
   const nextStep = useCallback(async () => {
     setIsNavigating(true);
@@ -1030,15 +1052,7 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
 
   const pularAtualizacao = useCallback(() => { setShowUpdateModal(false); setPendingStep(null); if (pendingStep !== null) setCurrentStep(pendingStep); }, [pendingStep]);
   const handleStepClick = useCallback((stepIndex: number) => { setCurrentStep(stepIndex); }, []);
-  const handleItemBlur = useCallback((field: string) => { 
-  handleBlur({ 
-    target: { 
-      name: field, 
-      value: '' 
-    } 
-  } as any);
-}, [handleBlur]);
- const prepareDocumentData = useCallback(() => { return prepareInvoiceData(); }, [prepareInvoiceData]);
+  const prepareDocumentData = useCallback(() => { return prepareInvoiceData(); }, [prepareInvoiceData]);
 
   const renderStepContent = useCallback(() => {
     const stepComponents = {
