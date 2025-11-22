@@ -1,14 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
 import { InvoiceData, FormDataFatura, ItemFatura } from '@/types/invoice-types';
 
 interface ApiResponse<T=any> { success: boolean; data?: T; error?: { code: string; message: string; details?: any } }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+// Using generic Request and a non-destructured context parameter to avoid Next.js type generation mismatch.
+interface DetailContext { params: Promise<{ id: string }> }
+export async function GET(_req: Request, context: DetailContext) {
+  const { params } = context;
   const start = Date.now();
   const supabase = await supabaseServer();
-  const documentoId = params.id;
+  const documentoId = (await params).id;
   let userId: string | null = null;
 
   try {

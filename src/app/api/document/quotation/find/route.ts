@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
     let cotacaoDetalhes: FindQuotationResponse['cotacao'] | undefined = undefined;
     const cotacaoExiste = !!existingCotacao;
     let dataExpiracao: string | null = null;
-    let validezDias: number | null = null;
+    let validezDias: number = 0;
     let subtotal: number | undefined;
     let totalDesconto: number | undefined;
     let totalFinal: number | undefined;
@@ -226,7 +226,8 @@ export async function POST(request: NextRequest) {
       else {
         // fallback manual
         const emissao = existingCotacao.data_emissao ? new Date(existingCotacao.data_emissao) : new Date();
-        const fallbackExp = new Date(emissao.getTime() + (validezDias * 86400000));
+        const dias = (validezDias ?? 0);
+        const fallbackExp = new Date(emissao.getTime() + (dias * 86400000));
         dataExpiracao = fallbackExp.toISOString().substring(0,10);
       }
 

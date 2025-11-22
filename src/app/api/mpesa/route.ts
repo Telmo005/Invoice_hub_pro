@@ -12,6 +12,7 @@ interface SuccessResponse {
     third_party_reference?: string
     response_code?: string
     response_description?: string
+    payment_id?: string
     status: 'completed' | 'pending' | 'failed'
   }
   message: string
@@ -327,6 +328,7 @@ export async function POST(request: NextRequest) {
     const paymentResult = await mpesaService.processPaymentWithRetry(mpesaPayload)
 
     if (paymentResult.success) {
+      const mpesaData = paymentResult.data?.data;
       // Log genérico sem acessar propriedades específicas
       await logger.log({
         action: 'mpesa_payment_success',
@@ -367,8 +369,8 @@ export async function POST(request: NextRequest) {
           valor: amount,
           moeda: body.moeda || 'MZN',
           phone_number: formattedMsisdn,
-          mpesa_transaction_id: paymentResult.data?.mpesa_transaction_id || null,
-          mpesa_conversation_id: paymentResult.data?.conversation_id || null,
+          mpesa_transaction_id: mpesaData?.transaction_id || null,
+          mpesa_conversation_id: mpesaData?.conversation_id || null,
           mpesa_third_party_reference: third_party_reference || null,
           metadata: { originalPayload: body }
         })
@@ -388,12 +390,12 @@ export async function POST(request: NextRequest) {
         pagamento_id: pagamento.id,
         transaction_reference,
         third_party_reference: third_party_reference || null,
-        mpesa_transaction_id: paymentResult.data?.mpesa_transaction_id || null,
-        mpesa_conversation_id: paymentResult.data?.conversation_id || null,
+        mpesa_transaction_id: mpesaData?.transaction_id || null,
+        mpesa_conversation_id: mpesaData?.conversation_id || null,
         customer_msisdn: formattedMsisdn,
         amount,
-        response_code: paymentResult.data?.response_code || '0',
-        response_description: paymentResult.data?.response_description || 'SUCCESS',
+        response_code: mpesaData?.response_code || '0',
+        response_description: mpesaData?.response_description || 'SUCCESS',
         status: 'completed',
         request_payload: mpesaPayload,
         response_payload: paymentResult.data || null
@@ -402,8 +404,8 @@ export async function POST(request: NextRequest) {
       const successResponse = createSuccessResponse({
         third_party_reference: mpesaPayload.third_party_reference,
         status: 'completed',
-        mpesa_transaction_id: paymentResult.data?.mpesa_transaction_id,
-        conversation_id: paymentResult.data?.conversation_id,
+        mpesa_transaction_id: mpesaData?.transaction_id,
+        conversation_id: mpesaData?.conversation_id,
         payment_id: pagamento.id
       }, 'Pagamento processado. Documento pendente de criação.')
 

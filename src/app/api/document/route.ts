@@ -170,7 +170,7 @@ async function getDocumentStats(supabase: any, userId: string) {
       .in('status_documento', ['emitida'])
       .or('status_pagamento.is.null,status_pagamento.in.(pendente,aguardando)');
 
-    const pendingInvoicesCount = (pendingInvoicesData || []).filter(d => d.status_documento === 'emitida').length;
+    const pendingInvoicesCount = (pendingInvoicesData || []).filter((d: { status_documento?: string }) => d.status_documento === 'emitida').length;
 
     // Cotações pendentes: emitidas (ainda não convertidas) 
     const { data: pendingQuotesData } = await supabase

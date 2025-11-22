@@ -545,7 +545,9 @@ export async function POST(request: NextRequest) {
       data: {
         id: result,
         numero: formData.faturaNumero,
-        metodo_pagamento: metodoInformativo || undefined,
+        pagamento: {
+          metodo: metodoInformativo || undefined
+        },
         desconto: {
           valor: formData.desconto || 0,
           tipo: formData.tipoDesconto || 'fixed',

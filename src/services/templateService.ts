@@ -435,7 +435,7 @@ export class TemplateService {
         termos: '',
         desconto: 0,
         tipoDesconto: 'fixed',
-        validezCotacao: ''
+        validezCotacao: undefined
       },
       items: [],
       totais: { 

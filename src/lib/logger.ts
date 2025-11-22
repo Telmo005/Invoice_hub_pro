@@ -6,7 +6,8 @@ export type LogAction =
   | 'document_export' | 'document_download' | 'email_sent_success' | 'email_service_error' | 'mpesa_payment_success'
   | 'payment_create' | 'payment_success' | 'payment_failed' | 'payment_refund' | 'document_send' | 'health_check_diagnostic'
   | 'user_login' | 'user_logout' | 'user_profile_update' | 'email_send_attempt' | 'email_validation_error'
-  | 'api_call' | 'error' | 'system_alert' | 'mpesa_payment_error' | 'mpesa_health_check' |'health_check';
+  | 'api_call' | 'error' | 'system_alert' | 'mpesa_payment_error' | 'mpesa_health_check' | 'health_check'
+    | 'number_generate' | 'validation' | 'mpesa_payment_tipo_documento_normalized';
 
 export interface LogData {
   level?: LogLevel;
@@ -184,6 +185,9 @@ export class SystemLogger {
       'mpesa_payment_error': 'error',
       'mpesa_health_check': 'info',
       'health_check': 'info'
+      , 'number_generate': 'info',
+      'validation': 'warn',
+      'mpesa_payment_tipo_documento_normalized': 'warn'
     };
     return levelMap[action] || 'info';
   }

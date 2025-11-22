@@ -23,6 +23,9 @@ interface QuotationData {
     moeda?: string;
     metodoPagamento?: string;
     validezCotacao?: number;
+    desconto?: number;
+    tipoDesconto?: string;
+    status?: string;
     emitente: any;
     destinatario: any;
   };
