@@ -35,13 +35,13 @@ const roboto = Roboto({
   variable: '--font-roboto',
 });
 
-type DocumentType = 'faturas' | 'cotacoes';
+type DocumentType = 'faturas' | 'cotacoes' | 'recibos';
 type DocumentStatus = 'rascunho' | 'emitida' | 'paga' | 'cancelada' | 'expirada' | 'todos';
 
 interface OverviewDocument {
   id: string;
   numero: string;
-  tipo: 'fatura' | 'cotacao';
+  tipo: 'fatura' | 'cotacao' | 'recibo';
   status: string;
   emitente: string;
   destinatario: string;
@@ -61,7 +61,9 @@ const statusConfig = {
   cancelada: { color: 'text-red-600', bg: 'bg-red-50', text: 'Cancelada' },
   expirada: { color: 'text-orange-600', bg: 'bg-orange-50', text: 'Expirada' },
   pendente: { color: 'text-yellow-600', bg: 'bg-yellow-50', text: 'Pendente' },
+  aguardando_documento: { color: 'text-purple-700', bg: 'bg-purple-100', text: 'Fila (Aguardando)' },
   pago: { color: 'text-green-600', bg: 'bg-green-50', text: 'Pago' },
+  falhado: { color: 'text-red-700', bg: 'bg-red-100', text: 'Falhou' },
   todos: { color: 'text-gray-600', bg: 'bg-gray-50', text: 'Todos' },
 };
 
@@ -123,7 +125,11 @@ const useDocumentHtml = () => {
 
 // ✅ Template PDF otimizado
 const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?: string): string => {
-  const documentType = documentData?.tipo === 'fatura' ? 'Fatura' : 'Cotação';
+  const documentType = documentData?.tipo === 'fatura'
+    ? 'Fatura'
+    : documentData?.tipo === 'cotacao'
+      ? 'Cotação'
+      : 'Recibo';
 
   return `
 <!DOCTYPE html>
@@ -263,6 +269,12 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   }, [documentHtml]);
 
   if (!isOpen) return null;
+  // Definir tipo do documento para o header do modal
+  const documentType = documentData?.tipo === 'fatura'
+    ? 'Fatura'
+    : documentData?.tipo === 'cotacao'
+      ? 'Cotação'
+      : 'Recibo';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -275,12 +287,16 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         {/* Header do Modal */}
         <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:justify-between sm:items-center bg-white sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${documentData?.tipo === 'fatura' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+            <div className={`p-2 rounded-lg ${documentData?.tipo === 'fatura'
+              ? 'bg-blue-50 text-blue-600'
+              : documentData?.tipo === 'cotacao'
+                ? 'bg-purple-50 text-purple-600'
+                : 'bg-green-50 text-green-600'}`}>
               <FiFileText className="h-5 w-5" />
             </div>
             <div>
               <h3 className="font-semibold text-lg text-gray-800">
-                {documentData?.tipo === 'fatura' ? 'Fatura' : 'Cotação'} - {documentData?.numero}
+                {documentType} - {documentData?.numero}
               </h3>
               <p className="text-sm text-gray-500 flex items-center gap-1">
                 <span>Cliente: {documentData?.destinatario}</span>
@@ -309,6 +325,31 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               )}
               <span className="hidden md:inline">{isGeneratingPdf ? 'Gerando PDF...' : 'Download'}</span>
             </button>
+            {/* Reutilizar dados */}
+            {documentData && (
+              <button
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded-md font-medium text-sm transition-colors shadow-sm"
+                title="Reutilizar dados deste documento"
+                onClick={async () => {
+                  try {
+                    const resp = await fetch(`/api/document/detail/${documentData.id}`);
+                    if (!resp.ok) return;
+                    const json = await resp.json();
+                    if (json?.success && json.data?.invoiceData) {
+                      // Persiste em sessionStorage para sobreviver a navegação
+                      sessionStorage.setItem('clonedInvoiceData', JSON.stringify(json.data.invoiceData));
+                      const tipo = json.data.invoiceData.tipo;
+                      if (tipo === 'fatura') window.location.href = '/invoices/new';
+                      else if (tipo === 'cotacao') window.location.href = '/quotations/new';
+                      else if (tipo === 'recibo') window.location.href = '/receipts/new';
+                    }
+                  } catch (_e) { /* opcional: log */ }
+                }}
+              >
+                <FiExternalLink className="h-4 w-4" />
+                <span className="hidden md:inline">Reutilizar</span>
+              </button>
+            )}
 
             {/* Zoom controls */}
             <div className="flex items-center gap-2 ml-2">
@@ -547,6 +588,8 @@ export default function DocumentsPage() {
   const [documentToDelete, setDocumentToDelete] = useState<OverviewDocument | null>(null);
   const [currentSection, setCurrentSection] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   // ✅ Estados para o preview
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -569,7 +612,8 @@ export default function DocumentsPage() {
     loading,
     error,
     refetch,
-    removeDocument
+    removeDocument,
+    stats
   } = useList({
     tipo: activeTab,
     status: statusFilter,
@@ -588,6 +632,21 @@ export default function DocumentsPage() {
       });
     }
   }, [deleteError, secureLog]);
+
+  // Capturar cliques em qualquer botão para processamento breve caso não haja ação async
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('button') && !isProcessing && !isNavigating) {
+        setIsProcessing(true);
+        setTimeout(() => setIsProcessing(false), 400);
+      }
+    };
+    root.addEventListener('click', handler);
+    return () => root.removeEventListener('click', handler);
+  }, [isProcessing, isNavigating]);
 
   // Função para refresh da página
   const refreshPage = useCallback(() => {
@@ -651,6 +710,7 @@ export default function DocumentsPage() {
     setLastOpenedDocument(document.id);
     setSelectedDocument(document);
     setIsPreviewOpen(true);
+    setIsProcessing(true);
 
     // Feedback visual imediato
     if (event?.currentTarget) {
@@ -670,6 +730,7 @@ export default function DocumentsPage() {
         error: err
       });
     }
+    setIsProcessing(false);
 
     // Reset do último documento após 1 segundo
     setTimeout(() => {
@@ -686,6 +747,7 @@ export default function DocumentsPage() {
 
     try {
       setIsGeneratingPdf(true);
+      setIsProcessing(true);
 
       const pdfWindow = window.open('', '_blank');
       if (!pdfWindow) {
@@ -719,6 +781,7 @@ export default function DocumentsPage() {
       window.open(pdfUrl, '_blank');
     } finally {
       setIsGeneratingPdf(false);
+      setIsProcessing(false);
     }
   }, [documentHtml, selectedDocument, secureLog]);
 
@@ -741,9 +804,11 @@ export default function DocumentsPage() {
     });
 
     setIsNavigating(true);
+    setIsProcessing(true);
     await new Promise(resolve => setTimeout(resolve, 300));
     setCurrentSection(prev => Math.min(prev + 1, NAVIGATION_SECTIONS.length - 1));
     setIsNavigating(false);
+    setIsProcessing(false);
   }, [currentSection, secureLog]);
 
   const prevSection = useCallback(async () => {
@@ -753,9 +818,11 @@ export default function DocumentsPage() {
     });
 
     setIsNavigating(true);
+    setIsProcessing(true);
     await new Promise(resolve => setTimeout(resolve, 300));
     setCurrentSection(prev => Math.max(prev - 1, 0));
     setIsNavigating(false);
+    setIsProcessing(false);
   }, [currentSection, secureLog]);
 
   const handleSectionClick = useCallback((sectionIndex: number) => {
@@ -764,20 +831,27 @@ export default function DocumentsPage() {
       toSection: sectionIndex
     });
     setCurrentSection(sectionIndex);
+    setIsProcessing(true);
+    setTimeout(() => setIsProcessing(false), 250);
   }, [currentSection, secureLog]);
 
   // Funções de UI
-  const handleNewDocument = useCallback((type: 'fatura' | 'cotacao') => {
+  const handleNewDocument = useCallback((type: 'fatura' | 'cotacao' | 'recibo') => {
     secureLog('info', 'Criação de novo documento solicitada', { type });
+    setIsProcessing(true);
     if (type === 'fatura') {
       router.push('/pages/invoices/new');
-    } else {
+    } else if (type === 'cotacao') {
       router.push('/pages/quotations/new');
+    } else {
+      router.push('/pages/receipts/new');
     }
+    setTimeout(() => setIsProcessing(false), 800);
   }, [router, secureLog]);
 
   const handleDeleteClick = useCallback((document: OverviewDocument, event: React.MouseEvent) => {
     event.stopPropagation(); // Impedir que abra o preview
+    setIsProcessing(true);
 
     secureLog('info', 'Eliminação de documento solicitada', {
       documentId: document.id,
@@ -796,11 +870,13 @@ export default function DocumentsPage() {
     }
     setDocumentToDelete(document);
     setIsDeleteConfirmOpen(true);
+    setTimeout(() => setIsProcessing(false), 300);
   }, [secureLog]);
 
   // Função de confirmação de delete
   const handleConfirmDelete = async () => {
     if (!documentToDelete) return;
+    setIsProcessing(true);
 
     secureLog('info', 'Confirmação de eliminação iniciada', {
       documentId: documentToDelete.id,
@@ -829,6 +905,7 @@ export default function DocumentsPage() {
         documentId: documentToDelete.id
       });
     }
+    setIsProcessing(false);
   };
 
   const handleCancelDelete = useCallback(() => {
@@ -922,10 +999,10 @@ export default function DocumentsPage() {
                 <div className="flex items-center">
                   <div>
                     <h5 className="text-blue-800">
-                      Lista de Faturas & Cotações
+                      Faturas, Cotações e Recibos
                     </h5>
                     <p className="text-sm text-blue-600">
-                      Clique em qualquer linha para visualizar o documento. Gerencie e visualize todos os seus documentos em um só lugar.
+                      Clique numa linha para ver o documento. Todos os seus registos reunidos num só lugar.
                     </p>
                   </div>
                 </div>
@@ -936,7 +1013,7 @@ export default function DocumentsPage() {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
               {/* Tabs */}
               <div className="flex gap-1 bg-gray-50 p-1 rounded-lg w-fit">
-                {(['faturas', 'cotacoes'] as DocumentType[]).map((tab) => (
+                {(['faturas', 'cotacoes', 'recibos'] as DocumentType[]).map((tab) => (
                   <motion.button
                     key={tab}
                     whileTap={{ scale: 0.95 }}
@@ -946,7 +1023,7 @@ export default function DocumentsPage() {
                       : 'text-gray-600 hover:text-gray-800'
                       }`}
                   >
-                    {tab === 'faturas' ? 'Faturas' : 'Cotações'}
+                    {tab === 'faturas' ? 'Faturas' : tab === 'cotacoes' ? 'Cotações' : 'Recibos'}
                   </motion.button>
                 ))}
               </div>
@@ -1053,7 +1130,7 @@ export default function DocumentsPage() {
                         Nenhum documento encontrado
                       </h3>
                       <p className="text-gray-500 mb-6 max-w-sm">
-                        Não há {activeTab === 'faturas' ? 'faturas' : 'cotações'} com os filtros selecionados.
+                        Não há {activeTab === 'faturas' ? 'faturas' : activeTab === 'cotacoes' ? 'cotações' : 'recibos'} com os filtros selecionados.
                       </p>
                       <button
                         onClick={refetch}
@@ -1073,31 +1150,42 @@ export default function DocumentsPage() {
         return (
           <div className="w-full space-y-6">
             <div className="pt-4">
-              <h4 className="text-lg font-semibold mb-2">Visão Geral das Faturas & Cotações</h4>
+              <h4 className="text-lg font-semibold mb-2">Visão Geral dos Documentos</h4>
               <p className="text-sm text-gray-600 mb-4">
-                Acompanhe o status das suas faturas e cotações de forma consolidada.
+                Acompanhe o status de Faturas, Cotações e Recibos de forma consolidada.
               </p>
               <hr className="mb-6" />
             </div>
 
-            {/* Cards de Estatísticas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
-              <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-2">
-                <div className="flex items-start">
-                  <FaInfoCircle className="text-blue-500 mt-0.5 mr-1 shrink-0" size={10} />
-                  <div className="text-xs text-blue-700">
-                    Total de Faturas em Rascunho
-                    <h4 className="text-sm font-bold mt-1">{draftStats.draftInvoices}</h4>
-                  </div>
+            {/* Cards de Estatísticas reduzidos conforme solicitação: */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="bg-red-50 border border-red-200 rounded p-4 flex items-center">
+                <div className="mr-3">
+                  <FiAlertCircle className="text-red-500" />
+                </div>
+                <div>
+                  <div className="text-xs text-red-700">Faturas Expiradas</div>
+                  <h4 className="text-lg font-bold mt-1 text-red-800">{stats?.expiredInvoicesCount ?? 0}</h4>
                 </div>
               </div>
-              <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-2">
-                <div className="flex items-start">
-                  <FaInfoCircle className="text-blue-500 mt-0.5 mr-1 shrink-0" size={10} />
-                  <div className="text-xs text-blue-700">
-                    Total de Cotações em Rascunho
-                    <h4 className="text-sm font-bold mt-1">{draftStats.draftQuotes}</h4>
-                  </div>
+
+              <div className="bg-orange-50 border border-orange-200 rounded p-4 flex items-center">
+                <div className="mr-3">
+                  <FiAlertCircle className="text-orange-500" />
+                </div>
+                <div>
+                  <div className="text-xs text-orange-700">Cotações Expiradas</div>
+                  <h4 className="text-lg font-bold mt-1 text-orange-800">{stats?.expiredQuotesCount ?? 0}</h4>
+                </div>
+              </div>
+
+              <div className="bg-green-50 border border-green-200 rounded p-4 flex items-center">
+                <div className="mr-3">
+                  <FaInfoCircle className="text-green-500" />
+                </div>
+                <div>
+                  <div className="text-xs text-green-700">Total de Recibos</div>
+                  <h4 className="text-lg font-bold mt-1 text-green-800">{stats?.totalReceipts ?? 0}</h4>
                 </div>
               </div>
             </div>
@@ -1117,6 +1205,13 @@ export default function DocumentsPage() {
                 icon={<FiFileText className="h-5 w-5 text-purple-600" />}
                 color="bg-purple-50"
                 onClick={() => handleNewDocument('cotacao')}
+              />
+              <QuickActionButton
+                title="Novo Recibo"
+                subtitle="Criar novo recibo"
+                icon={<FiFileText className="h-5 w-5 text-green-600" />}
+                color="bg-green-50"
+                onClick={() => handleNewDocument('recibo')}
               />
             </div>
           </div>
@@ -1185,8 +1280,8 @@ export default function DocumentsPage() {
   NavigationList.displayName = 'NavigationList';
 
   return (
-    <div className="min-h-screen bg-gray-50 mt-3 p-3 md:p-4 relative">
-      <ProcessingOverlay isVisible={isNavigating} />
+    <div ref={rootRef} className="min-h-screen bg-gray-50 mt-3 p-3 md:p-4 relative">
+      <ProcessingOverlay isVisible={isNavigating || isProcessing} message={isNavigating ? 'Navegando...' : 'Processando...'} />
 
       <div className="max-w-6xl mx-auto">
         <header className="mb-4 md:mb-6 text-center">

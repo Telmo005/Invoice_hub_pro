@@ -189,11 +189,17 @@ export class SystemLogger {
   }
 
   async logDocumentCreation(documentType: string, documentId: string, documentData: any) {
+    const typeLabelMap: Record<string, string> = {
+      'fatura': 'Fatura',
+      'cotacao': 'Cotação',
+      'recibo': 'Recibo'
+    };
+    const label = typeLabelMap[documentType] || documentType;
     this.addToQueue({
       action: 'document_create',
       resourceType: documentType,
       resourceId: documentId,
-      message: `${documentType === 'fatura' ? 'Fatura' : 'Cotação'} criada: ${documentData.numero}`,
+      message: `${label} criada: ${documentData.numero}`,
       details: {
         numero: documentData.numero,
         total: documentData.totais?.totalFinal,
@@ -201,7 +207,8 @@ export class SystemLogger {
         emitente: documentData.emitente?.nomeEmpresa?.substring(0, 50),
         destinatario: documentData.destinatario?.nomeCompleto?.substring(0, 50),
         validez: documentData.validez,
-        dataVencimento: documentData.dataVencimento
+        dataVencimento: documentData.dataVencimento,
+        valorRecebido: documentData.valorRecebido
       }
     });
   }

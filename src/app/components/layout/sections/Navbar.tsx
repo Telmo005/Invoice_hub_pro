@@ -322,9 +322,9 @@ export default function Navbar() {
               <NavLink 
                 href={ROUTES.QUOTES_INVOICES} 
                 icon="faFileInvoice" 
-                label="Cotações & Faturas" 
-                onClick={() => handleNavigate(ROUTES.QUOTES_INVOICES, 'Cotações & Faturas')}
-                isLoading={isNavigating === 'Cotações & Faturas'}
+                label="Registos" 
+                onClick={() => handleNavigate(ROUTES.QUOTES_INVOICES, 'Registos')}
+                isLoading={isNavigating === 'Registos'}
               />
               <NavLink 
                 href={ROUTES.ENTITIES} 
@@ -508,9 +508,9 @@ export default function Navbar() {
                   <MobileDropdownLink 
                     href={ROUTES.QUOTES_INVOICES} 
                     icon="faFileInvoice" 
-                    label="Cotações & Faturas" 
-                    onClick={() => handleNavigate(ROUTES.QUOTES_INVOICES, 'Cotações & Faturas')}
-                    isLoading={isNavigating === 'Cotações & Faturas'}
+                    label="Registos" 
+                    onClick={() => handleNavigate(ROUTES.QUOTES_INVOICES, 'Registos')}
+                    isLoading={isNavigating === 'Registos'}
                   />
                   <MobileDropdownLink 
                     href={ROUTES.ENTITIES} 

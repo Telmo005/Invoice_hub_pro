@@ -173,6 +173,8 @@ const PaymentMethodDropdown: React.FC<{
   isPaymentDisabled: boolean;
   onProcessPayment: () => void;
   dynamicDocumentData: any;
+  isDocumentValid: boolean;
+  documentValidationErrors: string[];
 }> = ({
   paymentMethods,
   selectedMethod,
@@ -184,7 +186,9 @@ const PaymentMethodDropdown: React.FC<{
   isProcessing,
   isPaymentDisabled,
   onProcessPayment,
-  dynamicDocumentData
+  dynamicDocumentData,
+  isDocumentValid,
+  documentValidationErrors
 }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const selectedMethodData = paymentMethods.find(method => method.id === selectedMethod);
@@ -292,6 +296,18 @@ const PaymentMethodDropdown: React.FC<{
                       message={successMessage}
                     />
                   )}
+
+                  {/* Bloco de validação global do documento (aplica a fatura, cotação e recibo) */}
+                  {!isDocumentValid && (
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                      Preencha todos os campos obrigatórios antes do pagamento:
+                      <ul className="list-disc ml-4 mt-1 space-y-1">
+                        {documentValidationErrors.map((e: string, idx: number) => (
+                          <li key={idx}>{e}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -392,7 +408,9 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
     handleDownload,
     handleEmailSend,
     paymentMethods,
-    dynamicDocumentData
+    dynamicDocumentData,
+    isDocumentValid,
+    documentValidationErrors
   } = usePayment({
     invoiceData,
     onInvoiceCreated
@@ -400,7 +418,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
 
   const DocumentIcon = dynamicDocumentData.type === 'cotacao' ? FaQuoteLeft : FaFileInvoice;
   const isProcessing = paymentStatus === 'processing' || isCreating;
-  const isPaymentDisabled = !selectedMethod || isProcessing || !contactNumber.trim();
+  const isPaymentDisabled = !selectedMethod || isProcessing || !contactNumber.trim() || !isDocumentValid;
 
   if (paymentStatus === 'success') {
     return (
@@ -466,6 +484,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
               isPaymentDisabled={isPaymentDisabled}
               onProcessPayment={() => processPayment(renderedHtml)}
               dynamicDocumentData={dynamicDocumentData}
+              isDocumentValid={isDocumentValid}
+              documentValidationErrors={documentValidationErrors}
             />
           </div>
 

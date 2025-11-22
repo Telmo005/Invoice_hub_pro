@@ -9,6 +9,7 @@ import { useAuth } from '@/app/providers/AuthProvider'
 export default function HeroSection() {
   const [invoiceLoading, setInvoiceLoading] = useState(false)
   const [quoteLoading, setQuoteLoading] = useState(false)
+  const [receiptLoading, setReceiptLoading] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
   const router = useRouter()
   const { user } = useAuth()
@@ -20,6 +21,7 @@ export default function HeroSection() {
     // Prefetch das rotas para melhor performance
     router.prefetch(ROUTES.INVOICES_NEW)
     router.prefetch(ROUTES.QUOTATIONS_NEW)
+    router.prefetch(ROUTES.RECEIPTS_NEW)
     router.prefetch(ROUTES.LOGIN)
   }, [router])
 
@@ -30,6 +32,18 @@ export default function HeroSection() {
     } else {
       setTimeout(() => {
         router.push(ROUTES.INVOICES_NEW)
+      }, 300)
+    }
+  }
+
+  const handleGenerateReceipt = () => {
+    setReceiptLoading(true)
+    const RECEIPTS_NEW = ROUTES.RECEIPTS_NEW
+    if (!user) {
+      router.push(`${ROUTES.LOGIN}?redirect_to=${RECEIPTS_NEW}`)
+    } else {
+      setTimeout(() => {
+        router.push(RECEIPTS_NEW)
       }, 300)
     }
   }
@@ -129,7 +143,7 @@ export default function HeroSection() {
           >
             <button
               onClick={handleGenerateQuote}
-              disabled={quoteLoading || invoiceLoading}
+              disabled={quoteLoading || invoiceLoading || receiptLoading}
               className="relative inline-flex items-center justify-center border border-slate-700 hover:border-slate-600 bg-slate-850 hover:bg-slate-800 transition-all duration-300 font-medium rounded-lg px-8 py-3.5 text-white overflow-hidden group"
               aria-label="Gerar cotação"
             >
@@ -161,7 +175,7 @@ export default function HeroSection() {
 
             <button
               onClick={handleGenerateInvoice}
-              disabled={invoiceLoading || quoteLoading}
+              disabled={invoiceLoading || quoteLoading || receiptLoading}
               className="relative inline-flex items-center justify-center bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 transition-all duration-300 font-medium rounded-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-95 px-8 py-3.5 text-white overflow-hidden group"
               aria-label="Gerar fatura"
             >
@@ -176,6 +190,38 @@ export default function HeroSection() {
                 ) : (
                   <>
                     <span>GERAR FATURA</span>
+                    <svg
+                      className="w-5 h-5 ml-3 group-hover:-translate-y-1 transition-transform"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                    </svg>
+                  </>
+                )}
+              </span>
+              <span className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </button>
+
+            <button
+              onClick={handleGenerateReceipt}
+              disabled={receiptLoading || invoiceLoading || quoteLoading}
+              className="relative inline-flex items-center justify-center bg-gradient-to-br from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 transition-all duration-300 font-medium rounded-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-95 px-8 py-3.5 text-yellow-900 overflow-hidden group"
+              aria-label="Gerar recibo"
+            >
+              <span className="relative z-10 flex items-center">
+                {receiptLoading ? (
+                  <>
+                    <span>CARREGANDO...</span>
+                    <svg className="w-5 h-5 ml-3 animate-spin" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                  </>
+                ) : (
+                  <>
+                    <span>GERAR RECIBO</span>
                     <svg
                       className="w-5 h-5 ml-3 group-hover:-translate-y-1 transition-transform"
                       fill="none"

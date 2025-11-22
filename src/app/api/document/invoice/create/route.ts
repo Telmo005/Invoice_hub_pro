@@ -24,7 +24,6 @@ interface InvoiceData {
     metodoPagamento?: string;
     emitente: any;
     destinatario: any;
-    // NOVOS CAMPOS DE DESCONTO
     desconto?: number;
     tipoDesconto?: 'fixed' | 'percent';
   };
@@ -145,9 +144,9 @@ export async function POST(request: NextRequest) {
         totalItens: items?.length,
         valorTotal: totais?.totalFinal,
         dataVencimento: formData?.dataVencimento,
-        // NOVO: Log do desconto
         desconto: formData?.desconto,
-        tipoDesconto: formData?.tipoDesconto
+        tipoDesconto: formData?.tipoDesconto,
+        metodoPagamento: formData?.metodoPagamento
       }
     });
 
@@ -155,6 +154,7 @@ export async function POST(request: NextRequest) {
     if (!formData?.faturaNumero) missingFields.push('faturaNumero');
     if (!formData?.emitente) missingFields.push('emitente');
     if (!formData?.destinatario) missingFields.push('destinatario');
+    if (!formData?.dataVencimento) missingFields.push('dataVencimento');
 
     if (missingFields.length > 0) {
       await logger.log({
@@ -205,7 +205,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    // VALIDAÇÃO DO DESCONTO (NOVO)
+    // VALIDAÇÃO DO NÚMERO (formato exigido pelo BD)
+    const numeroPattern = /^(FTR)\/\d{4}\/\d{3}$/;
+    if (!numeroPattern.test(formData.faturaNumero)) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Formato de número de fatura inválido',
+        details: {
+          user: user.id,
+          numero: formData.faturaNumero,
+          esperado: 'FTR/AAAA/NNN (ex: FTR/2025/001)'
+        }
+      });
+
+      const errorResponse: ApiResponse = {
+        success: false,
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'Número de fatura inválido',
+          details: {
+            invalidField: 'faturaNumero',
+            message: 'Use o formato FTR/AAAA/NNN (ex: FTR/2025/001)'
+          }
+        }
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
+
+    // VALIDAÇÃO DO DESCONTO
     if (formData.desconto && formData.desconto < 0) {
       await logger.log({
         action: 'api_call',
@@ -259,31 +287,159 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    // PREPARAR DADOS DA FATURA COM DESCONTO (ATUALIZADO)
-    const faturaData = {
-      faturaNumero: formData.faturaNumero,
-      dataFatura: formData.dataFatura,
-      dataVencimento: formData.dataVencimento,
-      ordemCompra: formData.ordemCompra,
-      termos: formData.termos,
-      moeda: formData.moeda || 'MT',
-      metodoPagamento: formData.metodoPagamento,
-      logoUrl: logo || null,
-      assinaturaBase64: assinatura || null,
-      // NOVOS CAMPOS DE DESCONTO
-      desconto: formData.desconto || 0,
-      tipoDesconto: formData.tipoDesconto || 'fixed'
+    // ===== ADAPTAR PARA NOVA FUNÇÃO criar_documento_completo =====
+    // Garantir / obter IDs do emitente e destinatário
+    const ensureEmissor = async () => {
+      const emissor = formData.emitente;
+      let emissorId: string | null = null;
+      if (emissor?.documento) {
+        const { data: foundByDoc } = await supabase
+          .from('emissores')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('documento', emissor.documento)
+          .maybeSingle();
+        emissorId = foundByDoc?.id ?? null;
+      }
+      if (!emissorId && emissor?.nomeEmpresa) {
+        const { data: foundByName } = await supabase
+          .from('emissores')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('nome_empresa', emissor.nomeEmpresa)
+          .maybeSingle();
+        emissorId = foundByName?.id ?? null;
+      }
+      if (!emissorId) {
+        const { data: created } = await supabase
+          .from('emissores')
+          .insert({
+            user_id: user.id,
+            nome_empresa: emissor?.nomeEmpresa ?? 'Empresa',
+            documento: emissor?.documento ?? '',
+            pais: emissor?.pais ?? '',
+            cidade: emissor?.cidade ?? '',
+            bairro: emissor?.bairro ?? '',
+            pessoa_contato: emissor?.pessoaContato ?? null,
+            email: emissor?.email ?? '',
+            telefone: emissor?.telefone ?? ''
+          })
+          .select('id')
+          .single();
+        emissorId = created?.id ?? null;
+      }
+      return emissorId as string;
     };
 
-    const { data: result, error: functionError } = await supabase.rpc('criar_fatura_completa', {
+    const ensureDestinatario = async () => {
+      const dest = formData.destinatario;
+      let destinatarioId: string | null = null;
+      if (dest?.documento) {
+        const { data: foundByDoc } = await supabase
+          .from('destinatarios')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('documento', dest.documento)
+          .maybeSingle();
+        destinatarioId = foundByDoc?.id ?? null;
+      }
+      if (!destinatarioId && dest?.nomeCompleto) {
+        const { data: foundByName } = await supabase
+          .from('destinatarios')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('nome_completo', dest.nomeCompleto)
+          .maybeSingle();
+        destinatarioId = foundByName?.id ?? null;
+      }
+      if (!destinatarioId) {
+        const { data: created } = await supabase
+          .from('destinatarios')
+          .insert({
+            user_id: user.id,
+            nome_completo: dest?.nomeCompleto ?? 'Cliente',
+            documento: dest?.documento ?? null,
+            pais: dest?.pais ?? null,
+            cidade: dest?.cidade ?? null,
+            bairro: dest?.bairro ?? null,
+            email: dest?.email ?? '',
+            telefone: dest?.telefone ?? ''
+          })
+          .select('id')
+          .single();
+        destinatarioId = created?.id ?? null;
+      }
+      return destinatarioId as string;
+    };
+
+    const [emitenteId, destinatarioId] = await Promise.all([
+      ensureEmissor(),
+      ensureDestinatario()
+    ]);
+
+    // Método de pagamento: agora livre/informativo. Persistimos exatamente o valor informado.
+    const metodoInformativo = formData.metodoPagamento || null;
+
+    const dadosEspecificos: Record<string, any> = {
+      numero: formData.faturaNumero,
+      data_emissao: formData.dataFatura ?? null,
+      data_vencimento: formData.dataVencimento ?? null,
+      ordem_compra: formData.ordemCompra ?? null,
+      termos: formData.termos ?? null,
+      moeda: formData.moeda || 'MT',
+      logo_url: logo || null,
+      assinatura_base64: assinatura || null,
+      status: (formData as any).status === 'paga' ? 'paga' : 'emitida',
+      desconto: formData.desconto || 0,
+      tipo_desconto: formData.tipoDesconto || 'fixed',
+      metodo_pagamento: metodoInformativo,
+    };
+
+    const itensMapeados = (items || []).map((it: any) => ({
+      id_original: it.id,
+      quantidade: it.quantidade,
+      descricao: it.descricao,
+      preco_unitario: it.precoUnitario,
+      taxas: Array.isArray(it.taxas) ? it.taxas.map((t: any) => ({ nome: t.nome, valor: t.valor, tipo: t.tipo })) : []
+    }));
+
+    await logger.log({
+      action: 'api_call',
+      level: 'debug',
+      message: 'Chamando criar_documento_completo para fatura',
+      details: {
+        user: user.id,
+        numero: formData.faturaNumero,
+        itensCount: itensMapeados.length,
+        desconto: dadosEspecificos.desconto,
+        tipoDesconto: dadosEspecificos.tipo_desconto,
+        metodoPagamento: dadosEspecificos.metodo_pagamento
+      }
+    });
+
+    const { data: result, error: functionError } = await supabase.rpc('criar_documento_completo', {
       p_user_id: user.id,
-      p_emitente: formData.emitente,
-      p_destinatario: formData.destinatario,
-      p_fatura: faturaData,
-      p_itens: items || [],
       p_tipo_documento: 'fatura',
+      p_emitente_id: emitenteId,
+      p_destinatario_id: destinatarioId,
+      p_dados_especificos: dadosEspecificos,
+      p_itens: itensMapeados,
       p_html_content: documentData.htmlContent || null
     });
+
+    if (!functionError) {
+      await logger.log({
+        action: 'api_call',
+        level: 'info',
+        message: 'criar_documento_completo executado com sucesso para fatura',
+        details: {
+          user: user.id,
+          numero: formData.faturaNumero,
+          idGerado: result,
+          metodoPagamento: formData.metodoPagamento
+        }
+      });
+    }
 
     if (functionError) {
       await logger.logError(functionError, 'create_invoice_database', {
@@ -292,9 +448,9 @@ export async function POST(request: NextRequest) {
         databaseError: functionError.message,
         databaseCode: functionError.code,
         databaseHint: functionError.hint,
-        // NOVO: Log do desconto no erro
         desconto: formData.desconto,
-        tipoDesconto: formData.tipoDesconto
+        tipoDesconto: formData.tipoDesconto,
+        metodoPagamento: formData.metodoPagamento
       });
 
       if (functionError.code === 'P0001' && functionError.message.includes('Já existe um documento')) {
@@ -337,7 +493,8 @@ export async function POST(request: NextRequest) {
           user: user.id,
           numero: formData.faturaNumero,
           desconto: formData.desconto,
-          tipoDesconto: formData.tipoDesconto
+          tipoDesconto: formData.tipoDesconto,
+          metodoPagamento: formData.metodoPagamento
         }
       });
 
@@ -354,6 +511,8 @@ export async function POST(request: NextRequest) {
 
     invoiceId = result;
 
+    // Não criamos registro em pagamentos porque método é apenas informativo.
+
     await logger.logDocumentCreation('fatura', result, {
       numero: formData.faturaNumero,
       totais: totais,
@@ -361,7 +520,7 @@ export async function POST(request: NextRequest) {
       emitente: formData.emitente,
       destinatario: formData.destinatario,
       dataVencimento: formData.dataVencimento,
-      // NOVO: Log do desconto na criação
+      metodoPagamento: formData.metodoPagamento,
       desconto: {
         valor: formData.desconto,
         tipo: formData.tipoDesconto,
@@ -372,6 +531,10 @@ export async function POST(request: NextRequest) {
     const successResponse: ApiResponse<{ 
       id: string; 
       numero: string;
+      pagamento?: {
+        metodo?: string;
+        status?: string;
+      };
       desconto?: {
         valor: number;
         tipo: string;
@@ -382,7 +545,7 @@ export async function POST(request: NextRequest) {
       data: {
         id: result,
         numero: formData.faturaNumero,
-        // NOVO: Incluir informações de desconto na resposta
+        metodo_pagamento: metodoInformativo || undefined,
         desconto: {
           valor: formData.desconto || 0,
           tipo: formData.tipoDesconto || 'fixed',
@@ -402,9 +565,9 @@ export async function POST(request: NextRequest) {
       durationMs: duration,
       endpoint: '/api/document/invoice/create',
       numero: documentData?.formData?.faturaNumero,
-      // NOVO: Log do desconto no erro inesperado
       desconto: documentData?.formData?.desconto,
-      tipoDesconto: documentData?.formData?.tipoDesconto
+      tipoDesconto: documentData?.formData?.tipoDesconto,
+      metodoPagamento: documentData?.formData?.metodoPagamento
     });
 
     const errorResponse: ApiResponse = {
@@ -427,11 +590,11 @@ export async function POST(request: NextRequest) {
       'POST',
       duration,
       invoiceId !== null,
-      // NOVO: Incluir informações de desconto no log final
       {
         numero: documentData?.formData?.faturaNumero,
         desconto: documentData?.formData?.desconto,
-        tipoDesconto: documentData?.formData?.tipoDesconto
+        tipoDesconto: documentData?.formData?.tipoDesconto,
+        metodoPagamento: documentData?.formData?.metodoPagamento
       }
     );
   }

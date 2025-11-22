@@ -21,9 +21,13 @@ interface FindQuotationResponse {
     id: string;
     numero: string;
     status: string;
-    data_fatura: string;
+    data_emissao: string;
+    validez_dias: number;
     data_expiracao: string;
     expirada: boolean;
+    subtotal?: number;
+    total_desconto?: number;
+    total_final?: number;
   };
 }
 
@@ -167,13 +171,13 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Novo schema: buscar em documentos_base + cotacoes
     const { data: existingCotacao, error: queryError } = await supabase
-      .from('faturas')
-      .select('id, numero, tipo_documento, status, data_fatura, data_expiracao')
+      .from('documentos_base')
+      .select('id, numero, status, data_emissao')
       .eq('user_id', user.id)
       .eq('numero', numeroSanitizado)
-      .eq('tipo_documento', 'cotacao')
-      .single();
+      .maybeSingle();
 
     // Tratar erro específico de "nenhum resultado" (PGRST116) como sucesso
     if (queryError && queryError.code !== 'PGRST116') {
@@ -198,25 +202,74 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 500 });
     }
 
+    let cotacaoDetalhes: FindQuotationResponse['cotacao'] | undefined = undefined;
     const cotacaoExiste = !!existingCotacao;
-    
-    // Verificar se a cotação está expirada
-    const expirada = existingCotacao?.data_expiracao && 
-                    new Date(existingCotacao.data_expiracao) < new Date();
+    let dataExpiracao: string | null = null;
+    let validezDias: number | null = null;
+    let subtotal: number | undefined;
+    let totalDesconto: number | undefined;
+    let totalFinal: number | undefined;
+
+    if (cotacaoExiste) {
+      // Buscar dados específicos da cotação
+      const { data: dadosCotacao } = await supabase
+        .from('cotacoes')
+        .select('validez_dias, desconto, tipo_desconto')
+        .eq('id', existingCotacao.id)
+        .maybeSingle();
+
+      validezDias = dadosCotacao?.validez_dias ?? 15;
+
+      // Calcular data de expiração via função ou manualmente
+      const { data: expData } = await supabase.rpc('obter_data_expiracao_cotacao', { p_cotacao_id: existingCotacao.id });
+      if (expData) dataExpiracao = expData;
+      else {
+        // fallback manual
+        const emissao = existingCotacao.data_emissao ? new Date(existingCotacao.data_emissao) : new Date();
+        const fallbackExp = new Date(emissao.getTime() + (validezDias * 86400000));
+        dataExpiracao = fallbackExp.toISOString().substring(0,10);
+      }
+
+      // Totais
+      const { data: totais } = await supabase
+        .from('totais_documento')
+        .select('subtotal, total_desconto, total_final')
+        .eq('documento_id', existingCotacao.id)
+        .maybeSingle();
+      subtotal = totais?.subtotal;
+      totalDesconto = totais?.total_desconto;
+      totalFinal = totais?.total_final;
+
+      const expirada = dataExpiracao ? new Date(dataExpiracao) < new Date() : false;
+      cotacaoDetalhes = {
+        id: existingCotacao.id,
+        numero: existingCotacao.numero,
+        status: existingCotacao.status,
+        data_emissao: existingCotacao.data_emissao,
+        validez_dias: validezDias,
+        data_expiracao: dataExpiracao!,
+        expirada,
+        subtotal,
+        total_desconto: totalDesconto,
+        total_final: totalFinal
+      };
+    }
 
     // Log do resultado da busca
     await logger.log({
       action: 'document_view',
       level: 'info',
-      message: `Busca de cotação concluída: ${numeroSanitizado} - ${cotacaoExiste ? 'Encontrada' : 'Não encontrada'}${expirada ? ' (Expirada)' : ''}`,
+      message: `Busca de cotação concluída: ${numeroSanitizado} - ${cotacaoExiste ? 'Encontrada' : 'Não encontrada'}${cotacaoDetalhes?.expirada ? ' (Expirada)' : ''}`,
       details: {
         user: user.id,
         numero: numeroSanitizado,
         encontrada: cotacaoExiste,
-        cotacaoId: existingCotacao?.id,
-        status: existingCotacao?.status,
-        expirada: expirada,
-        dataExpiracao: existingCotacao?.data_expiracao
+        cotacaoId: cotacaoDetalhes?.id,
+        status: cotacaoDetalhes?.status,
+        expirada: cotacaoDetalhes?.expirada,
+        dataExpiracao: cotacaoDetalhes?.data_expiracao,
+        validezDias: cotacaoDetalhes?.validez_dias,
+        totalFinal: cotacaoDetalhes?.total_final
       }
     });
 
@@ -226,14 +279,7 @@ export async function POST(request: NextRequest) {
       data: {
         exists: cotacaoExiste,
         numero: numeroSanitizado,
-        cotacao: existingCotacao ? {
-          id: existingCotacao.id,
-          numero: existingCotacao.numero,
-          status: existingCotacao.status,
-          data_fatura: existingCotacao.data_fatura,
-          data_expiracao: existingCotacao.data_expiracao,
-          expirada: expirada
-        } : undefined
+        cotacao: cotacaoDetalhes
       }
     };
 

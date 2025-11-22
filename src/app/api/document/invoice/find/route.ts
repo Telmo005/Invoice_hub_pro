@@ -21,7 +21,19 @@ interface FindInvoiceResponse {
     id: string;
     numero: string;
     status: string;
-    data_fatura: string;
+    data_emissao: string;
+    data_vencimento?: string;
+    subtotal?: number;
+    total_desconto?: number;
+    total_final?: number;
+    desconto?: number;
+    tipo_desconto?: string;
+    pagamento?: {
+      metodo: string;
+      status: string;
+      valor: number;
+      created_at?: string;
+    };
   };
 }
 
@@ -165,38 +177,66 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    const { data: existingFatura, error: queryError } = await supabase
-      .from('faturas')
-      .select('id, numero, tipo_documento, status, data_fatura')
+    // Novo schema: numero/status/datas estão em documentos_base; detalhes em faturas; totais em totais_documento
+    // Podemos usar a view vw_documentos_completos para simplificar
+    const { data: viewRow, error: viewError } = await supabase
+      .from('vw_documentos_completos')
+      .select('id, numero, status, data_emissao, fatura_vencimento, subtotal, total_desconto, total_final')
       .eq('user_id', user.id)
       .eq('numero', numeroSanitizado)
       .eq('tipo_documento', 'fatura')
-      .single();
+      .maybeSingle();
 
-    // Tratar erro específico de "nenhum resultado" (PGRST116) como sucesso
-    if (queryError && queryError.code !== 'PGRST116') {
-      await logger.logError(queryError, 'find_invoice_database', {
+    if (viewError && viewError.code !== 'PGRST116') {
+      await logger.logError(viewError, 'find_invoice_view_error', {
         user: user.id,
         numero: numeroSanitizado,
-        databaseError: queryError.message,
-        databaseCode: queryError.code
+        databaseError: viewError.message,
+        databaseCode: viewError.code
       });
-
       const errorResponse: ApiResponse = {
         success: false,
         error: {
           code: 'DATABASE_ERROR',
-          message: 'Erro ao buscar fatura',
-          details: {
-            databaseError: queryError.message,
-            suggestion: 'Tente novamente em alguns instantes'
-          }
+          message: 'Erro ao consultar view de fatura',
+          details: { databaseError: viewError.message }
         }
       };
       return NextResponse.json(errorResponse, { status: 500 });
     }
 
-    const faturaExiste = !!existingFatura;
+    let desconto: number | undefined;
+    let tipoDesconto: string | undefined;
+    if (viewRow) {
+      const { data: descontoRow } = await supabase
+        .from('faturas')
+        .select('desconto, tipo_desconto')
+        .eq('id', viewRow.id)
+        .maybeSingle();
+      desconto = descontoRow?.desconto;
+      tipoDesconto = descontoRow?.tipo_desconto;
+
+      // Obter último pagamento (se existir)
+      const { data: pagamentoRow } = await supabase
+        .from('pagamentos')
+        .select('metodo, status, valor, created_at')
+        .eq('documento_id', viewRow.id)
+        .eq('tipo_documento', 'fatura')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pagamentoRow) {
+        (viewRow as any).pagamento = {
+          metodo: pagamentoRow.metodo,
+          status: pagamentoRow.status,
+          valor: pagamentoRow.valor,
+          created_at: pagamentoRow.created_at
+        };
+      }
+    }
+
+    const faturaExiste = !!viewRow;
 
     // Log do resultado da busca
     await logger.log({
@@ -207,8 +247,8 @@ export async function POST(request: NextRequest) {
         user: user.id,
         numero: numeroSanitizado,
         encontrada: faturaExiste,
-        faturaId: existingFatura?.id,
-        status: existingFatura?.status
+        faturaId: viewRow?.id,
+        status: viewRow?.status
       }
     });
 
@@ -218,11 +258,18 @@ export async function POST(request: NextRequest) {
       data: {
         exists: faturaExiste,
         numero: numeroSanitizado,
-        fatura: existingFatura ? {
-          id: existingFatura.id,
-          numero: existingFatura.numero,
-          status: existingFatura.status,
-          data_fatura: existingFatura.data_fatura
+        fatura: viewRow ? {
+          id: viewRow.id,
+          numero: viewRow.numero,
+          status: viewRow.status,
+          data_emissao: viewRow.data_emissao,
+          data_vencimento: viewRow.fatura_vencimento ?? undefined,
+          subtotal: viewRow.subtotal ?? undefined,
+          total_desconto: viewRow.total_desconto ?? undefined,
+          total_final: viewRow.total_final ?? undefined,
+          desconto,
+          tipo_desconto: tipoDesconto,
+          pagamento: (viewRow as any).pagamento
         } : undefined
       }
     };

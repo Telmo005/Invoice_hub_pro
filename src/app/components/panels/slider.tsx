@@ -70,13 +70,13 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
       <div className="mb-4 p-3 bg-gray-100 rounded-lg flex justify-between items-center">
         <div>
           <h5 className="text-lg font-semibold mb-1">
-            📄 {tipo === 'cotacao' ? 'Modelos de Cotação' : 'Modelos de Fatura'}
+            📄 {tipo === 'cotacao' ? 'Modelos de Cotação' : (tipo === 'recibo' ? 'Modelos de Recibo' : 'Modelos de Fatura')}
           </h5>
         </div>
         <span className={`px-3 py-1 rounded-full text-white text-xs font-bold ${
-          tipo === 'cotacao' ? 'bg-green-500' : 'bg-blue-500'
+          tipo === 'cotacao' ? 'bg-green-500' : (tipo === 'recibo' ? 'bg-yellow-600' : 'bg-blue-500')
         }`}>
-          {tipo === 'cotacao' ? 'COTAÇÃO' : 'FATURA'}
+          {tipo === 'cotacao' ? 'COTAÇÃO' : (tipo === 'recibo' ? 'RECIBO' : 'FATURA')}
         </span>
       </div>
 
@@ -177,7 +177,7 @@ const TemplateNavigationPanel: React.FC<TemplateNavigationPanelProps> = ({
       {/* Mobile hint */}
       <div className="md:hidden text-center mb-2">
         <small className="text-gray-500">
-          {tipo === 'cotacao' ? 'Deslize para ver mais modelos de cotação' : 'Deslize para ver mais modelos de fatura'}
+          {tipo === 'cotacao' ? 'Deslize para ver mais modelos de cotação' : (tipo === 'recibo' ? 'Deslize para ver mais modelos de recibo' : 'Deslize para ver mais modelos de fatura')}
         </small>
       </div>
     </div>

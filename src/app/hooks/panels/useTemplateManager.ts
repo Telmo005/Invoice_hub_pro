@@ -43,7 +43,9 @@ const ZOOM_CONFIG = {
 
 // Mapeamento de TipoDocumento para DocumentType do Service
 const mapTipoToDocumentType = (tipo: TipoDocumento): DocumentType => {
-  return tipo === 'cotacao' ? 'quotation' : 'invoice';
+  if (tipo === 'cotacao') return 'quotation';
+  if (tipo === 'recibo') return 'receipt';
+  return 'invoice';
 };
 
 export const useTemplateManager = ({ 

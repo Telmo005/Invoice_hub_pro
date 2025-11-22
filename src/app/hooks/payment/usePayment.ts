@@ -26,6 +26,8 @@ interface UsePaymentReturn {
   isCreating: boolean;
   isPreviewOpen: boolean;
   isGeneratingPdf: boolean;
+  isDocumentValid: boolean;
+  documentValidationErrors: string[];
   setSelectedMethod: (method: string | null) => void;
   setContactNumber: (contact: string) => void;
   setIsPreviewOpen: (isOpen: boolean) => void;
@@ -87,6 +89,29 @@ const checkFaturaExistsDirect = async (numero: string): Promise<boolean> => {
     return false;
   }
 };
+  const checkReciboExistsDirect = async (numero: string): Promise<boolean> => {
+    try {
+      const response = await fetch('/api/document/receipt/find', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ numero }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Erro na API de busca de recibo:', data.error);
+        return false;
+      }
+
+      return data.success && data.data?.exists === true;
+    } catch (error) {
+      console.error('Erro ao verificar recibo:', error);
+      return false;
+    }
+  };
 
 const checkCotacaoExistsDirect = async (numero: string): Promise<boolean> => {
   try {
@@ -141,11 +166,12 @@ const formatDate = (dateString?: string): string => {
 
 const getDocumentDisplayInfo = (documentType: TipoDocumento) => {
   const isCotacao = documentType === 'cotacao';
+  const isRecibo = documentType === 'recibo';
   return {
     type: documentType,
-    typeDisplay: isCotacao ? 'Cotação' : 'Fatura',
-    typeDisplayLower: isCotacao ? 'cotação' : 'fatura',
-    description: isCotacao ? 'Taxa de liberação de cotação' : 'Taxa de liberação de fatura'
+    typeDisplay: isCotacao ? 'Cotação' : (isRecibo ? 'Recibo' : 'Fatura'),
+    typeDisplayLower: isCotacao ? 'cotação' : (isRecibo ? 'recibo' : 'fatura'),
+    description: isCotacao ? 'Taxa de liberação de cotação' : (isRecibo ? 'Recibo de pagamento' : 'Taxa de liberação de fatura')
   };
 };
 
@@ -156,7 +182,7 @@ const createDocumentDirect = async (documentData: InvoiceData): Promise<{
   const docType = documentData.tipo || 'fatura';
   const endpoint = docType === 'cotacao'
     ? '/api/document/quotation/create'
-    : '/api/document/invoice/create';
+    : (docType === 'recibo' ? '/api/document/receipt/create' : '/api/document/invoice/create');
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -182,7 +208,10 @@ const processRealPayment = async (
   contact: string,
   amount: number,
   documentNumber: string,
-  thirdPartyReference: string
+  thirdPartyReference: string,
+  docType: string,
+  moeda: string,
+  documentSnapshot: any
 ): Promise<void> => {
   const formattedTransactionRef = formatTransactionReference(documentNumber);
 
@@ -190,7 +219,10 @@ const processRealPayment = async (
     customer_msisdn: contact,
     amount: amount,
     transaction_reference: formattedTransactionRef,
-    third_party_reference: thirdPartyReference
+    third_party_reference: thirdPartyReference,
+    tipo_documento: docType.toLowerCase(),
+    moeda: moeda || 'MZN',
+    document_snapshot: documentSnapshot || {}
   };
 
   const response = await fetch('/api/mpesa', {
@@ -313,6 +345,43 @@ export const usePayment = ({
   const documentType: TipoDocumento = invoiceData?.tipo || 'fatura';
   const documentInfo = getDocumentDisplayInfo(documentType);
   const isCotacao = documentType === 'cotacao';
+  const isRecibo = documentType === 'recibo';
+
+  const computeDocumentValidation = useCallback((): { valid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    const fd: any = invoiceData?.formData || {};
+    // numero
+    const numero = isCotacao ? fd.cotacaoNumero : (isRecibo ? fd.reciboNumero : fd.faturaNumero);
+    if (!numero) errors.push('Número do documento ausente');
+    // emitente
+    if (!fd.emitente?.nomeEmpresa) errors.push('Emitente nomeEmpresa');
+    if (!fd.emitente?.pais) errors.push('Emitente pais');
+    if (!fd.emitente?.cidade) errors.push('Emitente cidade');
+    if (!fd.emitente?.telefone) errors.push('Emitente telefone');
+    // destinatario (não exigir para recibo se opcional)
+    if (!isRecibo && !fd.destinatario?.nomeCompleto) errors.push('Destinatário nomeCompleto');
+    // items
+    const itemsList = invoiceData?.items || [];
+    if (!isRecibo && (!Array.isArray(itemsList) || itemsList.length === 0)) errors.push('Itens do documento');
+    if (!isRecibo) {
+      for (const it of itemsList) {
+        if (!it.descricao) { errors.push('Item descrição vazio'); break; }
+        if (it.quantidade <= 0) { errors.push('Item quantidade inválida'); break; }
+        if (it.precoUnitario <= 0) { errors.push('Item preço inválido'); break; }
+      }
+    }
+    // recibo campos específicos
+    if (isRecibo) {
+      if (typeof fd.valorRecebido !== 'number' || fd.valorRecebido <= 0) errors.push('Valor Recebido inválido');
+      if (!fd.dataRecibo) fd.dataRecibo = new Date().toISOString().split('T')[0];
+    }
+    // validade
+    if (documentType === 'cotacao' && !fd.validezCotacao) errors.push('Validez da cotação');
+    if (documentType === 'fatura' && !fd.validezFatura) errors.push('Validez da fatura');
+    return { valid: errors.length === 0, errors };
+  }, [invoiceData, documentType, isRecibo, isCotacao]);
+
+  const { valid: isDocumentValid, errors: documentValidationErrors } = computeDocumentValidation();
 
   useEffect(() => {
     setThirdPartyReference(generateThirdPartyReference());
@@ -323,10 +392,10 @@ export const usePayment = ({
   const dynamicDocumentData = useMemo(() => ({
     id: isCotacao
       ? invoiceData?.formData?.cotacaoNumero || 'N/A'
-      : invoiceData?.formData?.faturaNumero || 'N/A',
+      : (documentType === 'recibo' ? invoiceData?.formData?.reciboNumero || 'N/A' : invoiceData?.formData?.faturaNumero || 'N/A'),
     client: invoiceData?.formData?.destinatario?.nomeCompleto || 'Cliente não definido',
     amount: `${LIBERATION_FEE.toFixed(2)} ${CURRENCY}`,
-    date: formatDate(invoiceData?.formData?.dataFatura),
+    date: formatDate(invoiceData?.formData?.dataFatura || invoiceData?.formData?.dataRecebimento),
     totalItems: invoiceData?.items?.length || 0,
     totalValue: invoiceData?.totais?.totalFinal || 0,
     currency: invoiceData?.formData?.moeda || 'MT',
@@ -336,7 +405,9 @@ export const usePayment = ({
 
   // ✅ VALIDAÇÃO ATUALIZADA - VERIFICA SE DOCUMENTO JÁ EXISTE
   const validateDocumentNumber = useCallback(async (): Promise<boolean> => {
-    const numero = invoiceData?.formData?.faturaNumero || invoiceData?.formData?.cotacaoNumero;
+    const numero = isCotacao
+      ? invoiceData?.formData?.cotacaoNumero
+      : (documentType === 'recibo' ? invoiceData?.formData?.reciboNumero : invoiceData?.formData?.faturaNumero);
 
     if (!numero?.trim()) {
       throw new Error('Número do documento é obrigatório');
@@ -344,9 +415,14 @@ export const usePayment = ({
 
     try {
       // Verificar se o documento já existe
-      const documentExists = isCotacao
-        ? await checkCotacaoExistsDirect(numero)
-        : await checkFaturaExistsDirect(numero);
+      let documentExists = false;
+      if (isCotacao) {
+        documentExists = await checkCotacaoExistsDirect(numero);
+      } else if (documentType === 'recibo') {
+        documentExists = await checkReciboExistsDirect(numero);
+      } else {
+        documentExists = await checkFaturaExistsDirect(numero);
+      }
 
       if (documentExists) {
         throw new Error(`${dynamicDocumentData.typeDisplay} "${numero}" já existe. Já registaste uma ${dynamicDocumentData.typeDisplay} com este código.`);
@@ -366,6 +442,7 @@ export const usePayment = ({
     amount: number,
     documentNumber: string,
     thirdPartyRef: string,
+    docSnapshot: any,
     maxRetries: number = 3
   ): Promise<void> => {
     let lastError: Error | null = null;
@@ -378,7 +455,15 @@ export const usePayment = ({
           await new Promise(resolve => setTimeout(resolve, attempt * 1000));
         }
 
-        await processRealPayment(contact, amount, documentNumber, thirdPartyRef);
+        await processRealPayment(
+          contact,
+          amount,
+          documentNumber,
+          thirdPartyRef,
+          documentType,
+          invoiceData?.formData?.moeda || 'MZN',
+          docSnapshot
+        );
         return;
 
       } catch (error) {
@@ -448,6 +533,13 @@ export const usePayment = ({
       return;
     }
 
+    // Validação completa antes de qualquer pagamento
+    if (!isDocumentValid) {
+      setErrorMessage('Preencha todos os campos obrigatórios antes de pagar: ' + documentValidationErrors.join(', '));
+      setPaymentStatus('error');
+      return;
+    }
+
     // Validação do contacto
     if (!contactNumber.trim()) {
       setErrorMessage('Por favor, insira o número de contacto para MPesa');
@@ -480,11 +572,28 @@ export const usePayment = ({
 
       // 4. Processar pagamento
       setSuccessMessage('Iniciando processamento MPesa...');
+      // Snapshot do documento para validação backend
+      const fd: any = invoiceData?.formData || {};
+      const docSnapshot = {
+        tipo: documentType,
+        faturaNumero: fd.faturaNumero,
+        cotacaoNumero: fd.cotacaoNumero,
+        reciboNumero: fd.reciboNumero,
+        emitente: fd.emitente,
+        destinatario: fd.destinatario,
+        items: invoiceData?.items || [],
+        valorRecebido: fd.valorRecebido,
+        validezCotacao: fd.validezCotacao,
+        validezFatura: fd.validezFatura
+      };
+
       await processPaymentWithRetry(
         contactNumber,
         LIBERATION_FEE,
         dynamicDocumentData.id,
-        currentThirdPartyReference
+        currentThirdPartyReference,
+        docSnapshot,
+        3
       );
 
       // 5. Salvar documento
@@ -541,8 +650,22 @@ export const usePayment = ({
           setErrorMessage('Saldo insuficiente no MPesa. Por favor, recarregue e tente novamente.');
         } else if (errorMsg.includes('duplicate') || errorMsg.includes('duplicad')) {
           setErrorMessage('Transação duplicada. Aguarde alguns instantes e tente novamente.');
-        } else if (errorMsg.includes('invalid') || errorMsg.includes('inválido')) {
-          setErrorMessage('Número de telefone inválido. Verifique o número inserido.');
+        } else if (error instanceof ApiError) {
+          // Tratamento específico baseado em códigos da API
+          switch (error.code) {
+            case 'INVALID_PHONE':
+              setErrorMessage('Número de telefone inválido. Formatos aceites: 84XXXXXXX, 084XXXXXXX ou +25884XXXXXXX.');
+              break;
+            case 'MISSING_FIELDS':
+              setErrorMessage('Campos obrigatórios em falta no pagamento. Verifique os dados e tente novamente.');
+              break;
+            default:
+              if (errorMsg.includes('invalid') || errorMsg.includes('inválido')) {
+                setErrorMessage('Dados inválidos recebidos. Verifique número e valor.');
+              } else {
+                setErrorMessage(error.message);
+              }
+          }
         } else if (currentAttemptRef.current > 1) {
           setErrorMessage(`Falha após ${currentAttemptRef.current} tentativas. ${error.message}`);
         } else {
@@ -621,6 +744,8 @@ export const usePayment = ({
     handleDownload,
     handleEmailSend,
     paymentMethods: PAYMENT_METHODS,
-    dynamicDocumentData
+    dynamicDocumentData,
+    isDocumentValid,
+    documentValidationErrors
   };
 };

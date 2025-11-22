@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MpesaService } from './services/mpesa-service'
 import { logger } from '@/lib/logger'
+import { supabaseServer } from '@/lib/supabase-server'
 
 interface SuccessResponse {
   success: true
@@ -117,7 +118,9 @@ export async function POST(request: NextRequest) {
       amount, 
       customer_msisdn, 
       transaction_reference, 
-      third_party_reference 
+      third_party_reference,
+      tipo_documento,
+      document_snapshot
     } = body
 
     transactionReference = transaction_reference
@@ -146,6 +149,49 @@ export async function POST(request: NextRequest) {
           ERROR_CODES.MISSING_FIELDS,
           'Campos obrigatórios em falta',
           'São obrigatórios: amount, customer_msisdn, transaction_reference'
+        ),
+        { status: 400 }
+      )
+    }
+
+    // ===== Validação adicional do documento antes do pagamento =====
+    const allowedTipos = ['fatura','cotacao','recibo'] as const
+    const normalizedTipo = (tipo_documento || '').toString().trim().toLowerCase()
+    const tipoValido = allowedTipos.includes(normalizedTipo as any) ? normalizedTipo : null
+
+    if (!tipoValido) {
+      return NextResponse.json(
+        createErrorResponse(
+          ERROR_CODES.MISSING_FIELDS,
+          'tipo_documento inválido ou ausente',
+          'Forneça tipo_documento = fatura|cotacao|recibo'
+        ),
+        { status: 400 }
+      )
+    }
+
+    // Estrutura mínima esperada para cada tipo
+    const snapshot: any = document_snapshot || {}
+    const missingDocFields: string[] = []
+    const numeroCampo = tipoValido === 'fatura' ? 'faturaNumero' : (tipoValido === 'cotacao' ? 'cotacaoNumero' : 'reciboNumero')
+    if (!snapshot[numeroCampo]) missingDocFields.push(numeroCampo)
+    if (!snapshot.emitente?.nomeEmpresa) missingDocFields.push('emitente.nomeEmpresa')
+    if (tipoValido !== 'recibo' && !snapshot.destinatario?.nomeCompleto) missingDocFields.push('destinatario.nomeCompleto')
+    if (tipoValido === 'recibo' && (typeof snapshot.valorRecebido !== 'number' || snapshot.valorRecebido <= 0)) missingDocFields.push('valorRecebido')
+    if ((tipoValido === 'fatura' || tipoValido === 'cotacao') && (!Array.isArray(snapshot.items) || snapshot.items.length === 0)) missingDocFields.push('items[]')
+
+    if (missingDocFields.length > 0) {
+      await logger.log({
+        action: 'validation',
+        level: 'warn',
+        message: 'Documento inválido antes de pagamento MPesa',
+        details: { tipo_documento: tipoValido, missingDocFields, transactionReference }
+      })
+      return NextResponse.json(
+        createErrorResponse(
+          ERROR_CODES.MISSING_FIELDS,
+          'Campos obrigatórios do documento em falta',
+          missingDocFields.join(', ')
         ),
         { status: 400 }
       )
@@ -221,10 +267,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const supabase = await supabaseServer()
+    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    if (authErr || !user) {
+      return NextResponse.json(createErrorResponse(ERROR_CODES.INTERNAL_ERROR, 'Não autenticado'), { status: 401 })
+    }
+
     const mpesaService = new MpesaService()
     const formattedMsisdn = mpesaService.formatPhoneNumber(customer_msisdn)
+    const sanitizedMsisdn = customer_msisdn.replace(/\D/g, '')
     
-    if (!mpesaService.validatePhoneNumber(customer_msisdn)) {
+    // Validamos sempre o número já formatado para garantir consistência
+    if (!mpesaService.validatePhoneNumber(formattedMsisdn)) {
       await logger.log({
         action: 'api_call',
         level: 'warn',
@@ -233,7 +287,10 @@ export async function POST(request: NextRequest) {
           endpoint: '/api/mpesa/payment',
           transactionReference,
           originalMsisdn: customer_msisdn,
-          formattedMsisdn
+          sanitizedMsisdn,
+          formattedMsisdn,
+          validationTarget: formattedMsisdn,
+          hintFormats: ['84XXXXXXX', '084XXXXXXX', '25884XXXXXXX']
         }
       })
 
@@ -241,7 +298,7 @@ export async function POST(request: NextRequest) {
         createErrorResponse(
           ERROR_CODES.INVALID_PHONE,
           'Número de telefone inválido',
-          `Formato inválido para MPesa: ${customer_msisdn}`
+          `Use formatos: 84XXXXXXX, 084XXXXXXX ou +25884XXXXXXX (fornecido: ${customer_msisdn})`
         ),
         { status: 400 }
       )
@@ -283,14 +340,72 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // Resposta genérica sem depender de propriedades específicas
-      const successResponse = createSuccessResponse(
-        {
-          third_party_reference: mpesaPayload.third_party_reference,
-          status: 'completed'
-        },
-        'Pagamento processado com sucesso via MPesa'
-      )
+      // Determinar tipo_documento de forma segura
+      const allowedTipos = ['fatura','cotacao','recibo'] as const;
+      const rawTipo = (body.tipo_documento || '').toString().trim().toLowerCase();
+      const tipo_documento = allowedTipos.includes(rawTipo as any) ? rawTipo : 'fatura';
+
+      if (!rawTipo || rawTipo !== tipo_documento) {
+        await logger.log({
+          action: 'mpesa_payment_tipo_documento_normalized',
+          level: 'warn',
+          message: `Normalizado tipo_documento inválido ou ausente ('${rawTipo}') para 'fatura'`,
+          details: { provided: rawTipo, used: tipo_documento, transactionReference }
+        });
+      }
+
+      // Registrar pagamento com documento pendente
+      const { data: pagamento, error: pagamentoError } = await supabase
+        .from('pagamentos')
+        .insert({
+          user_id: user.id,
+          documento_id: null, // aguardando criação
+          tipo_documento,
+          external_id: transaction_reference,
+          metodo: 'mpesa',
+          status: 'aguardando_documento',
+          valor: amount,
+          moeda: body.moeda || 'MZN',
+          phone_number: formattedMsisdn,
+          mpesa_transaction_id: paymentResult.data?.mpesa_transaction_id || null,
+          mpesa_conversation_id: paymentResult.data?.conversation_id || null,
+          mpesa_third_party_reference: third_party_reference || null,
+          metadata: { originalPayload: body }
+        })
+        .select()
+        .single()
+
+      if (pagamentoError) {
+        await logger.logError(pagamentoError, 'mpesa_payment_db_insert', { transactionReference })
+        return NextResponse.json(
+          createErrorResponse(ERROR_CODES.INTERNAL_ERROR, 'Falha ao registar pagamento', pagamentoError.message, pagamentoError.details),
+          { status: 500 }
+        )
+      }
+
+      // Registrar transação MPesa detalhada
+      await supabase.from('mpesa_transactions').insert({
+        pagamento_id: pagamento.id,
+        transaction_reference,
+        third_party_reference: third_party_reference || null,
+        mpesa_transaction_id: paymentResult.data?.mpesa_transaction_id || null,
+        mpesa_conversation_id: paymentResult.data?.conversation_id || null,
+        customer_msisdn: formattedMsisdn,
+        amount,
+        response_code: paymentResult.data?.response_code || '0',
+        response_description: paymentResult.data?.response_description || 'SUCCESS',
+        status: 'completed',
+        request_payload: mpesaPayload,
+        response_payload: paymentResult.data || null
+      })
+
+      const successResponse = createSuccessResponse({
+        third_party_reference: mpesaPayload.third_party_reference,
+        status: 'completed',
+        mpesa_transaction_id: paymentResult.data?.mpesa_transaction_id,
+        conversation_id: paymentResult.data?.conversation_id,
+        payment_id: pagamento.id
+      }, 'Pagamento processado. Documento pendente de criação.')
 
       return NextResponse.json(successResponse)
     } else {

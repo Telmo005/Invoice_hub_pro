@@ -6,7 +6,8 @@ import path from 'path';
 // Diretórios dos templates
 const TEMPLATES_DIRS = {
   invoice: path.join(process.cwd(), 'src/app/templates/invoice'),
-  quotation: path.join(process.cwd(), 'src/app/templates/quotation')
+  quotation: path.join(process.cwd(), 'src/app/templates/quotation'),
+  receipt: path.join(process.cwd(), 'src/app/templates/receipt')
 };
 
 interface DocumentData {
@@ -15,6 +16,9 @@ interface DocumentData {
     destinatario?: any;
     faturaNumero?: string;
     cotacaoNumero?: string;
+    // receipt compatibility
+    reciboNumero?: string;
+    dataRecebimento?: string;
     dataFatura?: string;
     dataVencimento?: string;
     ordemCompra?: string;
@@ -26,15 +30,17 @@ interface DocumentData {
   };
   items: any[];
   totais: any;
-  tipoDocumento?: 'invoice' | 'quotation';
+  tipoDocumento?: 'invoice' | 'quotation' | 'receipt';
 }
 
 class TemplateService {
-  private getTemplateDir(tipo: 'invoice' | 'quotation'): string {
+  private getTemplateDir(tipo: 'invoice' | 'quotation' | 'receipt'): string {
+    // For receipt we map to the receipt templates dir
+    if (tipo === 'receipt') return TEMPLATES_DIRS['receipt'];
     return TEMPLATES_DIRS[tipo];
   }
 
-  async loadTemplate(templateId: string, tipo: 'invoice' | 'quotation'): Promise<string> {
+  async loadTemplate(templateId: string, tipo: 'invoice' | 'quotation' | 'receipt'): Promise<string> {
     if (!this.isValidTemplateId(templateId)) {
       throw new Error('ID de template inválido');
     }
@@ -48,13 +54,16 @@ class TemplateService {
     return /^[a-zA-Z0-9_-]+$/.test(templateId);
   }
 
-  validateDocumentData(data: any, tipo: 'invoice' | 'quotation'): boolean {
+  validateDocumentData(data: any, tipo: 'invoice' | 'quotation' | 'receipt'): boolean {
     const baseValidation = data?.formData && Array.isArray(data?.items) && typeof data?.totais === 'object';
-    
+
     if (tipo === 'invoice') {
       return baseValidation && !!data.formData.faturaNumero;
-    } else {
+    } else if (tipo === 'quotation') {
       return baseValidation && !!data.formData.cotacaoNumero;
+    } else {
+      // Receipt: require reciboNumero or fallback to faturaNumero
+      return baseValidation && !!(data.formData.reciboNumero || data.formData.faturaNumero);
     }
   }
 
@@ -168,25 +177,51 @@ class TemplateService {
 
         // Mapeamentos específicos por tipo
         if (tipo === 'invoice') {
-          const invoiceMappings = {
+          Object.assign(commonMappings, {
             'fatura-numero': f.faturaNumero || ' ',
             'fatura-numero-display': `Nº: ${f.faturaNumero || ''}`,
             'fatura-data-display': `Data: ${formatDate(f.dataFatura) || ''}`,
             'documento-numero': f.faturaNumero || ' ',
             'documento-numero-display': `Nº: ${f.faturaNumero || ''}`
-          };
-          
-          Object.assign(commonMappings, invoiceMappings);
-        } else {
-          const quotationMappings = {
+          });
+        } else if (tipo === 'quotation') {
+          Object.assign(commonMappings, {
             'cotacao-numero': f.cotacaoNumero || ' ',
             'cotacao-numero-display': `Nº: ${f.cotacaoNumero || ''}`,
             'validez-cotacao': f.validezCotacao ? `${f.validezCotacao} dias` : ' ',
             'documento-numero': f.cotacaoNumero || ' ',
             'documento-numero-display': `Nº: ${f.cotacaoNumero || ''}`
+          });
+        }
+
+        // Referências independentes (preenche mesmo se ainda não tiver numero de recibo)
+        if ((f as any).documentoReferencia) {
+          (commonMappings as Record<string,string>)['documento-referencia'] = (f as any).documentoReferencia;
+          (commonMappings as Record<string,string>)['documento-referencia-header'] = (f as any).documentoReferencia;
+        }
+        if ((f as any).referenciaRecebimento) {
+          (commonMappings as Record<string,string>)['referencia-recebimento'] = (f as any).referenciaRecebimento;
+        }
+
+        // RECEIPT-SPECIFIC PLACEHOLDERS (detect by presence of reciboNumero)
+        if (f.reciboNumero) {
+          const moedaRecibo = f.moeda || 'MZN';
+          const valorRecebidoNumber = typeof (f as any).valorRecebido === 'number' ? (f as any).valorRecebido : undefined;
+          const receiptMappings: Record<string, string> = {
+            'recibo-numero': f.reciboNumero || ' ',
+            'recibo-numero-display': `Nº: ${f.reciboNumero || ''}`,
+            'data-recebimento': formatDate((f as any).dataRecebimento || f.dataFatura) || '',
+            'data-pagamento': formatDate((f as any).dataPagamento || (f as any).dataRecebimento || f.dataFatura) || '',
+            'forma-pagamento': (f as any).formaPagamento || f.metodoPagamento || ' ',
+            'referencia-recebimento': (f as any).referenciaPagamento  || f.ordemCompra || ' ',
+            'documento-referencia': (f as any).documentoAssociadoCustom  || ' ',
+            'documento-referencia-header': (f as any).documentoReferencia || ' ',
+            'motivo-pagamento': (f as any).motivoPagamento || ' ',
+            'valor-recebido': valorRecebidoNumber !== undefined ? formatCurrency(valorRecebidoNumber, moedaRecibo) : '0,00 ' + moedaRecibo
           };
-          
-          Object.assign(commonMappings, quotationMappings);
+          Object.assign(commonMappings, receiptMappings);
+          // Remover desconto para recibos (não aplicável)
+          delete (commonMappings as any)['desconto'];
         }
 
         for (const [id, value] of Object.entries(commonMappings)) {
@@ -196,15 +231,16 @@ class TemplateService {
         }
 
         // Título do documento baseado no tipo
-        const documentTitle = tipo === 'invoice' ? 'FATURA' : 'COTAÇÃO';
+        const documentTitle = f.reciboNumero ? 'RECIBO' : (tipo === 'invoice' ? 'FATURA' : 'COTAÇÃO');
         renderedHtml = this.replaceElementContent(renderedHtml, 'documento-titulo', documentTitle);
         renderedHtml = this.replaceElementContent(renderedHtml, 'titulo-documento', documentTitle);
       }
 
-      // 4. ITENS DA TABELA - COM LIMITE DE SEGURANÇA (comum a ambos)
+      // 4. ITENS DA TABELA - COM LIMITE DE SEGURANÇA (comum a todos; suporte a modo compacto térmico)
       if (data.items && Array.isArray(data.items)) {
         const moeda = data.formData?.moeda || 'MZN';
         let itemsHtml = '';
+        const compact = /<tbody[^>]*id="items-tbody"[^>]*data-compact="true"/i.test(renderedHtml);
 
         // PROTEÇÃO CRÍTICA: limita número de itens
         const safeItems = data.items.slice(0, 500); // Máximo 500 itens
@@ -238,25 +274,40 @@ class TemplateService {
 
           const totalItem = subtotalItem + totalTaxas;
 
-          itemsHtml += `
-            <tr>
-              <td class="text-center">${escapeHtml(quantidade.toString())}</td>
-              <td>${escapeHtml(item.descricao || 'Item sem descrição')}</td>
-              <td class="text-right">${formatCurrency(precoUnitario, moeda)}</td>
-              <td class="text-right">${taxasTexto || '0,00'}</td>
-              <td class="text-right">${formatCurrency(totalItem, moeda)}</td>
-            </tr>
-          `;
+          const originalId = typeof item.id === 'number' ? item.id : (item.idOriginal || quantidade);
+          if (compact) {
+            // Modo compacto: Qtd / Descrição / Total (3 colunas) com taxas embutidas
+            const descricaoMerge = `${escapeHtml(item.descricao || 'Item sem descrição')}` + (taxasTexto ? `<div class="rcb-taxa-detail">${taxasTexto}</div>` : '');
+            itemsHtml += `
+              <tr data-item-id="${escapeHtml(String(originalId))}" data-qty="${escapeHtml(String(quantidade))}" data-preco="${formatCurrency(precoUnitario, moeda)}" data-total="${formatCurrency(totalItem, moeda)}">
+                <td class="text-center">${escapeHtml(quantidade.toString())}</td>
+                <td>${descricaoMerge}</td>
+                <td class="text-right">${formatCurrency(totalItem, moeda)}</td>
+              </tr>
+            `;
+          } else {
+            // Layout completo (5 colunas)
+            itemsHtml += `
+              <tr data-item-id="${escapeHtml(String(originalId))}" data-qty="${escapeHtml(String(quantidade))}" data-preco="${formatCurrency(precoUnitario, moeda)}" data-total="${formatCurrency(totalItem, moeda)}">
+                <td class="text-center">${escapeHtml(quantidade.toString())}</td>
+                <td>${escapeHtml(item.descricao || 'Item sem descrição')}</td>
+                <td class="text-right">${formatCurrency(precoUnitario, moeda)}</td>
+                <td class="text-right">${taxasTexto || '0,00'}</td>
+                <td class="text-right">${formatCurrency(totalItem, moeda)}</td>
+              </tr>
+            `;
+          }
         });
 
         if (safeItems.length === 0) {
-          itemsHtml = `<tr><td colspan="5" style="text-align: center;">Nenhum item encontrado</td></tr>`;
+          const colspan = compact ? 3 : 5;
+          itemsHtml = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum item encontrado</td></tr>`;
         }
 
-        // Substitui o tbody dos itens
+        // Substitui mantendo atributos existentes (inclui data-compact se houver)
         renderedHtml = renderedHtml.replace(
-          /<tbody[^>]*id="items-tbody"[^>]*>[\s\S]*?<\/tbody>/,
-          `<tbody id="items-tbody">${itemsHtml}</tbody>`
+          /<tbody([^>]*id="items-tbody"[^>]*)>[\s\S]*?<\/tbody>/i,
+          `<tbody$1>${itemsHtml}</tbody>`
         );
       }
 
@@ -385,7 +436,7 @@ export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const templateId = searchParams.get('id');
-    const tipo = searchParams.get('tipo') as 'invoice' | 'quotation' || 'invoice';
+    const tipo = searchParams.get('tipo') as 'invoice' | 'quotation' | 'receipt' || 'invoice';
 
     if (!templateId) {
       return NextResponse.json({ error: 'ID do template não fornecido' }, { status: 400 });
@@ -397,25 +448,44 @@ export async function POST(request: NextRequest) {
     }
 
     // VALIDAÇÃO: verifica tipo de documento
-    if (tipo !== 'invoice' && tipo !== 'quotation') {
-      return NextResponse.json({ error: 'Tipo de documento inválido. Use "invoice" ou "quotation"' }, { status: 400 });
+    if (tipo !== 'invoice' && tipo !== 'quotation' && tipo !== 'receipt') {
+      return NextResponse.json({ error: 'Tipo de documento inválido. Use "invoice", "quotation" ou "receipt"' }, { status: 400 });
     }
 
     const requestData = await request.json();
-    const documentData: DocumentData = {
-      ...requestData?.documentData,
-      tipoDocumento: tipo
-    };
 
-    if (!documentData) {
+    // templateLoadType: which directory to read templates from (allows 'receipt')
+    const templateLoadType = tipo;
+    // templateRenderType: which rendering mapping to use (receipt renders like invoice)
+    const templateRenderType = tipo === 'receipt' ? 'invoice' : tipo;
+
+    const documentDataRaw = requestData?.documentData || {};
+
+    if (!documentDataRaw) {
       return NextResponse.json({ error: 'Dados do documento não fornecidos' }, { status: 400 });
     }
 
-    if (!templateService.validateDocumentData(documentData, tipo)) {
+    // If rendering a receipt, map receipt fields to invoice-like fields so renderer can reuse invoice logic
+    if (tipo === 'receipt' && documentDataRaw.formData) {
+      // copy reciboNumero -> faturaNumero and dataRecebimento -> dataFatura
+      if (documentDataRaw.formData.reciboNumero) {
+        documentDataRaw.formData.faturaNumero = documentDataRaw.formData.reciboNumero;
+      }
+      if (documentDataRaw.formData.dataRecebimento) {
+        documentDataRaw.formData.dataFatura = documentDataRaw.formData.dataRecebimento;
+      }
+    }
+
+    const documentData: DocumentData = {
+      ...documentDataRaw,
+      tipoDocumento: templateRenderType as any
+    };
+
+    if (!templateService.validateDocumentData(documentData, templateRenderType as any)) {
       return NextResponse.json({ error: 'Dados do documento incompletos ou inválidos' }, { status: 400 });
     }
 
-    const templateHtml = await templateService.loadTemplate(templateId, tipo);
+    const templateHtml = await templateService.loadTemplate(templateId, templateLoadType as any);
     const renderedHtml = templateService.renderTemplate(templateHtml, documentData);
 
     return new NextResponse(renderedHtml, {
@@ -446,7 +516,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const templateId = searchParams.get('id');
-  const tipo = searchParams.get('tipo') as 'invoice' | 'quotation' || 'invoice';
+  const tipo = searchParams.get('tipo') as 'invoice' | 'quotation' | 'receipt' || 'invoice';
 
   if (!templateId) {
     return NextResponse.json({
@@ -465,10 +535,10 @@ export async function GET(request: NextRequest) {
   }
 
   // VALIDAÇÃO: verifica tipo de documento
-  if (tipo !== 'invoice' && tipo !== 'quotation') {
+  if (tipo !== 'invoice' && tipo !== 'quotation' && tipo !== 'receipt') {
     return NextResponse.json({
       status: 'invalid_document_type',
-      message: 'Tipo de documento inválido. Use "invoice" ou "quotation"'
+      message: 'Tipo de documento inválido. Use "invoice", "quotation" ou "receipt"'
     }, { status: 400 });
   }
 

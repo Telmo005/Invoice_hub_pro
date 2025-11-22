@@ -1,5 +1,13 @@
 // types/invoice-types.ts
-export type TipoDocumento = 'fatura' | 'cotacao';
+export type TipoDocumento = 'fatura' | 'cotacao' | 'recibo';
+
+export type StatusPagamento = 'aguardando_documento' | 'pendente' | 'pago' | 'falhado';
+
+export interface RetryPagamentoResponse {
+  success: boolean;
+  processed: number;
+  errors?: Array<{ id: string; reason: string }>; 
+}
 
 /**
  * Tipos relacionados a emissor de fatura
@@ -37,14 +45,25 @@ export interface FormDataFatura {
   emitente: Emitente;
   destinatario: Destinatario;
   dataFatura: string;
+  dataRecibo?: string; // suporte para recibo em alguns componentes legacy
   ordemCompra?: string;
   termos: string;
   moeda: string;
   
   // Campos específicos de FATURA (opcionais para cotação)
   faturaNumero?: string;
+  // Campo específico de RECIBO
+  reciboNumero?: string;
+  valorRecebido?: number;
+  referenciaRecebimento?: string;
+  formaPagamento?: string;
+  dataRecebimento?: string;
   dataVencimento?: string;
   metodoPagamento?: string;
+  // Campos adicionais para recibo
+  documentoReferencia?: string;
+  motivoPagamento?: string;
+  dataPagamento?: string;
   validezFatura?: string; 
   
   // Campos específicos de COTAÇÃO (opcionais para fatura)
