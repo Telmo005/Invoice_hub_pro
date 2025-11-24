@@ -134,33 +134,32 @@
       margin-bottom: 15px;
     }
 
-    .items-header {
-      display: grid;
-      /* Ordem corrigida: QTD (estreito), DESCRIÇÃO (largo), TOTAL (estreito) */
-      grid-template-columns: 1fr 3fr 1fr;
-      gap: 8px;
-      padding: 6px 0;
-      border-bottom: 2px solid var(--border-color);
+    /* Nova tabela de itens com colgroup para alinhamento consistente */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+      table-layout: fixed;
+    }
+    .items-table col:nth-child(1) { width: 15%; }
+    .items-table col:nth-child(2) { width: 55%; }
+    .items-table col:nth-child(3) { width: 30%; }
+    .items-table thead th {
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: var(--text-light);
+      border-bottom: 2px solid var(--border-color);
+      padding: 6px 0 4px;
+      background: #f8fafc;
     }
-
-    .item-row {
-      display: grid;
-      /* Manter mesma ordem que o cabeçalho */
-      grid-template-columns: 1fr 3fr 1fr;
-      gap: 8px;
-      padding: 6px 0;
-      border-bottom: 1px dashed var(--border-color);
+    .items-table tbody tr td {
       font-size: 9px;
+      border-bottom: 1px dashed var(--border-color);
+      padding: 4px 0;
     }
-
-    .item-row:last-child {
-      border-bottom: none;
-    }
+    .items-table tbody tr:last-child td { border-bottom: none; }
 
     .item-desc {
       font-weight: 500;
@@ -362,13 +361,8 @@
     }
 
     /* Linhas dinâmicas inseridas no tbody (itens) */
-    #items-tbody tr {
-      font-size: 9px; /* Fonte menor conforme pedido */
-    }
-    #items-tbody td {
-      padding: 4px 0;
-      vertical-align: top;
-    }
+    #items-tbody tr { font-size: 9px; }
+    #items-tbody td { padding: 4px 0; vertical-align: top; }
     #items-tbody td:nth-child(1) { /* QTD */
       text-align: center;
       width: 15%;
@@ -438,15 +432,20 @@
 
       <!-- Itens (dinâmicos via backend: tbody id="items-tbody") -->
       <div class="items-section">
-        <div class="items-header">
-          <div style="text-align: center;">QTD</div>
-          <div style="text-align: left;">DESCRIÇÃO</div>
-          <div style="text-align: right;">TOTAL</div>
-        </div>
-        <table style="width:100%; border-collapse:collapse;">
-          <tbody id="items-tbody" data-compact="true">
-          
-          </tbody>
+        <table class="items-table">
+          <colgroup>
+            <col />
+            <col />
+            <col />
+          </colgroup>
+          <thead>
+            <tr>
+              <th style="text-align:center;">QTD</th>
+              <th style="text-align:left;">DESCRIÇÃO</th>
+              <th style="text-align:right;">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody id="items-tbody" data-compact="true"></tbody>
         </table>
       </div>
 

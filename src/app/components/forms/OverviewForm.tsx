@@ -175,10 +175,11 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
         color-adjust: exact !important;
       }
       
-      .header, .footer, [class*="header"], [class*="footer"],
-      #header, #footer, .print-header, .print-footer {
+      .header, .footer, #header, #footer, .print-header, .print-footer {
         display: none !important;
       }
+      /* Manter cabeçalhos específicos de templates */
+      .receipt-header, .invoice-header, .quotation-header { display: block !important; }
     }
     
     table {
@@ -232,6 +233,7 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
 }) => {
   const [zoom, setZoom] = useState<number>(1);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const [isReusing, setIsReusing] = useState<boolean>(false);
 
   const handleZoomIn = () => setZoom((z) => Math.min(2, Math.round((z + 0.1) * 10) / 10));
   const handleZoomOut = () => setZoom((z) => Math.max(0.3, Math.round((z - 0.1) * 10) / 10));
@@ -328,26 +330,39 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             {/* Reutilizar dados */}
             {documentData && (
               <button
-                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded-md font-medium text-sm transition-colors shadow-sm"
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded-md font-medium text-sm transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 title="Reutilizar dados deste documento"
+                disabled={isReusing}
                 onClick={async () => {
+                  setIsReusing(true);
                   try {
                     const resp = await fetch(`/api/document/detail/${documentData.id}`);
-                    if (!resp.ok) return;
+                    if (!resp.ok) throw new Error('Falha ao obter dados do documento');
                     const json = await resp.json();
                     if (json?.success && json.data?.invoiceData) {
-                      // Persiste em sessionStorage para sobreviver a navegação
                       sessionStorage.setItem('clonedInvoiceData', JSON.stringify(json.data.invoiceData));
                       const tipo = json.data.invoiceData.tipo;
                       if (tipo === 'fatura') window.location.href = '/invoices/new';
                       else if (tipo === 'cotacao') window.location.href = '/quotations/new';
                       else if (tipo === 'recibo') window.location.href = '/receipts/new';
+                      return; // mantém overlay até navegação
                     }
-                  } catch (_e) { /* opcional: log */ }
+                  } catch (_e) {
+                    setIsReusing(false);
+                  }
                 }}
               >
-                <FiExternalLink className="h-4 w-4" />
-                <span className="hidden md:inline">Reutilizar</span>
+                {isReusing ? (
+                  <>
+                    <FaSpinner className="animate-spin h-4 w-4" />
+                    <span className="hidden md:inline">A preparar...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiExternalLink className="h-4 w-4" />
+                    <span className="hidden md:inline">Reutilizar</span>
+                  </>
+                )}
               </button>
             )}
 
@@ -589,6 +604,7 @@ export default function DocumentsPage() {
   const [currentSection, setCurrentSection] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState<string>('Processando...');
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   // ✅ Estados para o preview
@@ -651,7 +667,9 @@ export default function DocumentsPage() {
   // Função para refresh da página
   const refreshPage = useCallback(() => {
     secureLog('info', 'Refresh manual da página solicitado');
-    refetch();
+    setProcessingMessage('A carregar documentos...');
+    setIsProcessing(true);
+    Promise.resolve(refetch()).finally(() => setIsProcessing(false));
   }, [refetch, secureLog]);
 
   // Calcular rascunhos em tempo real
@@ -1133,7 +1151,11 @@ export default function DocumentsPage() {
                         Não há {activeTab === 'faturas' ? 'faturas' : activeTab === 'cotacoes' ? 'cotações' : 'recibos'} com os filtros selecionados.
                       </p>
                       <button
-                        onClick={refetch}
+                        onClick={async () => {
+                          setProcessingMessage('A carregar documentos...');
+                          setIsProcessing(true);
+                          try { await Promise.resolve(refetch()); } finally { setIsProcessing(false); }
+                        }}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
                       >
                         Recarregar Documentos
@@ -1281,7 +1303,7 @@ export default function DocumentsPage() {
 
   return (
     <div ref={rootRef} className="min-h-screen bg-gray-50 mt-3 p-3 md:p-4 relative">
-      <ProcessingOverlay isVisible={isNavigating || isProcessing} message={isNavigating ? 'Navegando...' : 'Processando...'} />
+      <ProcessingOverlay isVisible={isNavigating || isProcessing} message={isNavigating ? 'Navegando...' : processingMessage} />
 
       <div className="max-w-6xl mx-auto">
         <header className="mb-4 md:mb-6 text-center">
@@ -1447,7 +1469,7 @@ export default function DocumentsPage() {
           </div>
           {error && (
             <button
-              onClick={refetch}
+              onClick={refreshPage}
               className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 font-medium"
             >
               Tentar Novamente

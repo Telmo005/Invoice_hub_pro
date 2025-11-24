@@ -7,6 +7,63 @@
   <title>Recibo</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    /* === CONFIGURAÇÕES CRÍTICAS DE IMPRESSÃO === */
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+
+    @media print {
+      body.rcb-body {
+        width: 210mm !important;
+        min-height: 297mm !important;
+        margin: 0 auto !important;
+        padding: 0 !important; /* removemos qualquer padding extra no body */
+        background: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      
+      .rcb-container {
+        width: 100% !important; /* usar largura total disponível dentro da página */
+        min-height: auto !important;
+        padding: 12mm 12mm 14mm !important; /* padding superior ligeiramente menor para evitar corte */
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        page-break-after: avoid; /* evitar quebra automática logo após o primeiro container */
+        overflow: visible !important; /* garantir que nada dentro seja cortado */
+      }
+      
+      .rcb-watermark {
+        display: none !important;
+      }
+      
+      /* Garantir que todas as cores sejam impressas */
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      
+      /* Evitar quebras de página em elementos críticos */
+      .rcb-header,
+      .rcb-totals,
+      .rcb-payment {
+        page-break-inside: avoid;
+      }
+
+      /* Correção: remover layout flex no body para evitar bugs de impressão que cortam o topo */
+      body.rcb-body {
+        display: block !important;
+      }
+      html, body { height: auto !important; }
+      .rcb-header { display: flex !important; }
+      /* Garantir que o cabeçalho nunca seja ocultado por overflow */
+      .rcb-header { position: relative !important; top: 0 !important; }
+      /* Caso algum estilo externo oculte elementos */
+      .rcb-brand, .rcb-info { visibility: visible !important; }
+    }
+
     .rcb-root * {
       box-sizing: border-box;
       margin: 0;
@@ -19,14 +76,15 @@
       padding: 10px;
       display: flex;
       justify-content: center;
+      align-items: flex-start;
     }
 
     .rcb-container {
       width: 210mm;
-      min-height: 297mm;
       background: #fff;
       padding: 20px 25px;
       position: relative;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
 
     .rcb-watermark {
@@ -273,22 +331,6 @@
     .rcb-compact-value {
       color: #6b7280;
     }
-
-    @media print {
-      body.rcb-body {
-        padding: 0;
-        background: #fff;
-      }
-
-      .rcb-container {
-        box-shadow: none;
-        border: none;
-      }
-
-      .rcb-watermark {
-        display: none;
-      }
-    }
   </style>
 </head>
 
@@ -337,7 +379,7 @@
           <thead>
             <tr>
               <th class="text-center" style="width: 15%">Qtd</th>
-              <th style="width: 50%">Descrição</th>
+              <th style="width: 50%; text-align: left" class="text-left">Descrição</th>
               <th class="text-left" style="width: 15%; text-align: right;">Total</th>
             </tr>
           </thead>
@@ -365,7 +407,6 @@
       <p><span>Forma:</span><span id="forma-pagamento">Carregando...</span></p>
       <p><span>Referência:</span><span id="referencia-recebimento">Carregando...</span></p>
       <p><span>Data Pagamento:</span><span id="data-pagamento">Carregando...</span></p>
-      
     </div>
 
     <footer class="rcb-footer">

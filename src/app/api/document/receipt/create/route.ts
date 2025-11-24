@@ -2,16 +2,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
+import { withApiGuard } from '@/lib/api/guard';
+import { FormDataFatura, ItemFatura, TotaisFatura, Emitente, Destinatario } from '@/types/invoice-types';
 
-interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-  };
-}
+interface ApiError { code: string; message: string; details?: unknown }
+interface ApiResponse<T = unknown> { success: boolean; data?: T; error?: ApiError }
 
 interface ReceiptData {
   formData: {
@@ -26,19 +21,18 @@ interface ReceiptData {
     moeda?: string;
     ordemCompra?: string;
     termos?: string;
-    emitente: any;
-    destinatario?: any;
+    emitente: Emitente;
+    destinatario?: Destinatario;
+    status?: 'emitida' | 'paga';
   };
-  items?: any[];
-  totais?: any;
+  items?: ItemFatura[];
+  totais?: TotaisFatura;
   logo?: string;
   assinatura?: string;
   htmlContent?: string;
 }
 
-interface RequestBody {
-  documentData: ReceiptData;
-}
+interface RequestBody { documentData: ReceiptData }
 
 const ERROR_CODES = {
   UNAUTHORIZED: 'UNAUTHORIZED',
@@ -48,40 +42,13 @@ const ERROR_CODES = {
   INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
 
-export async function POST(request: NextRequest) {
+export const POST = withApiGuard(async (request: NextRequest, { user }) => {
   const startTime = Date.now();
   let receiptId: string | null = null;
-  let user: any = null;
   let documentData: ReceiptData | null = null;
 
   try {
     const supabase = await supabaseServer();
-
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !authUser) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Tentativa de acesso não autorizado à API de criação de recibo',
-        details: {
-          endpoint: '/api/document/receipt/create',
-          error: authError?.message
-        }
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.UNAUTHORIZED,
-          message: 'Não autorizado',
-          details: 'Usuário não autenticado ou token inválido'
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 401 });
-    }
-
-    user = authUser;
 
     let body: RequestBody;
     try {
@@ -104,7 +71,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    documentData = body.documentData;
+    documentData = body.documentData as ReceiptData;
 
     if (!documentData) {
       await logger.log({
@@ -117,18 +84,7 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Dados do documento são obrigatórios',
-          details: {
-            missingField: 'documentData',
-            expected: 'Objeto com formData, items, etc.'
-          }
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'documentData ausente' } }, { status: 400 });
     }
 
     const { formData, items, totais, logo, assinatura } = documentData;
@@ -153,38 +109,7 @@ export async function POST(request: NextRequest) {
       formData.dataRecebimento = new Date().toISOString().split('T')[0];
     }
 
-    const missingFields = [];
-    if (!formData?.reciboNumero) missingFields.push('reciboNumero');
-    if (!formData?.emitente) missingFields.push('emitente');
-    // dataRecebimento agora é default; não marcar como faltando
-    if (typeof formData?.valorRecebido !== 'number' || formData.valorRecebido <= 0) missingFields.push('valorRecebido');
-
-    if (missingFields.length > 0) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Dados obrigatórios faltando para criação de recibo',
-        details: {
-          user: user.id,
-          missingFields,
-          required: ['reciboNumero', 'emitente'],
-          numero: formData?.reciboNumero
-        }
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Dados obrigatórios faltando',
-          details: {
-            missingFields,
-            required: ['reciboNumero', 'emitente']
-          }
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
+    // Campos obrigatórios já tratados pelo schema
 
     // Preparar dados completos do recibo para o RPC (chaves esperadas pela função unificada)
     const reciboData = {
@@ -215,7 +140,7 @@ export async function POST(request: NextRequest) {
     // ===== BLOCO RPC UNIFICADO PARA RECIBO =====
     // Adaptar para nova função criar_documento_completo
     const ensureEmissor = async () => {
-      const emissor = formData.emitente;
+      const emissor: Emitente = formData.emitente;
       let emissorId: string | null = null;
       if (emissor?.documento) {
         const { data: foundByDoc } = await supabase
@@ -257,7 +182,7 @@ export async function POST(request: NextRequest) {
     };
 
     const ensureDestinatario = async () => {
-      const dest = formData.destinatario;
+      const dest: Destinatario | undefined = formData.destinatario;
       if (!dest) return null;
       let destinatarioId: string | null = null;
       if (dest?.documento) {
@@ -305,7 +230,8 @@ export async function POST(request: NextRequest) {
 
     // Forma de pagamento em recibo é informativa para o usuário; não validar de forma restritiva.
 
-    const dadosEspecificos: Record<string, any> = {
+    const statusDocumento = formData.status === 'paga' ? 'paga' : 'emitida';
+    const dadosEspecificos = {
       numero: formData.reciboNumero,
       data_emissao: formData.dataRecebimento,
       moeda: formData.moeda || 'MT',
@@ -320,15 +246,15 @@ export async function POST(request: NextRequest) {
       documento_referencia: formData.documentoAssociadoCustom || null,
       data_recebimento: formData.dataRecebimento,
       local_emissao: formData.emitente?.cidade || null,
-      status: (formData as any).status === 'paga' ? 'paga' : 'emitida'
+      status: statusDocumento
     };
 
-    const itensMapeados = (items || []).map((it: any) => ({
+    const itensMapeados = (items || []).map((it: ItemFatura) => ({
       id_original: it.id,
       quantidade: it.quantidade,
       descricao: it.descricao,
       preco_unitario: it.precoUnitario,
-      taxas: Array.isArray(it.taxas) ? it.taxas.map((t: any) => ({ nome: t.nome, valor: t.valor, tipo: t.tipo })) : []
+      taxas: Array.isArray(it.taxas) ? it.taxas.map(t => ({ nome: t.nome, valor: t.valor, tipo: t.tipo })) : []
     }));
 
     await logger.log({
@@ -510,4 +436,4 @@ export async function POST(request: NextRequest) {
       { numero: documentData?.formData?.reciboNumero }
     );
   }
-}
+}, { auth: true, rate: { limit: 30 }, auditAction: 'document_create' });

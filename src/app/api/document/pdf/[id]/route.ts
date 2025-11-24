@@ -48,10 +48,13 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
         color-adjust: exact !important;
       }
       
-      .header, .footer, [class*="header"], [class*="footer"],
-      #header, #footer, .print-header, .print-footer {
+      .header, .footer, #header, #footer, .print-header, .print-footer {
         display: none !important;
       }
+      /* Permite cabeçalhos específicos de documentos (evita esconder .receipt-header) */
+      .receipt-header { display: block !important; }
+      .invoice-header { display: block !important; }
+      .quotation-header { display: block !important; }
     }
     
     table {

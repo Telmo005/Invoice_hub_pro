@@ -2,86 +2,47 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
+import { withApiGuard } from '@/lib/api/guard';
+import { FormDataFatura, ItemFatura, TotaisFatura, Emitente, Destinatario } from '@/types/invoice-types';
 
-interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-  };
-}
+interface ApiError { code: string; message: string; details?: unknown }
+interface ApiResponse<T = unknown> { success: boolean; data?: T; error?: ApiError }
 
 interface QuotationData {
-  formData: {
+  formData: (FormDataFatura & {
     cotacaoNumero: string;
     dataFatura: string;
     dataVencimento: string;
-    ordemCompra?: string;
-    termos?: string;
-    moeda?: string;
-    metodoPagamento?: string;
     validezCotacao?: number;
-    desconto?: number;
-    tipoDesconto?: string;
-    status?: string;
-    emitente: any;
-    destinatario: any;
-  };
-  items: any[];
-  totais?: any;
+    status?: 'emitida' | 'paga';
+    emitente: Emitente;
+    destinatario: Destinatario;
+  });
+  items: ItemFatura[];
+  totais?: TotaisFatura;
   logo?: string;
   assinatura?: string;
   htmlContent?: string;
 }
 
-interface RequestBody {
-  documentData: QuotationData;
-}
+interface RequestBody { documentData: QuotationData }
 
 const ERROR_CODES = {
   UNAUTHORIZED: 'UNAUTHORIZED',
   VALIDATION_ERROR: 'VALIDATION_ERROR', 
   DATABASE_ERROR: 'DATABASE_ERROR',
   DOCUMENT_ALREADY_EXISTS: 'DOCUMENT_ALREADY_EXISTS',
+  SUPABASE_TIMEOUT: 'SUPABASE_TIMEOUT',
   INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
 
-export async function POST(request: NextRequest) {
+export const POST = withApiGuard(async (request: NextRequest, { user }) => {
   const startTime = Date.now();
   let quotationId: string | null = null;
-  let user: any = null;
   let documentData: QuotationData | null = null;
 
   try {
     const supabase = await supabaseServer();
-    
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !authUser) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Tentativa de acesso não autorizado à API de criação de cotação',
-        details: { 
-          endpoint: '/api/document/quotation/create',
-          error: authError?.message 
-        }
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.UNAUTHORIZED,
-          message: 'Não autorizado',
-          details: 'Usuário não autenticado ou token inválido'
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 401 });
-    }
-
-    user = authUser;
 
     let body: RequestBody;
     try {
@@ -104,7 +65,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    documentData = body.documentData;
+    documentData = body.documentData as QuotationData;
 
     if (!documentData) {
       await logger.log({
@@ -117,18 +78,7 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Dados do documento são obrigatórios',
-          details: {
-            missingField: 'documentData',
-            expected: 'Objeto com formData, items, etc.'
-          }
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'documentData ausente' } }, { status: 400 });
     }
 
     const { formData, items, totais, logo, assinatura } = documentData;
@@ -150,64 +100,13 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    const missingFields = [];
-    if (!formData?.cotacaoNumero) missingFields.push('cotacaoNumero');
-    if (!formData?.emitente) missingFields.push('emitente');
-    if (!formData?.destinatario) missingFields.push('destinatario');
+    // Campos obrigatórios já tratados pelo schema
 
-    if (missingFields.length > 0) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Dados obrigatórios faltando para criação de cotação',
-        details: {
-          user: user.id,
-          missingFields,
-          required: ['cotacaoNumero', 'emitente', 'destinatario'],
-          numero: formData?.cotacaoNumero
-        }
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Dados obrigatórios faltando',
-          details: {
-            missingFields,
-            required: ['cotacaoNumero', 'emitente', 'destinatario']
-          }
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
-
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Lista de itens vazia para cotação',
-        details: {
-          user: user.id,
-          numero: formData.cotacaoNumero
-        }
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Lista de itens é obrigatória',
-          details: 'A cotação deve conter pelo menos um item'
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
+    // Lista de itens garantida pelo schema
 
     // Obter ou criar IDs de emitente e destinatário conforme novo schema
     const ensureEmissor = async () => {
-      const emissor = formData.emitente;
-      // Tentar encontrar por documento, depois por nome
+      const emissor: Emitente = formData.emitente;
       let emissorId: string | null = null;
       if (emissor?.documento) {
         const { data: foundByDoc } = await supabase
@@ -249,7 +148,7 @@ export async function POST(request: NextRequest) {
     };
 
     const ensureDestinatario = async () => {
-      const dest = formData.destinatario;
+      const dest: Destinatario = formData.destinatario;
       let destinatarioId: string | null = null;
       if (dest?.documento) {
         const { data: foundByDoc } = await supabase
@@ -297,7 +196,8 @@ export async function POST(request: NextRequest) {
     // Método de pagamento em cotação é informativo; não validar de forma restritiva.
 
     // Mapear dados específicos conforme a função criar_documento_completo
-    const dadosEspecificos: Record<string, any> = {
+    const statusDocumento = formData.status === 'paga' ? 'paga' : 'emitida';
+    const dadosEspecificos = {
       numero: formData.cotacaoNumero,
       data_emissao: formData.dataFatura ?? null,
       data_vencimento: formData.dataVencimento ?? null,
@@ -310,20 +210,16 @@ export async function POST(request: NextRequest) {
       desconto: typeof formData.desconto === 'number' ? formData.desconto : (totais?.desconto ?? 0),
       tipo_desconto: formData.tipoDesconto ?? 'fixed',
       metodo_pagamento: formData.metodoPagamento || null,
-      status: (formData as any).status === 'paga' ? 'paga' : 'emitida'
+      status: statusDocumento
     };
 
     // Mapear itens para o formato do banco
-    const itensMapeados = (items || []).map((it: any) => ({
+    const itensMapeados = (items || []).map((it: ItemFatura) => ({
       id_original: it.id,
       quantidade: it.quantidade,
       descricao: it.descricao,
       preco_unitario: it.precoUnitario,
-      taxas: Array.isArray(it.taxas) ? it.taxas.map((t: any) => ({
-        nome: t.nome,
-        valor: t.valor,
-        tipo: t.tipo
-      })) : []
+      taxas: Array.isArray(it.taxas) ? it.taxas.map(t => ({ nome: t.nome, valor: t.valor, tipo: t.tipo })) : []
     }));
 
     await logger.log({
@@ -338,15 +234,37 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    const { data: result, error: functionError } = await supabase.rpc('criar_documento_completo', {
-      p_user_id: user.id,
-      p_tipo_documento: 'cotacao',
-      p_emitente_id: emitenteId,
-      p_destinatario_id: destinatarioId,
-      p_dados_especificos: dadosEspecificos,
-      p_itens: itensMapeados,
-      p_html_content: documentData.htmlContent || null
-    });
+    let result: any = null;
+    let functionError: any = null;
+    try {
+      const rpcRes = await supabase.rpc('criar_documento_completo', {
+        p_user_id: user.id,
+        p_tipo_documento: 'cotacao',
+        p_emitente_id: emitenteId,
+        p_destinatario_id: destinatarioId,
+        p_dados_especificos: dadosEspecificos,
+        p_itens: itensMapeados,
+        p_html_content: documentData.htmlContent || null
+      });
+      result = rpcRes.data;
+      functionError = rpcRes.error;
+    } catch (netErr: any) {
+      // Captura de falha de rede/timeout antes de obter functionError
+      await logger.logApiError('/api/document/quotation/create', 'POST', netErr, {
+        step: 'rpc_criar_documento_completo',
+        numero: formData.cotacaoNumero
+      });
+      const isTimeout = netErr?.code === 'UND_ERR_CONNECT_TIMEOUT' || /timeout|fetch failed/i.test(netErr?.message || '');
+      const errorResponse: ApiResponse = {
+        success: false,
+        error: {
+          code: isTimeout ? ERROR_CODES.SUPABASE_TIMEOUT : ERROR_CODES.INTERNAL_ERROR,
+          message: isTimeout ? 'Timeout ao conectar Supabase' : 'Falha de rede ao criar cotação',
+          details: process.env.NODE_ENV === 'development' ? (netErr?.message || 'network error') : undefined
+        }
+      };
+      return NextResponse.json(errorResponse, { status: isTimeout ? 503 : 500 });
+    }
 
     if (!functionError) {
       await logger.log({
@@ -363,6 +281,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (functionError) {
+      const isTimeout = functionError?.code === 'UND_ERR_CONNECT_TIMEOUT' || /timeout|fetch failed/i.test(functionError?.message || '');
       await logger.logError(functionError, 'create_quotation_database', {
         user: user.id,
         numero: formData.cotacaoNumero,
@@ -392,15 +311,15 @@ export async function POST(request: NextRequest) {
       const errorResponse: ApiResponse = {
         success: false,
         error: {
-          code: ERROR_CODES.DATABASE_ERROR,
-          message: 'Erro ao criar cotação no banco de dados',
+          code: isTimeout ? ERROR_CODES.SUPABASE_TIMEOUT : ERROR_CODES.DATABASE_ERROR,
+          message: isTimeout ? 'Timeout ao comunicar com o banco' : 'Erro ao criar cotação no banco de dados',
           details: {
             databaseError: functionError.message,
             hint: functionError.hint || 'Verifique os dados e tente novamente'
           }
         }
       };
-      return NextResponse.json(errorResponse, { status: 500 });
+      return NextResponse.json(errorResponse, { status: isTimeout ? 503 : 500 });
     }
 
     if (!result) {
@@ -483,4 +402,4 @@ export async function POST(request: NextRequest) {
       quotationId !== null
     );
   }
-}
+}, { auth: true, rate: { limit: 30 }, auditAction: 'document_create' });

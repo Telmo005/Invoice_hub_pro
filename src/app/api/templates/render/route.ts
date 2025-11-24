@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { templateCache } from '@/lib/cache/templateCache';
 
 // Diretórios dos templates
 const TEMPLATES_DIRS = {
@@ -45,9 +46,32 @@ class TemplateService {
       throw new Error('ID de template inválido');
     }
 
+    const cached = await templateCache.get(tipo, templateId);
+    if (cached) {
+      return cached;
+    }
+
     const templateDir = this.getTemplateDir(tipo);
     const filePath = path.join(templateDir, `${templateId}.html`);
-    return await fs.readFile(filePath, 'utf-8');
+    const raw = await fs.readFile(filePath, 'utf-8');
+    if (!raw) {
+      throw new Error('Falha ao carregar template');
+    }
+    const sanitized = this.sanitizeBaseTemplate(raw);
+    await templateCache.set(tipo, templateId, sanitized);
+    return sanitized;
+  }
+
+  private sanitizeBaseTemplate(html: string): string {
+    // Remove <script>...</script>
+    let out = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+    // Remove event handler attributes (on*)
+    out = out.replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '');
+    out = out.replace(/\son[a-z]+\s*=\s*'[^']*'/gi, '');
+    out = out.replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, '');
+    // Remove inline javascript URLs
+    out = out.replace(/javascript:/gi, '');
+    return out;
   }
 
   isValidTemplateId(templateId: string): boolean {

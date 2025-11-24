@@ -251,6 +251,8 @@ const processRealPayment = async (
   }
 };
 
+// CSRF removido do fluxo de envio de email para reduzir latência
+
 const sendDocumentByEmail = async (documentData: {
   documentId: string;
   documentNumber: string;
@@ -270,18 +272,19 @@ const sendDocumentByEmail = async (documentData: {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify(documentData),
     });
 
     const result = await response.json();
 
     if (!response.ok) {
-      throw new Error(result.error || 'Erro ao enviar email');
+      throw new Error(result.error?.message || result.error || 'Erro ao enviar email');
     }
 
     return {
       success: result.success,
-      message: result.message
+      message: result.data?.message || result.message || 'Email enviado'
     };
   } catch (error) {
     console.error('📧 usePayment: Erro ao enviar email:', error);

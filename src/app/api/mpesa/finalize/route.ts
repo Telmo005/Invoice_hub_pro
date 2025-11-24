@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
+import { withApiGuard } from '@/lib/api/guard';
 
 interface ErrorResponse { success: false; error: { code: string; message: string; details?: any } }
 interface SuccessResponse { success: true; data: any; message: string; timestamp: string }
@@ -13,12 +14,6 @@ export async function POST(request: NextRequest) {
   const supabase = await supabaseServer();
   let userId: string | null = null;
   try {
-    const { data: { user }, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !user) {
-      return error('UNAUTHORIZED', 'Não autenticado', authErr?.message, 401);
-    }
-    userId = user.id;
-
     const body = await request.json();
     const { payment_id, document_payload } = body;
 

@@ -195,23 +195,33 @@ async function getDocumentStats(supabase: any, userId: string) {
 
     const expiringQuotesCount = (expiringQuotesData || []).length;
 
-    // Cotações expiradas
-    const { data: expiredQuotesData } = await supabase
+    // Cotações expiradas (status = expirada OU emitida com data_vencimento < hoje)
+    const { data: rawExpiredQuotes } = await supabase
       .from('cotacoes')
-      .select('id,status_documento')
+      .select('id,status_documento,data_vencimento')
       .eq('user_id', userId)
-      .eq('status_documento', 'expirada');
+      .in('status_documento', ['expirada', 'emitida']);
+    const expiredQuotesCount = (rawExpiredQuotes || []).filter((q: any) => {
+      if (q.status_documento === 'expirada') return true;
+      if (q.status_documento === 'emitida' && q.data_vencimento) {
+        try { return new Date(q.data_vencimento) < now; } catch { return false; }
+      }
+      return false;
+    }).length;
 
-    const expiredQuotesCount = (expiredQuotesData || []).length;
-
-    // Faturas expiradas
-    const { data: expiredInvoicesData } = await supabase
+    // Faturas expiradas (status = expirada OU emitida com data_vencimento < hoje)
+    const { data: rawExpiredInvoices } = await supabase
       .from('faturas')
-      .select('id,status_documento')
+      .select('id,status_documento,data_vencimento')
       .eq('user_id', userId)
-      .eq('status_documento', 'expirada');
-
-    const expiredInvoicesCount = (expiredInvoicesData || []).length;
+      .in('status_documento', ['expirada', 'emitida']);
+    const expiredInvoicesCount = (rawExpiredInvoices || []).filter((f: any) => {
+      if (f.status_documento === 'expirada') return true;
+      if (f.status_documento === 'emitida' && f.data_vencimento) {
+        try { return new Date(f.data_vencimento) < now; } catch { return false; }
+      }
+      return false;
+    }).length;
 
     return {
       pendingInvoicesCount,

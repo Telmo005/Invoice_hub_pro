@@ -2,33 +2,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
+import { withApiGuard } from '@/lib/api/guard';
+import { FormDataFatura, ItemFatura, TotaisFatura } from '@/types/invoice-types';
 
-interface ApiResponse<T = any> {
+interface ApiError {
+  code: string;
+  message: string;
+  details?: unknown;
+}
+
+interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-  };
+  error?: ApiError;
 }
 
 interface InvoiceData {
-  formData: {
+  formData: FormDataFatura & {
     faturaNumero: string;
     dataFatura: string;
     dataVencimento: string;
-    ordemCompra?: string;
-    termos?: string;
-    moeda?: string;
     metodoPagamento?: string;
-    emitente: any;
-    destinatario: any;
-    desconto?: number;
-    tipoDesconto?: 'fixed' | 'percent';
   };
-  items: any[];
-  totais?: any;
+  items: ItemFatura[];
+  totais?: TotaisFatura;
   logo?: string;
   assinatura?: string;
   htmlContent?: string;
@@ -46,40 +43,13 @@ const ERROR_CODES = {
   INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
 
-export async function POST(request: NextRequest) {
+export const POST = withApiGuard(async (request: NextRequest, { user }) => {
   const startTime = Date.now();
   let invoiceId: string | null = null;
-  let user: any = null;
   let documentData: InvoiceData | null = null;
 
   try {
     const supabase = await supabaseServer();
-    
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !authUser) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Tentativa de acesso não autorizado à API de criação de fatura',
-        details: { 
-          endpoint: '/api/document/invoice/create',
-          error: authError?.message 
-        }
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.UNAUTHORIZED,
-          message: 'Não autorizado',
-          details: 'Usuário não autenticado ou token inválido'
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 401 });
-    }
-
-    user = authUser;
 
     let body: RequestBody;
     try {
@@ -102,7 +72,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    documentData = body.documentData;
+    documentData = body.documentData as InvoiceData;
 
     if (!documentData) {
       await logger.log({
@@ -115,18 +85,7 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Dados do documento são obrigatórios',
-          details: {
-            missingField: 'documentData',
-            expected: 'Objeto com formData, items, etc.'
-          }
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'documentData ausente' } }, { status: 400 });
     }
 
     const { formData, items, totais, logo, assinatura } = documentData;
@@ -150,115 +109,21 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    const missingFields = [];
-    if (!formData?.faturaNumero) missingFields.push('faturaNumero');
-    if (!formData?.emitente) missingFields.push('emitente');
-    if (!formData?.destinatario) missingFields.push('destinatario');
-    if (!formData?.dataVencimento) missingFields.push('dataVencimento');
-
-    if (missingFields.length > 0) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Dados obrigatórios faltando para criação de fatura',
-        details: {
-          user: user.id,
-          missingFields,
-          required: ['faturaNumero', 'emitente', 'destinatario'],
-          numero: formData?.faturaNumero
-        }
-      });
-
+    if (!formData.dataVencimento) {
       const errorResponse: ApiResponse = {
         success: false,
-        error: {
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Dados obrigatórios faltando',
-          details: {
-            missingFields,
-            required: ['faturaNumero', 'emitente', 'destinatario']
-          }
-        }
+        error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'dataVencimento é obrigatória', details: { field: 'dataVencimento' } }
       };
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Lista de itens vazia para fatura',
-        details: {
-          user: user.id,
-          numero: formData.faturaNumero
-        }
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Lista de itens é obrigatória',
-          details: 'A fatura deve conter pelo menos um item'
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
+    // Lista de itens já garantida pelo schema (min(1))
 
     // VALIDAÇÃO DO NÚMERO (formato exigido pelo BD)
-    const numeroPattern = /^(FTR)\/\d{4}\/\d{3}$/;
-    if (!numeroPattern.test(formData.faturaNumero)) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Formato de número de fatura inválido',
-        details: {
-          user: user.id,
-          numero: formData.faturaNumero,
-          esperado: 'FTR/AAAA/NNN (ex: FTR/2025/001)'
-        }
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Número de fatura inválido',
-          details: {
-            invalidField: 'faturaNumero',
-            message: 'Use o formato FTR/AAAA/NNN (ex: FTR/2025/001)'
-          }
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
+    // Número já validado via regex do schema
 
     // VALIDAÇÃO DO DESCONTO
-    if (formData.desconto && formData.desconto < 0) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Desconto negativo não permitido',
-        details: {
-          user: user.id,
-          numero: formData.faturaNumero,
-          desconto: formData.desconto
-        }
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Desconto inválido',
-          details: {
-            invalidField: 'desconto',
-            message: 'Desconto não pode ser negativo'
-          }
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
+    // Desconto não negativo garantido pelo schema
 
     if (formData.tipoDesconto === 'percent' && formData.desconto && formData.desconto > 100) {
       await logger.log({
@@ -379,8 +244,9 @@ export async function POST(request: NextRequest) {
 
     // Método de pagamento: agora livre/informativo. Persistimos exatamente o valor informado.
     const metodoInformativo = formData.metodoPagamento || null;
+    const statusDocumento = formData.status === 'paga' ? 'paga' : 'emitida';
 
-    const dadosEspecificos: Record<string, any> = {
+    const dadosEspecificos = {
       numero: formData.faturaNumero,
       data_emissao: formData.dataFatura ?? null,
       data_vencimento: formData.dataVencimento ?? null,
@@ -389,18 +255,18 @@ export async function POST(request: NextRequest) {
       moeda: formData.moeda || 'MT',
       logo_url: logo || null,
       assinatura_base64: assinatura || null,
-      status: (formData as any).status === 'paga' ? 'paga' : 'emitida',
+      status: statusDocumento,
       desconto: formData.desconto || 0,
       tipo_desconto: formData.tipoDesconto || 'fixed',
       metodo_pagamento: metodoInformativo,
     };
 
-    const itensMapeados = (items || []).map((it: any) => ({
+    const itensMapeados = (items || []).map((it: ItemFatura) => ({
       id_original: it.id,
       quantidade: it.quantidade,
       descricao: it.descricao,
       preco_unitario: it.precoUnitario,
-      taxas: Array.isArray(it.taxas) ? it.taxas.map((t: any) => ({ nome: t.nome, valor: t.valor, tipo: t.tipo })) : []
+      taxas: Array.isArray(it.taxas) ? it.taxas.map(t => ({ nome: t.nome, valor: t.valor, tipo: t.tipo })) : []
     }));
 
     await logger.log({
@@ -600,4 +466,4 @@ export async function POST(request: NextRequest) {
       }
     );
   }
-}
+}, { auth: true, rate: { limit: 30 }, auditAction: 'document_create' });

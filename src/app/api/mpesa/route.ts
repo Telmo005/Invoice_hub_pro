@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { MpesaService } from './services/mpesa-service'
 import { logger } from '@/lib/logger'
 import { supabaseServer } from '@/lib/supabase-server'
+import { validateMpesaBody } from './lib/validation'
+import { persistMpesaPayment } from './lib/persist'
 
 interface SuccessResponse {
   success: true
@@ -77,7 +79,7 @@ export async function POST(request: NextRequest) {
       level: 'info',
       message: 'Iniciando processamento de pagamento MPesa',
       details: {
-        endpoint: '/api/mpesa/payment',
+        endpoint: '/api/mpesa',
         method: 'POST'
       }
     })
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest) {
         level: 'info',
         message: 'Payload JSON recebido com sucesso',
         details: {
-          endpoint: '/api/mpesa/payment',
+          endpoint: '/api/mpesa',
           payloadFields: Object.keys(body),
           transactionReference: body.transaction_reference
         }
@@ -101,7 +103,7 @@ export async function POST(request: NextRequest) {
         level: 'warn',
         message: 'Erro ao processar JSON da requisição',
         details: {
-          endpoint: '/api/mpesa/payment',
+          endpoint: '/api/mpesa',
           error: error instanceof Error ? error.message : 'Erro desconhecido'
         }
       })
@@ -115,158 +117,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { 
-      amount, 
-      customer_msisdn, 
-      transaction_reference, 
-      third_party_reference,
-      tipo_documento,
-      document_snapshot
-    } = body
-
+    const validation = await validateMpesaBody(body)
+    if (!validation.ok) {
+      return NextResponse.json(createErrorResponse(validation.error.code, validation.error.message, undefined, undefined, true), { status: 400 })
+    }
+    const { amount, customer_msisdn, transaction_reference, third_party_reference, moeda } = validation.data
     transactionReference = transaction_reference
     customerMsisdn = customer_msisdn
-
-    if (!amount || !customer_msisdn || !transaction_reference) {
-      const missingFields = []
-      if (!amount) missingFields.push('amount')
-      if (!customer_msisdn) missingFields.push('customer_msisdn')
-      if (!transaction_reference) missingFields.push('transaction_reference')
-
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Campos obrigatórios em falta para processamento MPesa',
-        details: {
-          endpoint: '/api/mpesa/payment',
-          missingFields,
-          transactionReference,
-          customerMsisdn
-        }
-      })
-
-      return NextResponse.json(
-        createErrorResponse(
-          ERROR_CODES.MISSING_FIELDS,
-          'Campos obrigatórios em falta',
-          'São obrigatórios: amount, customer_msisdn, transaction_reference'
-        ),
-        { status: 400 }
-      )
-    }
-
-    // ===== Validação adicional do documento antes do pagamento =====
-    const allowedTipos = ['fatura','cotacao','recibo'] as const
-    const normalizedTipo = (tipo_documento || '').toString().trim().toLowerCase()
-    const tipoValido = allowedTipos.includes(normalizedTipo as any) ? normalizedTipo : null
-
-    if (!tipoValido) {
-      return NextResponse.json(
-        createErrorResponse(
-          ERROR_CODES.MISSING_FIELDS,
-          'tipo_documento inválido ou ausente',
-          'Forneça tipo_documento = fatura|cotacao|recibo'
-        ),
-        { status: 400 }
-      )
-    }
-
-    // Estrutura mínima esperada para cada tipo
-    const snapshot: any = document_snapshot || {}
-    const missingDocFields: string[] = []
-    const numeroCampo = tipoValido === 'fatura' ? 'faturaNumero' : (tipoValido === 'cotacao' ? 'cotacaoNumero' : 'reciboNumero')
-    if (!snapshot[numeroCampo]) missingDocFields.push(numeroCampo)
-    if (!snapshot.emitente?.nomeEmpresa) missingDocFields.push('emitente.nomeEmpresa')
-    if (tipoValido !== 'recibo' && !snapshot.destinatario?.nomeCompleto) missingDocFields.push('destinatario.nomeCompleto')
-    if (tipoValido === 'recibo' && (typeof snapshot.valorRecebido !== 'number' || snapshot.valorRecebido <= 0)) missingDocFields.push('valorRecebido')
-    if ((tipoValido === 'fatura' || tipoValido === 'cotacao') && (!Array.isArray(snapshot.items) || snapshot.items.length === 0)) missingDocFields.push('items[]')
-
-    if (missingDocFields.length > 0) {
-      await logger.log({
-        action: 'validation',
-        level: 'warn',
-        message: 'Documento inválido antes de pagamento MPesa',
-        details: { tipo_documento: tipoValido, missingDocFields, transactionReference }
-      })
-      return NextResponse.json(
-        createErrorResponse(
-          ERROR_CODES.MISSING_FIELDS,
-          'Campos obrigatórios do documento em falta',
-          missingDocFields.join(', ')
-        ),
-        { status: 400 }
-      )
-    }
-
-    if (typeof amount !== 'number' || amount <= 0) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Valor do pagamento inválido',
-        details: {
-          endpoint: '/api/mpesa/payment',
-          transactionReference,
-          amountProvided: amount,
-          amountType: typeof amount
-        }
-      })
-
-      return NextResponse.json(
-        createErrorResponse(
-          ERROR_CODES.MISSING_FIELDS,
-          'Amount inválido',
-          'Amount deve ser um número positivo'
-        ),
-        { status: 400 }
-      )
-    }
-
-    if (typeof customer_msisdn !== 'string') {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Tipo do número de telefone inválido',
-        details: {
-          endpoint: '/api/mpesa/payment',
-          transactionReference,
-          customerMsisdn,
-          msisdnType: typeof customer_msisdn
-        }
-      })
-
-      return NextResponse.json(
-        createErrorResponse(
-          ERROR_CODES.MISSING_FIELDS,
-          'Número de telefone inválido',
-          'customer_msisdn deve ser uma string'
-        ),
-        { status: 400 }
-      )
-    }
-
-    if (third_party_reference && third_party_reference.length < 8) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Third party reference muito curto',
-        details: {
-          endpoint: '/api/mpesa/payment',
-          transactionReference,
-          thirdPartyReference: third_party_reference,
-          length: third_party_reference.length,
-          minimumRequired: 8
-        }
-      })
-
-      return NextResponse.json(
-        createErrorResponse(
-          ERROR_CODES.MISSING_FIELDS,
-          'Third party reference inválido',
-          'Third party reference deve ter pelo menos 8 caracteres'
-        ),
-        { status: 400 }
-      )
-    }
 
     const supabase = await supabaseServer()
     const { data: { user }, error: authErr } = await supabase.auth.getUser()
@@ -285,7 +142,7 @@ export async function POST(request: NextRequest) {
         level: 'warn',
         message: 'Número de telefone inválido para MPesa',
         details: {
-          endpoint: '/api/mpesa/payment',
+          endpoint: '/api/mpesa',
           transactionReference,
           originalMsisdn: customer_msisdn,
           sanitizedMsisdn,
@@ -317,13 +174,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    const mpesaPayload = {
-      transaction_reference,
-      customer_msisdn: formattedMsisdn,
-      amount,
-      third_party_reference: third_party_reference,
-      service_provider_code: '171717'
-    }
+    const mpesaPayload = { transaction_reference, customer_msisdn: formattedMsisdn, amount, third_party_reference, service_provider_code: '171717' }
 
     const paymentResult = await mpesaService.processPaymentWithRetry(mpesaPayload)
 
@@ -356,57 +207,28 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Registrar pagamento com documento pendente
-      const { data: pagamento, error: pagamentoError } = await supabase
-        .from('pagamentos')
-        .insert({
-          user_id: user.id,
-          documento_id: null, // aguardando criação
-          tipo_documento,
-          external_id: transaction_reference,
-          metodo: 'mpesa',
-          status: 'aguardando_documento',
-          valor: amount,
-          moeda: body.moeda || 'MZN',
-          phone_number: formattedMsisdn,
-          mpesa_transaction_id: mpesaData?.transaction_id || null,
-          mpesa_conversation_id: mpesaData?.conversation_id || null,
-          mpesa_third_party_reference: third_party_reference || null,
-          metadata: { originalPayload: body }
-        })
-        .select()
-        .single()
-
-      if (pagamentoError) {
-        await logger.logError(pagamentoError, 'mpesa_payment_db_insert', { transactionReference })
-        return NextResponse.json(
-          createErrorResponse(ERROR_CODES.INTERNAL_ERROR, 'Falha ao registar pagamento', pagamentoError.message, pagamentoError.details),
-          { status: 500 }
-        )
-      }
-
-      // Registrar transação MPesa detalhada
-      await supabase.from('mpesa_transactions').insert({
-        pagamento_id: pagamento.id,
+      const persisted = await persistMpesaPayment({
+        supabase,
+        userId: user.id,
         transaction_reference,
-        third_party_reference: third_party_reference || null,
-        mpesa_transaction_id: mpesaData?.transaction_id || null,
-        mpesa_conversation_id: mpesaData?.conversation_id || null,
-        customer_msisdn: formattedMsisdn,
+        third_party_reference,
+        formattedMsisdn,
         amount,
-        response_code: mpesaData?.response_code || '0',
-        response_description: mpesaData?.response_description || 'SUCCESS',
-        status: 'completed',
-        request_payload: mpesaPayload,
-        response_payload: paymentResult.data || null
+        moeda,
+        tipo_documento,
+        mpesaData,
+        originalBody: body
       })
+      if (!persisted.ok) {
+        return NextResponse.json(createErrorResponse(ERROR_CODES.INTERNAL_ERROR, 'Falha ao registar pagamento', persisted.error.message, persisted.error.details), { status: 500 })
+      }
 
       const successResponse = createSuccessResponse({
         third_party_reference: mpesaPayload.third_party_reference,
         status: 'completed',
         mpesa_transaction_id: mpesaData?.transaction_id,
         conversation_id: mpesaData?.conversation_id,
-        payment_id: pagamento.id
+        payment_id: persisted.pagamento.id
       }, 'Pagamento processado. Documento pendente de criação.')
 
       return NextResponse.json(successResponse)
@@ -467,7 +289,7 @@ export async function POST(request: NextRequest) {
         ),
         { status: 422 }
       )
-    }
+  }
 
   } catch (error) {
     const duration = Date.now() - startTime
@@ -476,7 +298,7 @@ export async function POST(request: NextRequest) {
       transactionReference,
       customerMsisdn,
       durationMs: duration,
-      endpoint: '/api/mpesa/payment'
+      endpoint: '/api/mpesa'
     })
 
     const errorResponse = createErrorResponse(
@@ -491,7 +313,7 @@ export async function POST(request: NextRequest) {
     const duration = Date.now() - startTime
     
     await logger.logApiCall(
-      '/api/mpesa/payment',
+      '/api/mpesa',
       'POST',
       duration,
       transactionReference !== null
@@ -505,7 +327,7 @@ export async function OPTIONS() {
     level: 'info',
     message: 'Requisição OPTIONS para MPesa',
     details: {
-      endpoint: '/api/mpesa/payment',
+      endpoint: '/api/mpesa',
       method: 'OPTIONS'
     }
   })
@@ -532,7 +354,7 @@ export async function GET() {
       level: 'info',
       message: 'Health check da API MPesa',
       details: {
-        endpoint: '/api/mpesa/payment',
+        endpoint: '/api/mpesa',
         method: 'GET',
         mpesaServiceStatus: healthStatus.status,
         responseTime: healthStatus.responseTime,
@@ -554,7 +376,7 @@ export async function GET() {
     })
   } catch (error) {
     await logger.logError(error as Error, 'health_check_failed', {
-      endpoint: '/api/mpesa/payment',
+      endpoint: '/api/mpesa',
       method: 'GET'
     })
 

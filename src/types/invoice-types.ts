@@ -49,6 +49,8 @@ export interface FormDataFatura {
   ordemCompra?: string;
   termos: string;
   moeda: string;
+  // Status opcional (persistido em criação de documento)
+  status?: 'emitida' | 'paga';
   
   // Campos específicos de FATURA (opcionais para cotação)
   faturaNumero?: string;

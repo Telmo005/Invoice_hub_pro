@@ -20,8 +20,10 @@ const STEPS = [
   { title: 'Finalizar', icon: '🏆' },
 ];
 
+type TaxLine = { id?: number; nome: string; tipo: 'percent' | 'fixed'; valor: number };
+type DocumentItem = { id: number; descricao: string; quantidade: number; precoUnitario: number; taxas: TaxLine[] };
 interface EmitenteStepProps {
-  formData: any;
+  formData: Record<string, unknown>;
   errors: Record<string, string>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
@@ -32,21 +34,21 @@ interface EmitenteStepProps {
 }
 
 interface DestinatarioStepProps {
-  formData: any;
+  formData: Record<string, unknown>;
   errors: Record<string, string>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
 }
 
 interface ItensStepProps {
-  formData: any;
+  formData: Record<string, unknown>;
   errors: Record<string, string>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
-  items: any[];
+  items: DocumentItem[];
   adicionarItem: () => void;
   removerItem: (id: number) => void;
-  atualizarItem: (id: number, field: keyof ItemFatura, value: any) => void;
+  atualizarItem: (id: number, field: keyof ItemFatura | 'taxas', value: string | number | TaxLine[]) => void;
   adicionarTaxa: (id: number) => void;
   removerTaxa: (id: number, taxaIndex: number) => void;
   onItemBlur: (field: string) => void;
@@ -55,7 +57,7 @@ interface ItensStepProps {
 }
 
 interface PreviewStepProps {
-  invoiceData: any;
+  invoiceData: Record<string, unknown>;
   tipo: TipoDocumento;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
@@ -85,9 +87,9 @@ interface StepsListProps {
 interface NewDocumentFormProps { tipo: TipoDocumento; }
 
 interface ItemRowProps {
-  item: any;
+  item: DocumentItem;
   currency: string;
-  onUpdate: (field: string, value: any) => void;
+  onUpdate: (field: keyof DocumentItem | 'taxas' | 'descricao' | 'quantidade' | 'precoUnitario', value: string | number | TaxLine[]) => void;
   onRemove: () => void;
   onAddTax: () => void;
   onRemoveTax: (index: number) => void;
@@ -105,12 +107,11 @@ const ItemRow = memo(({
   errors,
   onBlur
 }: ItemRowProps) => {
-  const calculateTotal = useCallback(() => {
-    const subtotal = item.quantidade * item.precoUnitario;
-    const taxTotal = item.taxas.reduce((sum: number, tax: any) =>
-      tax.tipo === 'percent' ? sum + (subtotal * tax.valor) / 100 : sum + tax.valor, 0);
-    return subtotal + taxTotal;
-  }, [item.quantidade, item.precoUnitario, item.taxas]);
+  const subtotal = React.useMemo(() => item.quantidade * item.precoUnitario, [item.quantidade, item.precoUnitario]);
+  const taxTotal = React.useMemo(() => item.taxas.reduce((sum: number, tax: TaxLine) => (
+    tax.tipo === 'percent' ? sum + (subtotal * tax.valor) / 100 : sum + tax.valor
+  ), 0), [item.taxas, subtotal]);
+  const totalItem = React.useMemo(() => subtotal + taxTotal, [subtotal, taxTotal]);
 
   const handleNumericInput = useCallback((field: string, value: string, _currentValue: number) => {
     if (value === '') { onUpdate(field, 0); return; }
@@ -119,7 +120,7 @@ const ItemRow = memo(({
     if (!isNaN(numValue)) onUpdate(field, numValue);
   }, [onUpdate]);
 
-  const handleTaxUpdate = useCallback((index: number, field: string, value: any) => {
+  const handleTaxUpdate = useCallback((index: number, field: keyof TaxLine, value: string | number) => {
     const newTaxas = [...item.taxas];
     newTaxas[index] = { ...newTaxas[index], [field]: value };
     onUpdate('taxas', newTaxas);
@@ -194,7 +195,7 @@ const ItemRow = memo(({
         {errors[`item-${item.id}-preco`] && <div className="text-red-500 text-xs mt-1">{errors[`item-${item.id}-preco`]}</div>}
       </td>
       <td className="p-1 border-r text-sm w-32">
-        {item.taxas.map((taxa: any, index: number) => (
+        {item.taxas.map((taxa: TaxLine, index: number) => (
           <div key={index} className="flex items-center mb-1">
             <select
               className="w-12 p-1 border rounded text-center text-xs"
@@ -241,7 +242,7 @@ const ItemRow = memo(({
         </button>
       </td>
       <td className="p-1 border-r text-sm text-right font-medium w-24">
-        <span className="text-xs">{formatCurrency(calculateTotal(), currency)}</span>
+        <span className="text-xs">{formatCurrency(totalItem, currency)}</span>
       </td>
       <td className="p-1 text-sm text-center w-12">
         <button
@@ -543,17 +544,17 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
             </label>
             <input
               type="date"
-              id={isRecibo ? 'dataRecibo' : (isCotacao ? 'dataFatura' : 'dataFatura')}
-              name={isRecibo ? 'dataRecibo' : (isCotacao ? 'dataFatura' : 'dataFatura')}
-              className={`w-full p-2 border rounded text-sm ${errors[isRecibo ? 'dataRecibo' : 'dataFatura'] ? 'border-red-500' : 'border-gray-300'}`}
-              value={isRecibo ? (formData.dataRecibo || '') : formData.dataFatura}
+              id={isRecibo ? 'dataRecebimento' : (isCotacao ? 'dataFatura' : 'dataFatura')}
+              name={isRecibo ? 'dataRecebimento' : (isCotacao ? 'dataFatura' : 'dataFatura')}
+              className={`w-full p-2 border rounded text-sm ${errors[isRecibo ? 'dataRecebimento' : 'dataFatura'] ? 'border-red-500' : 'border-gray-300'}`}
+              value={isRecibo ? (formData.dataRecebimento || '') : formData.dataFatura}
               onChange={handleChange}
               onBlur={handleBlur}
               required
             />
-            {errors[isRecibo ? 'dataRecibo' : 'dataFatura'] && (
+            {errors[isRecibo ? 'dataRecebimento' : 'dataFatura'] && (
               <div className="text-red-500 text-xs mt-1">
-                {errors[isRecibo ? 'dataRecibo' : 'dataFatura']}
+                {errors[isRecibo ? 'dataRecebimento' : 'dataFatura']}
               </div>
             )}
             {isRecibo && (
@@ -1226,7 +1227,8 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
           validateRequired(formData.dataFatura, 'dataFatura');
         } else if (isRecibo) {
           validateRequired(formData.reciboNumero, 'reciboNumero');
-          validateRequired(formData.dataRecibo, 'dataRecibo');
+          // Atualizado: usar dataRecebimento consistente com hook e template
+          validateRequired(formData.dataRecebimento, 'dataRecebimento');
           validateRequired(formData.valorRecebido?.toString(), 'valorRecebido');
           validateRequired(formData.formaPagamento, 'formaPagamento');
           // Regras adicionais específicas para recibo

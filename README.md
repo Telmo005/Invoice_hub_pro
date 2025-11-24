@@ -12,6 +12,7 @@ Recent database refactor unified document creation and simplified quotation expi
 - Creation flow now requires pre-existing (or on-demand created) `emissores` and `destinatarios` records; API routes auto-create these if not found.
 - New base table `documentos_base` holds common fields (numero, user_id, status, moeda, termos, ordem_compra, html_content, data_emissao).
 - Totals are materialized/maintained in `totais_documento` via trigger `trigger_calcular_totais`.
+ - Removida verificação CSRF na rota `POST /api/email/send-document` para reduzir latência no fluxo de criação/envio de recibos (antes causava GET extra a `/api/auth/csrf`). Autenticação continua exigida.
 
 ### Updated API Routes
 
