@@ -74,7 +74,7 @@ export const PATCH = withApiGuard(async (request: NextRequest, { user }) => {
     await logger.logError(error as any, 'emissor_patch');
     return NextResponse.json({ error: 'Erro ao atualizar emissor' }, { status: 500 });
   }
-  await logger.log({ action: 'emissor_update', level: 'audit', message: 'Emissor atualizado', details: { emissorId: updated.id } });
+  await logger.log({ action: 'audit_action_generic', level: 'audit', message: 'Emissor atualizado', details: { emissorId: updated.id } });
   return { success: true, emissor: updated, message: 'Emissor atualizado com sucesso' };
 }, { auth: true, rate: { limit: 40, intervalMs: 60_000 }, csrf: true, auditAction: 'emissor_patch' });
 
@@ -102,7 +102,7 @@ export const DELETE = withApiGuard(async (request: NextRequest, { user }) => {
     await logger.logError(error as any, 'emissor_delete');
     return NextResponse.json({ error: 'Erro ao excluir emissor' }, { status: 500 });
   }
-  await logger.log({ action: 'emissor_delete', level: 'audit', message: 'Emissor excluído', details: { emissorId: id } });
+  await logger.log({ action: 'audit_action_generic', level: 'audit', message: 'Emissor excluído', details: { emissorId: id } });
   return { success: true, id };
 }, { auth: true, rate: { limit: 30, intervalMs: 60_000 }, csrf: true, auditAction: 'emissor_delete' });
 

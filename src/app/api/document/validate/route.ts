@@ -1,5 +1,6 @@
 // Preflight validation endpoint providing early, detailed feedback using Zod schemas.
 import { NextRequest, NextResponse } from 'next/server';
+import type { ZodIssue } from 'zod';
 import { withApiGuard } from '@/lib/api/guard';
 import { logger } from '@/lib/logger';
 import { invoiceCreateSchema, quotationCreateSchema, receiptCreateSchema } from '@/lib/validation/documentSchemas';
@@ -32,10 +33,10 @@ export const POST = withApiGuard(async (req: NextRequest) => {
   const schema = schemas[tipo];
   const parsed = schema.safeParse(payload);
   if (!parsed.success) {
-    const issues = parsed.error.issues.map(i => ({ path: i.path.join('.'), message: i.message }));
-    await logger.log({ action: 'preflight_validation', level: 'warn', message: 'Falha na preflight', details: { tipo, issuesCount: issues.length } });
+    const issues = parsed.error.issues.map((i: ZodIssue) => ({ path: i.path.join('.'), message: i.message }));
+    await logger.log({ action: 'validation', level: 'warn', message: 'Falha na preflight', details: { tipo, issuesCount: issues.length } });
     return NextResponse.json({ success: false, errors: issues }, { status: 422 });
   }
-  await logger.log({ action: 'preflight_validation', level: 'info', message: 'Preflight OK', details: { tipo } });
+  await logger.log({ action: 'validation', level: 'info', message: 'Preflight OK', details: { tipo } });
   return NextResponse.json({ success: true, data: { valid: true } }, { status: 200 });
 }, { rate: { limit: 60 }, auditAction: 'preflight_validate' });

@@ -8,7 +8,7 @@ import { formatCurrency } from '@/lib/formatUtils';
 import { Empresa } from '@/types/emissor-type';
 import { useListarEmissores } from '@/app/hooks/emitters/useListarEmissores';
 import { useEmpresaPadrao } from '@/app/hooks/emitters/useEmpresaPadrao';
-import { TipoDocumento, ItemFatura } from '@/types/invoice-types';
+import { TipoDocumento, ItemFatura, FormDataFatura } from '@/types/invoice-types';
 
 const roboto = Roboto({ weight: ['300', '400', '700'], subsets: ['latin'], variable: '--font-roboto' });
 
@@ -22,8 +22,15 @@ const STEPS = [
 
 type TaxLine = { id?: number; nome: string; tipo: 'percent' | 'fixed'; valor: number };
 type DocumentItem = { id: number; descricao: string; quantidade: number; precoUnitario: number; taxas: TaxLine[] };
+type ExtendedFormData = FormDataFatura & {
+  documentoAssociadoCustom?: string;
+  referenciaPagamento?: string;
+  motivoPagamento?: string;
+  formaPagamento?: string;
+  valorRecebido?: number;
+};
 interface EmitenteStepProps {
-  formData: Record<string, unknown>;
+  formData: ExtendedFormData;
   errors: Record<string, string>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
@@ -34,14 +41,14 @@ interface EmitenteStepProps {
 }
 
 interface DestinatarioStepProps {
-  formData: Record<string, unknown>;
+  formData: ExtendedFormData;
   errors: Record<string, string>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
 }
 
 interface ItensStepProps {
-  formData: Record<string, unknown>;
+  formData: ExtendedFormData;
   errors: Record<string, string>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
@@ -57,7 +64,7 @@ interface ItensStepProps {
 }
 
 interface PreviewStepProps {
-  invoiceData: Record<string, unknown>;
+  invoiceData: any;
   tipo: TipoDocumento;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
@@ -113,7 +120,7 @@ const ItemRow = memo(({
   ), 0), [item.taxas, subtotal]);
   const totalItem = React.useMemo(() => subtotal + taxTotal, [subtotal, taxTotal]);
 
-  const handleNumericInput = useCallback((field: string, value: string, _currentValue: number) => {
+  const handleNumericInput = useCallback((field: keyof DocumentItem, value: string, _currentValue: number) => {
     if (value === '') { onUpdate(field, 0); return; }
     const cleanValue = value.replace(/^0+/, '') || '0';
     const numValue = parseFloat(cleanValue);
@@ -647,12 +654,12 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {isCotacao ? 'Data de Validade Calculada' : 'Data de Vencimento Calculada'}
                 </label>
-                <div className="w-full p-2 border border-gray-300 rounded text-sm bg-gray-50">{formatarData(formData.dataVencimento)}</div>
+                <div className="w-full p-2 border border-gray-300 rounded text-sm bg-gray-50">{formData.dataVencimento ? formatarData(formData.dataVencimento) : formatarData(formData.dataFatura)}</div>
                 <div className="text-xs text-gray-500 mt-1">Calculado automaticamente</div>
               </div>
             </div>
             <div className="mt-2 p-2 bg-white rounded border">
-              <p className="text-xs text-gray-700"><strong>Resumo:</strong> {isCotacao ? 'Esta cotação' : 'Esta fatura'} emitida em {formatarData(formData.dataFatura)} será válida até {formatarData(formData.dataVencimento)} ({isCotacao ? formData.validezCotacao : formData.validezFatura} {parseInt(isCotacao ? formData.validezCotacao : formData.validezFatura) === 1 ? 'dia' : 'dias'} de validade).</p>
+              <p className="text-xs text-gray-700"><strong>Resumo:</strong> {isCotacao ? 'Esta cotação' : 'Esta fatura'} emitida em {formatarData(formData.dataFatura)} será válida até {formatarData(formData.dataVencimento || formData.dataFatura)} ({(isCotacao ? formData.validezCotacao : formData.validezFatura) || '0'} {parseInt((isCotacao ? formData.validezCotacao : formData.validezFatura) || '0') === 1 ? 'dia' : 'dias'} de validade).</p>
             </div>
           </div>
         )}

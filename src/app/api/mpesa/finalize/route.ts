@@ -12,7 +12,7 @@ const error = (code: string, message: string, details?: any, status: number = 40
 export async function POST(request: NextRequest) {
   const start = Date.now();
   const supabase = await supabaseServer();
-  let userId: string | null = null;
+  const userId: string | null = null; // Placeholder: consider retrieving authenticated user id
   try {
     const body = await request.json();
     const { payment_id, document_payload } = body;

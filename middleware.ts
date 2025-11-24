@@ -6,7 +6,10 @@ export function middleware(request: NextRequest) {
 
   // Request ID propagation
   const incomingId = request.headers.get('x-request-id');
-  const requestId = incomingId || (globalThis.crypto?.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+  // Gera um requestId estável. Usa randomUUID se disponível, caso contrário fallback simples.
+  const requestId = incomingId ?? (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2));
   response.headers.set('X-Request-Id', requestId);
   
   // 1. Headers de Segurança (Sempre aplicados) + CSP & cross-origin policies
