@@ -17,6 +17,7 @@ export const ROUTES = {
   QUOTES_INVOICES: '/pages/documents/overview',
   INVOICES_NEW: '/pages/invoices/new',
   QUOTATIONS_NEW: '/pages/quotations/new',
+  RECEIPTS_NEW: '/pages/receipts/new',
 
   // Rotas da API
   API: {
@@ -41,6 +42,7 @@ export const ROUTES = {
     ROUTES.ENTITIES,
     ROUTES.SETTINGS,
     ROUTES.INVOICES,
+    ROUTES.RECEIPTS_NEW,
     ROUTES.INVOICES_NEW,
     ROUTES.QUOTATIONS_NEW,
   ],

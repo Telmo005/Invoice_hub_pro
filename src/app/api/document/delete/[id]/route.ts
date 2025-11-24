@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
+import { withApiGuard } from '@/lib/api/guard';
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -13,44 +14,20 @@ interface ApiResponse<T = any> {
   };
 }
 
-export async function DELETE(
+export const DELETE = withApiGuard(async (
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+  { user }
+) => {
   const startTime = Date.now();
-  let user: any = null;
   let documentId: string | null = null;
 
   try {
-    const { id } = await context.params;
+    const id = request.nextUrl.pathname.split('/').pop();
+    if (!id) {
+      return NextResponse.json({ success: false, error: { code: 'MISSING_ID', message: 'ID não fornecido' } }, { status: 400 });
+    }
     const supabase = await supabaseServer();
     documentId = id;
-
-    // Verificar autenticação
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-    if (authError || !authUser) {
-      await logger.log({
-        action: 'api_call',
-        level: 'warn',
-        message: 'Tentativa de DELETE não autorizada em documento',
-        details: { 
-          endpoint: '/api/document/[id]',
-          method: 'DELETE',
-          error: authError?.message 
-        }
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Não autorizado'
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 401 });
-    }
-
-    user = authUser;
 
     // Log de tentativa de DELETE
     await logger.log({
@@ -199,7 +176,7 @@ export async function DELETE(
       true
     );
   }
-}
+}, { auth: true, rate: { limit: 15, intervalMs: 60_000 }, csrf: true, auditAction: 'document_delete' });
 
 export async function OPTIONS() {
   return new NextResponse(null, {

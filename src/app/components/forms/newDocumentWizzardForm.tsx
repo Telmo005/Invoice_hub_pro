@@ -1,6 +1,6 @@
 import React, { useState, useCallback, memo, useEffect } from 'react';
 import { Roboto } from 'next/font/google';
-import { FaPlus, FaExclamationTriangle, FaArrowRight, FaArrowLeft, FaCheck, FaSpinner, FaTimes, FaSync } from 'react-icons/fa';
+import { FaPlus, FaExclamationTriangle, FaArrowRight, FaArrowLeft, FaCheck, FaSpinner, FaTimes, FaSync, FaMagnet } from 'react-icons/fa';
 import useInvoiceForm from '@/app/hooks/forms/useNewDocumentWizzardForm';
 import TemplateSlider from '@/app/components/panels/slider';
 import Payment from '@/app/components/forms/PaymentForm';
@@ -8,7 +8,7 @@ import { formatCurrency } from '@/lib/formatUtils';
 import { Empresa } from '@/types/emissor-type';
 import { useListarEmissores } from '@/app/hooks/emitters/useListarEmissores';
 import { useEmpresaPadrao } from '@/app/hooks/emitters/useEmpresaPadrao';
-import { TipoDocumento, ItemFatura } from '@/types/invoice-types';
+import { TipoDocumento, ItemFatura, FormDataFatura } from '@/types/invoice-types';
 
 const roboto = Roboto({ weight: ['300', '400', '700'], subsets: ['latin'], variable: '--font-roboto' });
 
@@ -20,8 +20,17 @@ const STEPS = [
   { title: 'Finalizar', icon: '🏆' },
 ];
 
+type TaxLine = { id?: number; nome: string; tipo: 'percent' | 'fixed'; valor: number };
+type DocumentItem = { id: number; descricao: string; quantidade: number; precoUnitario: number; taxas: TaxLine[] };
+type ExtendedFormData = FormDataFatura & {
+  documentoAssociadoCustom?: string;
+  referenciaPagamento?: string;
+  motivoPagamento?: string;
+  formaPagamento?: string;
+  valorRecebido?: number;
+};
 interface EmitenteStepProps {
-  formData: any;
+  formData: ExtendedFormData;
   errors: Record<string, string>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
@@ -32,21 +41,21 @@ interface EmitenteStepProps {
 }
 
 interface DestinatarioStepProps {
-  formData: any;
+  formData: ExtendedFormData;
   errors: Record<string, string>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
 }
 
 interface ItensStepProps {
-  formData: any;
+  formData: ExtendedFormData;
   errors: Record<string, string>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
-  items: any[];
+  items: DocumentItem[];
   adicionarItem: () => void;
   removerItem: (id: number) => void;
-  atualizarItem: (id: number, field: keyof ItemFatura, value: any) => void;
+  atualizarItem: (id: number, field: keyof ItemFatura | 'taxas', value: string | number | TaxLine[]) => void;
   adicionarTaxa: (id: number) => void;
   removerTaxa: (id: number, taxaIndex: number) => void;
   onItemBlur: (field: string) => void;
@@ -85,9 +94,9 @@ interface StepsListProps {
 interface NewDocumentFormProps { tipo: TipoDocumento; }
 
 interface ItemRowProps {
-  item: any;
+  item: DocumentItem;
   currency: string;
-  onUpdate: (field: string, value: any) => void;
+  onUpdate: (field: keyof DocumentItem | 'taxas' | 'descricao' | 'quantidade' | 'precoUnitario', value: string | number | TaxLine[]) => void;
   onRemove: () => void;
   onAddTax: () => void;
   onRemoveTax: (index: number) => void;
@@ -105,21 +114,20 @@ const ItemRow = memo(({
   errors,
   onBlur
 }: ItemRowProps) => {
-  const calculateTotal = useCallback(() => {
-    const subtotal = item.quantidade * item.precoUnitario;
-    const taxTotal = item.taxas.reduce((sum: number, tax: any) =>
-      tax.tipo === 'percent' ? sum + (subtotal * tax.valor) / 100 : sum + tax.valor, 0);
-    return subtotal + taxTotal;
-  }, [item.quantidade, item.precoUnitario, item.taxas]);
+  const subtotal = React.useMemo(() => item.quantidade * item.precoUnitario, [item.quantidade, item.precoUnitario]);
+  const taxTotal = React.useMemo(() => item.taxas.reduce((sum: number, tax: TaxLine) => (
+    tax.tipo === 'percent' ? sum + (subtotal * tax.valor) / 100 : sum + tax.valor
+  ), 0), [item.taxas, subtotal]);
+  const totalItem = React.useMemo(() => subtotal + taxTotal, [subtotal, taxTotal]);
 
-  const handleNumericInput = useCallback((field: string, value: string, _currentValue: number) => {
+  const handleNumericInput = useCallback((field: keyof DocumentItem, value: string, _currentValue: number) => {
     if (value === '') { onUpdate(field, 0); return; }
     const cleanValue = value.replace(/^0+/, '') || '0';
     const numValue = parseFloat(cleanValue);
     if (!isNaN(numValue)) onUpdate(field, numValue);
   }, [onUpdate]);
 
-  const handleTaxUpdate = useCallback((index: number, field: string, value: any) => {
+  const handleTaxUpdate = useCallback((index: number, field: keyof TaxLine, value: string | number) => {
     const newTaxas = [...item.taxas];
     newTaxas[index] = { ...newTaxas[index], [field]: value };
     onUpdate('taxas', newTaxas);
@@ -194,7 +202,7 @@ const ItemRow = memo(({
         {errors[`item-${item.id}-preco`] && <div className="text-red-500 text-xs mt-1">{errors[`item-${item.id}-preco`]}</div>}
       </td>
       <td className="p-1 border-r text-sm w-32">
-        {item.taxas.map((taxa: any, index: number) => (
+        {item.taxas.map((taxa: TaxLine, index: number) => (
           <div key={index} className="flex items-center mb-1">
             <select
               className="w-12 p-1 border rounded text-center text-xs"
@@ -241,7 +249,7 @@ const ItemRow = memo(({
         </button>
       </td>
       <td className="p-1 border-r text-sm text-right font-medium w-24">
-        <span className="text-xs">{formatCurrency(calculateTotal(), currency)}</span>
+        <span className="text-xs">{formatCurrency(totalItem, currency)}</span>
       </td>
       <td className="p-1 text-sm text-center w-12">
         <button
@@ -311,6 +319,7 @@ FormField.displayName = 'FormField';
 const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresas, selectedEmpresa, onEmpresaChange, empresasLoading }: EmitenteStepProps) => {
   const [localLoading, setLocalLoading] = useState(false);
   const isCotacao = formData.tipo === 'cotacao';
+  const isRecibo = formData.tipo === 'recibo';
 
   const handleEmpresaSelect = useCallback(async (empresaId: string) => {
     if (!empresaId || empresasLoading) return;
@@ -326,7 +335,7 @@ const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresa
   return (
     <div className="w-full relative">
       <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="flex items-center justify-between"><div className="flex items-center"><div><h4 className="text-lg font-semibold mb-2">Dados do Emitente</h4><p className="text-sm text-blue-600">{isCotacao ? 'Informe os dados da sua empresa para a cotação.' : 'Informe os dados da sua empresa para a fatura.'}</p></div></div></div>
+        <div className="flex items-center justify-between"><div className="flex items-center"><div><h4 className="text-lg font-semibold mb-2">Dados do Emitente</h4><p className="text-sm text-blue-600">{isCotacao ? 'Informe os dados da sua empresa para a cotação.' : (isRecibo ? 'Informe os dados da sua empresa para o recibo.' : 'Informe os dados da sua empresa para a fatura.')}</p></div></div></div>
       </div>
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">Selecione a Empresa Emitente</label>
@@ -369,9 +378,11 @@ EmitenteStep.displayName = 'EmitenteStep';
 
 const DestinatarioStep = memo(({ formData, errors, handleChange, handleBlur }: DestinatarioStepProps) => {
   const isCotacao = formData.tipo === 'cotacao';
+  const isRecibo = formData.tipo === 'recibo';
+
   return (
     <div className="w-full">
-      <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg"><div className="flex items-center justify-between"><div className="flex items-center"><div><h4 className="text-lg font-semibold mb-2">Dados do Destinatário</h4><p className="text-sm text-blue-600">{isCotacao ? 'Informe os dados do cliente que receberá a cotação.' : 'Informe os dados do destinatário ou empresa que receberá a fatura.'}</p></div></div></div></div>
+      <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg"><div className="flex items-center justify-between"><div className="flex items-center"><div><h4 className="text-lg font-semibold mb-2">Dados do Destinatário</h4><p className="text-sm text-blue-600">{isCotacao ? 'Informe os dados do cliente que receberá a cotação.' : (isRecibo ? 'Informe os dados do destinatário ou cliente que receberá o recibo.' : 'Informe os dados do destinatário ou empresa que receberá a fatura.')}</p></div></div></div></div>
       <div className="space-y-3">
         <div className="flex flex-wrap -mx-2">
           <FormField id="destinatario.nomeCompleto" label="Nome Completo *" type="text" value={formData.destinatario.nomeCompleto} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.nomeCompleto']} placeholder="Nome completo do destinatário" required halfWidth maxLength={70} />
@@ -396,6 +407,7 @@ DestinatarioStep.displayName = 'DestinatarioStep';
 
 const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, onItemBlur, isGeneratingNumber, generateDocumentNumber }: ItensStepProps) => {
   const isCotacao = formData.tipo === 'cotacao';
+  const isRecibo = formData.tipo === 'recibo';
 
   const calcularSubtotal = useCallback(() => {
     return items.reduce((total, item) => {
@@ -451,6 +463,16 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
     handleBlur(e);
   };
 
+  // Função para preencher automaticamente o valor recebido com o total
+  const preencherValorRecebidoComTotal = useCallback(() => {
+    handleChange({
+      target: {
+        name: 'valorRecebido',
+        value: calcularTotalFinal()
+      }
+    } as unknown as React.ChangeEvent<HTMLInputElement>);
+  }, [calcularTotalFinal, handleChange]);
+
   return (
     <div className="w-full">
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -458,35 +480,35 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
           <div className="flex items-center">
             <span className="text-2xl mr-3">{isCotacao ? '📄' : '📄'}</span>
             <div>
-              <h5 className="text-blue-800">{isCotacao ? 'Itens da cotação' : 'Itens da Fatura'}</h5>
+              <h5 className="text-blue-800">{isCotacao ? 'Itens da cotação' : (isRecibo ? 'Itens do recibo' : 'Itens da Fatura')}</h5>
               <p className="text-sm text-blue-600">
-                {isCotacao ? 'Lista dos produtos e serviços incluídos nesta cotação.' : 'Lista dos produtos e serviços incluídos nesta fatura.'}
+                {isCotacao ? 'Lista dos produtos e serviços incluídos nesta cotação.' : (isRecibo ? 'Lista dos produtos e serviços incluídos neste recibo.' : 'Lista dos produtos e serviços incluídos nesta fatura.')}
               </p>
             </div>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${isCotacao ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
-            {isCotacao ? 'COTAÇÃO' : 'FATURA'}
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${isCotacao ? 'bg-green-100 text-green-800' : (isRecibo ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800')}`}>
+            {isCotacao ? 'COTAÇÃO' : (isRecibo ? 'RECIBO' : 'FATURA')}
           </span>
         </div>
       </div>
 
       <div className="space-y-4">
+        {/* Número do documento e data */}
         <div className="flex flex-wrap -mx-2">
           <div className="w-full md:w-1/2 px-2 mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {isCotacao ? 'Número da Cotação *' : 'Número da Fatura *'}
+              {isCotacao ? 'Número da Cotação *' : (isRecibo ? 'Número do Recibo *' : 'Número da Fatura *')}
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
-                id={isCotacao ? "cotacaoNumero" : "faturaNumero"}
-                name={isCotacao ? "cotacaoNumero" : "faturaNumero"}
-                className={`flex-1 bg-gray-50 p-2 border rounded text-sm ${errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] ? 'border-red-500' : 'border-gray-300'
-                  } ${isGeneratingNumber ? 'bg-gray-50' : ''}`}
-                value={isCotacao ? (formData.cotacaoNumero || '') : formData.faturaNumero}
+                id={isCotacao ? 'cotacaoNumero' : (isRecibo ? 'reciboNumero' : 'faturaNumero')}
+                name={isCotacao ? 'cotacaoNumero' : (isRecibo ? 'reciboNumero' : 'faturaNumero')}
+                className={`flex-1 bg-gray-50 p-2 border rounded text-sm ${errors[isCotacao ? 'cotacaoNumero' : (isRecibo ? 'reciboNumero' : 'faturaNumero')] ? 'border-red-500' : 'border-gray-300'} ${isGeneratingNumber ? 'bg-gray-50' : ''}`}
+                value={isCotacao ? (formData.cotacaoNumero || '') : (isRecibo ? (formData.reciboNumero || '') : formData.faturaNumero)}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                placeholder={isGeneratingNumber ? "Gerando número automaticamente..." : (isCotacao ? "Ex: COT-100" : "Ex: FTR-100")}
+                placeholder={isGeneratingNumber ? 'Gerando número automaticamente...' : (isCotacao ? 'Ex: COT-100' : (isRecibo ? 'Ex: RCB-100' : 'Ex: FTR-100'))}
                 required
                 maxLength={20}
                 readOnly={true}
@@ -496,7 +518,7 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
                 className="h-6 px-1 py-0 mt-2 leading-none text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 onClick={generateDocumentNumber}
                 disabled={isGeneratingNumber}
-                title={isCotacao ? "Gerar novo número de cotação" : "Gerar novo número de fatura"}
+                title={isCotacao ? 'Gerar novo número de cotação' : (isRecibo ? 'Gerar novo número de recibo' : 'Gerar novo número de fatura')}
               >
                 {isGeneratingNumber ? (
                   <FaSpinner className="animate-spin" size={14} />
@@ -510,96 +532,48 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
                 <FaSpinner className="animate-spin mr-1" size={12} />
                 Gerando número automaticamente...
               </div>
-            ) : formData[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] ? (
+            ) : (isCotacao ? formData.cotacaoNumero : (isRecibo ? formData.reciboNumero : formData.faturaNumero)) ? (
               <div className="text-green-500 text-xs mt-1 flex items-center">
                 <FaCheck className="mr-1" size={12} />
-                Número gerado automaticamente
+                Número {isRecibo ? 'de recibo' : (isCotacao ? 'de cotação' : 'de fatura')} gerado automaticamente
               </div>
             ) : null}
-            {errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero'] && (
+            {errors[isCotacao ? 'cotacaoNumero' : (isRecibo ? 'reciboNumero' : 'faturaNumero')] && (
               <div className="text-red-500 text-xs mt-1">
-                {errors[isCotacao ? 'cotacaoNumero' : 'faturaNumero']}
+                {errors[isCotacao ? 'cotacaoNumero' : (isRecibo ? 'reciboNumero' : 'faturaNumero')]}
               </div>
             )}
           </div>
+
           <div className="w-full md:w-1/2 px-2 mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Data {isCotacao ? 'da Cotação' : 'da Fatura'} *
+              {isCotacao ? 'Data da Cotação *' : (isRecibo ? 'Data do Recibo *' : 'Data da Fatura *')}
             </label>
             <input
               type="date"
-              id="dataFatura"
-              name="dataFatura"
-              className={`w-full p-2 border rounded text-sm ${errors['dataFatura'] ? 'border-red-500' : 'border-gray-300'
-                }`}
-              value={formData.dataFatura}
+              id={isRecibo ? 'dataRecebimento' : (isCotacao ? 'dataFatura' : 'dataFatura')}
+              name={isRecibo ? 'dataRecebimento' : (isCotacao ? 'dataFatura' : 'dataFatura')}
+              className={`w-full p-2 border rounded text-sm ${errors[isRecibo ? 'dataRecebimento' : 'dataFatura'] ? 'border-red-500' : 'border-gray-300'}`}
+              value={isRecibo ? (formData.dataRecebimento || '') : formData.dataFatura}
               onChange={handleChange}
               onBlur={handleBlur}
               required
             />
-            {errors['dataFatura'] && (
-              <div className="text-red-500 text-xs mt-1">{errors['dataFatura']}</div>
+            {errors[isRecibo ? 'dataRecebimento' : 'dataFatura'] && (
+              <div className="text-red-500 text-xs mt-1">
+                {errors[isRecibo ? 'dataRecebimento' : 'dataFatura']}
+              </div>
+            )}
+            {isRecibo && (
+              <div className="text-xs text-gray-500 mt-1">
+                Data de emissão do recibo
+              </div>
             )}
           </div>
         </div>
 
-        <div className={`border rounded-lg p-4 mb-4 ${isCotacao ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'
-          }`}>
-          <h5 className="font-semibold mb-3 text-gray-800">Validade do Documento</h5>
-          <div className="flex flex-wrap -mx-2">
-            <div className="w-full md:w-1/2 px-2 mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Validade (dias) *
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                id={isCotacao ? "validezCotacao" : "validezFatura"}
-                name={isCotacao ? "validezCotacao" : "validezFatura"}
-                className={`w-full p-2 border rounded text-sm ${errors[isCotacao ? 'validezCotacao' : 'validezFatura'] ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                value={isCotacao ? (formData.validezCotacao === '0' ? '' : formData.validezCotacao) : (formData.validezFatura === '0' ? '' : formData.validezFatura)}
-                onChange={(e) => handleValidityChange(e, isCotacao)}
-                onBlur={(e) => {
-                  if (e.target.value === '') handleChange({
-                    target: {
-                      name: isCotacao ? "validezCotacao" : "validezFatura",
-                      value: '15'
-                    }
-                  } as React.ChangeEvent<HTMLInputElement>);
-                  handleBlur(e);
-                }}
-                onFocus={(e) => e.target.select()}
-                required
-              />
-              {errors[isCotacao ? 'validezCotacao' : 'validezFatura'] && (
-                <div className="text-red-500 text-xs mt-1">
-                  {errors[isCotacao ? 'validezCotacao' : 'validezFatura']}
-                </div>
-              )}
-              <div className="text-xs text-gray-500 mt-1">
-                {isCotacao ? 'Padrão: 15 dias. Digite o número de dias de validade.' : 'Padrão: 15 dias. Digite o número de dias para vencimento.'}
-              </div>
-            </div>
-            <div className="w-full md:w-1/2 px-2 mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {isCotacao ? 'Data de Validade Calculada' : 'Data de Vencimento Calculada'}
-              </label>
-              <div className="w-full p-2 border border-gray-300 rounded text-sm bg-gray-50">
-                {formatarData(formData.dataVencimento)}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">Calculado automaticamente</div>
-            </div>
-          </div>
-          <div className="mt-2 p-2 bg-white rounded border">
-            <p className="text-xs text-gray-700">
-              <strong>Resumo:</strong> {isCotacao ? 'Esta cotação' : 'Esta fatura'} emitida em {formatarData(formData.dataFatura)} será válida até {formatarData(formData.dataVencimento)} ({isCotacao ? formData.validezCotacao : formData.validezFatura} {parseInt(isCotacao ? formData.validezCotacao : formData.validezFatura) === 1 ? 'dia' : 'dias'} de validade).
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        {/* Tabela de itens - AGORA ACIMA do painel amarelo */}
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mb-4">
           <div className="overflow-x-auto" style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
             <table className="min-w-[600px] w-full border-collapse">
               <thead className="bg-gray-100">
@@ -631,156 +605,402 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
           </div>
         </div>
 
-        <button
-          type="button"
-          className="w-full md:w-auto mt-3 px-3 py-2 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors flex items-center justify-center"
-          onClick={adicionarItem}
-        >
-          <FaPlus className="mr-1" size={10} /> Adicionar Item
-        </button>
+        {/* Botão Adicionar Item - ajustado e mais pequeno */}
+        <div className="flex justify-end mb-4">
+          <button
+            type="button"
+            className="px-3 py-1.5 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors flex items-center justify-center"
+            onClick={adicionarItem}
+          >
+            <FaPlus className="mr-1" size={10} /> Adicionar Item
+          </button>
+        </div>
 
-        {/* SEÇÃO DE DESCONTO NO TOTAL */}
-        <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4">
-          <h5 className="font-semibold mb-4 text-gray-800 flex items-center">
-            <FaPlus className="text-green-500 mr-2" size={14} />
-            Desconto no Total
-          </h5>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <label className="block text-sm font-medium text-gray-700 w-24">
-                  Tipo de Desconto:
-                </label>
-                <select
-                  id="tipoDesconto"
-                  name="tipoDesconto"
-                  className="flex-1 p-2 border border-gray-300 rounded text-sm"
-                  value={formData.tipoDesconto || 'fixed'}
-                  onChange={handleChange}
-                >
-                  <option value="fixed">Valor Fixo ({formData.moeda})</option>
-                  <option value="percent">Percentual (%)</option>
-                </select>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <label className="block text-sm font-medium text-gray-700 w-24">
-                  {formData.tipoDesconto === 'percent' ? 'Percentual:' : 'Valor:'}
+        {/* Validade do documento (apenas para fatura e cotação) */}
+        {!isRecibo && (
+          <div className={`border rounded-lg p-4 mb-4 ${isCotacao ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'}`}>
+            <h5 className="font-semibold mb-3 text-gray-800">Validade do Documento</h5>
+            <div className="flex flex-wrap -mx-2">
+              <div className="w-full md:w-1/2 px-2 mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Validade (dias) *
                 </label>
                 <input
                   type="text"
-                  inputMode="decimal"
-                  id="desconto"
-                  name="desconto"
-                  className={`flex-1 p-2 border rounded text-sm ${errors['desconto'] ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  value={formData.desconto === 0 ? '' : formData.desconto?.toString() || ''}
-                  onChange={handleDescontoChange}
-                  onBlur={handleDescontoBlur}
-                  placeholder={formData.tipoDesconto === 'percent' ? '0' : '0.00'}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  id={isCotacao ? "validezCotacao" : "validezFatura"}
+                  name={isCotacao ? "validezCotacao" : "validezFatura"}
+                  className={`w-full p-2 border rounded text-sm ${errors[isCotacao ? 'validezCotacao' : 'validezFatura'] ? 'border-red-500' : 'border-gray-300'}`}
+                  value={isCotacao ? (formData.validezCotacao === '0' ? '' : formData.validezCotacao) : (formData.validezFatura === '0' ? '' : formData.validezFatura)}
+                  onChange={(e) => handleValidityChange(e, isCotacao)}
+                  onBlur={(e) => {
+                    if (e.target.value === '') handleChange({
+                      target: { name: isCotacao ? "validezCotacao" : "validezFatura", value: '15' }
+                    } as React.ChangeEvent<HTMLInputElement>);
+                    handleBlur(e);
+                  }}
                   onFocus={(e) => e.target.select()}
+                  required
                 />
-                <span className="text-sm text-gray-600 w-8">
-                  {formData.tipoDesconto === 'percent' ? '%' : formData.moeda}
-                </span>
-              </div>
-              {errors['desconto'] && (
-                <div className="text-red-500 text-xs mt-1">{errors['desconto']}</div>
-              )}
-
-              {formData.desconto > 0 && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-                  <strong>Desconto aplicado:</strong> {formData.tipoDesconto === 'percent'
-                    ? `${formData.desconto}% do total`
-                    : `${formatCurrency(formData.desconto, formData.moeda)} de desconto`
-                  }
-                </div>
-              )}
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h6 className="font-semibold mb-3 text-gray-700 border-b pb-2">Resumo Financeiro</h6>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal ({items.length} itens):</span>
-                  <span className="font-medium">{formatCurrency(calcularSubtotal(), formData.moeda)}</span>
-                </div>
-
-                {calcularDescontoTotal() > 0 && (
-                  <>
-                    <div className="flex justify-between text-red-600">
-                      <span>Desconto:</span>
-                      <span>-{formatCurrency(calcularDescontoTotal(), formData.moeda)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>
-                        {formData.tipoDesconto === 'percent'
-                          ? `(${formData.desconto}% aplicado)`
-                          : `(desconto fixo)`
-                        }
-                      </span>
-                      <span>
-                        {formData.tipoDesconto === 'percent'
-                          ? `${formatCurrency(calcularDescontoTotal(), formData.moeda)}`
-                          : ''
-                        }
-                      </span>
-                    </div>
-                  </>
+                {errors[isCotacao ? 'validezCotacao' : 'validezFatura'] && (
+                  <div className="text-red-500 text-xs mt-1">{errors[isCotacao ? 'validezCotacao' : 'validezFatura']}</div>
                 )}
+                <div className="text-xs text-gray-500 mt-1">
+                  {isCotacao ? 'Padrão: 15 dias. Digite o número de dias de validade.' : 'Padrão: 15 dias. Digite o número de dias para vencimento.'}
+                </div>
+              </div>
+              <div className="w-full md:w-1/2 px-2 mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {isCotacao ? 'Data de Validade Calculada' : 'Data de Vencimento Calculada'}
+                </label>
+                <div className="w-full p-2 border border-gray-300 rounded text-sm bg-gray-50">{formData.dataVencimento ? formatarData(formData.dataVencimento) : formatarData(formData.dataFatura)}</div>
+                <div className="text-xs text-gray-500 mt-1">Calculado automaticamente</div>
+              </div>
+            </div>
+            <div className="mt-2 p-2 bg-white rounded border">
+              <p className="text-xs text-gray-700"><strong>Resumo:</strong> {isCotacao ? 'Esta cotação' : 'Esta fatura'} emitida em {formatarData(formData.dataFatura)} será válida até {formatarData(formData.dataVencimento || formData.dataFatura)} ({(isCotacao ? formData.validezCotacao : formData.validezFatura) || '0'} {parseInt((isCotacao ? formData.validezCotacao : formData.validezFatura) || '0') === 1 ? 'dia' : 'dias'} de validade).</p>
+            </div>
+          </div>
+        )}
 
-                <div className="flex justify-between border-t pt-2 mt-2">
-                  <span className="font-semibold text-base">Total Final:</span>
-                  <span className="font-bold text-lg text-green-600">
-                    {formatCurrency(calcularTotalFinal(), formData.moeda)}
+        {/* Seção específica para recibos - Layout reorganizado */}
+        {isRecibo && (() => {
+          const totalDocumento = calcularTotalFinal?.() || 0;
+          const valorRecebido = formData.valorRecebido || 0;
+          const restante = Math.max(0, totalDocumento - valorRecebido);
+
+          return (
+            <>
+              <div className="border rounded-lg p-4 mb-4 bg-yellow-50 border-yellow-200">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start">
+                    <span className="text-xl mr-3">💳</span>
+                    <div>
+                      <h5 className="text-gray-900 font-semibold">Dados do Pagamento</h5>
+                      <p className="text-sm text-yellow-700">
+                        Informe os detalhes do recebimento. Campos marcados com * são obrigatórios.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    RECIBO
                   </span>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  {/* Coluna 1: Dados principais do pagamento */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Valor Recebido *
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          id="valorRecebido"
+                          name="valorRecebido"
+                          inputMode="decimal"
+                          className={`flex-1 p-2 border rounded text-sm text-right ${errors['valorRecebido'] ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          value={valorRecebido === 0 ? '' : valorRecebido}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (/^\d*\.?\d*$/.test(v)) handleChange(e as any);
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value === '') {
+                              handleChange({ target: { name: 'valorRecebido', value: 0 } } as any);
+                            }
+                            handleBlur(e);
+                          }}
+                          placeholder="0.00"
+                        />
+                        <button
+                          type="button"
+                          className="h-9 px-3 text-xs bg-yellow-500 hover:bg-yellow-600 text-white rounded transition-colors flex items-center"
+                          onClick={preencherValorRecebidoComTotal}
+                          title="Preencher com o valor total"
+                        >
+                          <FaMagnet size={12} />
+                        </button>
+                      </div>
+                      {errors['valorRecebido'] && (
+                        <div className="text-red-500 text-xs mt-1">{errors['valorRecebido']}</div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Forma de Pagamento *
+                      </label>
+                      <select
+                        id="formaPagamento"
+                        name="formaPagamento"
+                        className={`w-full p-2 border rounded text-sm bg-white ${errors['formaPagamento'] ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                        value={formData.formaPagamento}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                      >
+                        <option value="">Selecione...</option>
+                        <option value="Transferência Bancária">Transferência Bancária</option>
+                        <option value="M-Pesa">M-Pesa</option>
+                        <option value="Cartão">Cartão</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="Outro">Outro</option>
+                      </select>
+                      {errors['formaPagamento'] && (
+                        <div className="text-red-500 text-xs mt-1">{errors['formaPagamento']}</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Coluna 2: Informações complementares */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Fatura/Cotação Associada
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          id="documentoAssociadoCustom"
+                          name="documentoAssociadoCustom"
+                          className="flex-1 p-2 border rounded text-sm border-gray-300 bg-white"
+                          placeholder=""
+                          value={formData.documentoAssociadoCustom || ''}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          maxLength={30}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Referência do Pagamento
+                      </label>
+                      <input
+                        type="text"
+                        id="referenciaPagamento"
+                        name="referenciaPagamento"
+                        className="w-full p-2 border rounded text-xs border-gray-300 bg-white"
+                        value={formData.referenciaPagamento || ''}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        placeholder=""
+                        maxLength={40}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Moeda - DENTRO do painel amarelo e ocupando duas colunas */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Moeda</label>
+                    <select
+                      id="moeda"
+                      name="moeda"
+                      className="w-full p-2 border rounded border-gray-300 text-sm"
+                      value={formData.moeda}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                    >
+                      <option value="MT">MT</option>
+                      <option value="$">$ (USD)</option>
+                      <option value="€">€ (EUR)</option>
+                      <option value="R$">R$ (BRL)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Motivo do Pagamento e Resumo Financeiro - AGORA POR BAIXO do painel amarelo (apenas para recibo) */}
+              <div className="space-y-4 mb-4">
+                {/* Motivo do Pagamento */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Motivo do Pagamento
+                  </label>
+                  <textarea
+                    id="motivoPagamento"
+                    name="motivoPagamento"
+                    className="w-full p-2 border rounded text-xs border-gray-300 bg-white"
+                    value={formData.motivoPagamento || ''}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder=""
+                    maxLength={80}
+                    rows={2}
+                  />
+                </div>
+
+                {/* Resumo financeiro */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-white rounded border">
+                  <div className="text-center">
+                    <div className="text-xs text-gray-500 uppercase font-medium">Total do Documento</div>
+                    <div className="text-lg font-semibold text-gray-900 mt-1">
+                      {formatCurrency(totalDocumento, formData.moeda)}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-500 uppercase font-medium">Valor Recebido</div>
+                    <div className="text-lg font-semibold text-green-600 mt-1">
+                      {formatCurrency(valorRecebido, formData.moeda)}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-500 uppercase font-medium">Restante</div>
+                    <div className={`text-lg font-semibold mt-1 ${restante > 0 ? 'text-orange-600' : 'text-gray-600'
+                      }`}>
+                      {formatCurrency(restante, formData.moeda)}
+                    </div>
+                  </div>
+                </div>
+
+                {restante > 0 && (
+                  <div className="p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-700">
+                    <strong>Atenção:</strong> O valor recebido é inferior ao total do documento.
+                    Restam {formatCurrency(restante, formData.moeda)} a receber.
+                  </div>
+                )}
+              </div>
+            </>
+          );
+        })()}
+
+        {/* SEÇÃO DE DESCONTO NO TOTAL (oculta para recibo) */}
+        {!isRecibo && (
+          <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4">
+            <h5 className="font-semibold mb-4 text-gray-800 flex items-center">
+              <FaPlus className="text-green-500 mr-2" size={14} />
+              Desconto no Total
+            </h5>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <label className="block text-sm font-medium text-gray-700 w-24">
+                    Tipo de Desconto:
+                  </label>
+                  <select
+                    id="tipoDesconto"
+                    name="tipoDesconto"
+                    className="flex-1 p-2 border border-gray-300 rounded text-sm"
+                    value={formData.tipoDesconto || 'fixed'}
+                    onChange={handleChange}
+                  >
+                    <option value="fixed">Valor Fixo ({formData.moeda})</option>
+                    <option value="percent">Percentual (%)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <label className="block text-sm font-medium text-gray-700 w-24">
+                    {formData.tipoDesconto === 'percent' ? 'Percentual:' : 'Valor:'}
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    id="desconto"
+                    name="desconto"
+                    className={`flex-1 p-2 border rounded text-sm ${errors['desconto'] ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    value={formData.desconto === 0 ? '' : formData.desconto?.toString() || ''}
+                    onChange={handleDescontoChange}
+                    onBlur={handleDescontoBlur}
+                    placeholder={formData.tipoDesconto === 'percent' ? '0' : '0.00'}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <span className="text-sm text-gray-600 w-8">
+                    {formData.tipoDesconto === 'percent' ? '%' : formData.moeda}
+                  </span>
+                </div>
+                {errors['desconto'] && (
+                  <div className="text-red-500 text-xs mt-1">{errors['desconto']}</div>
+                )}
+
+                {formData.desconto > 0 && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                    <strong>Desconto aplicado:</strong> {formData.tipoDesconto === 'percent'
+                      ? `${formData.desconto}% do total`
+                      : `${formatCurrency(formData.desconto, formData.moeda)} de desconto`
+                    }
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h6 className="font-semibold mb-3 text-gray-700 border-b pb-2">Resumo Financeiro</h6>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Subtotal ({items.length} itens):</span>
+                    <span className="font-medium">{formatCurrency(calcularSubtotal(), formData.moeda)}</span>
+                  </div>
+
+                  {calcularDescontoTotal() > 0 && (
+                    <>
+                      <div className="flex justify-between text-red-600">
+                        <span>Desconto:</span>
+                        <span>-{formatCurrency(calcularDescontoTotal(), formData.moeda)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>
+                          {formData.tipoDesconto === 'percent'
+                            ? `(${formData.desconto}% aplicado)`
+                            : `(desconto fixo)`
+                          }
+                        </span>
+                        <span>
+                          {formData.tipoDesconto === 'percent'
+                            ? `${formatCurrency(calcularDescontoTotal(), formData.moeda)}`
+                            : ''
+                          }
+                        </span>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex justify-between border-t pt-2 mt-2">
+                    <span className="font-semibold text-base">Total Final:</span>
+                    <span className="font-bold text-lg text-green-600">
+                      {formatCurrency(calcularTotalFinal(), formData.moeda)}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="flex flex-wrap -mx-2 mt-4">
-          <div className="w-full md:w-1/2 px-2 mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Moeda</label>
-            <select
-              id="moeda"
-              name="moeda"
+        {/* Termos e condições (apenas para fatura e cotação) */}
+        {!isRecibo && (
+          <div className="w-full px-2 mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {isCotacao ? 'Termos da Cotação' : 'Termos e Condições'}
+            </label>
+            <textarea
+              id="termos"
+              name="termos"
               className="w-full p-2 border rounded border-gray-300 text-sm"
-              value={formData.moeda}
+              rows={3}
+              value={formData.termos}
               onChange={handleChange}
               onBlur={handleBlur}
-            >
-              <option value="MT">MT</option>
-              <option value="$">$ (USD)</option>
-              <option value="€">€ (EUR)</option>
-              <option value="R$">R$ (BRL)</option>
-            </select>
+              maxLength={260}
+              placeholder={isCotacao ? 'Termos e condições específicos para esta cotação...' : 'Termos e condições de pagamento...'}
+            />
+            <div className="text-xs text-gray-500 mt-1">
+              {isCotacao ? 'Os termos são atualizados automaticamente com a validade informada.' : 'Os termos são atualizados automaticamente com base na validade informada.'}
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="w-full px-2 mb-3">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {isCotacao ? 'Termos da Cotação' : 'Termos e Condições'}
-          </label>
-          <textarea
-            id="termos"
-            name="termos"
-            className="w-full p-2 border rounded border-gray-300 text-sm"
-            rows={3}
-            value={formData.termos}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            maxLength={260}
-            placeholder={isCotacao ? 'Termos e condições específicos para esta cotação...' : 'Termos e condições de pagamento...'}
-          />
-          <div className="text-xs text-gray-500 mt-1">
-            {isCotacao ? 'Os termos são atualizados automaticamente com a validade informada.' : 'Os termos são atualizados automaticamente com base na validade informada.'}
-          </div>
-        </div>
-
-        {!isCotacao && (
+        {/* Métodos de pagamento (apenas para fatura) */}
+        {!isRecibo && !isCotacao && (
           <div className="w-full px-2 mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Métodos de Pagamento
@@ -853,7 +1073,7 @@ const StepsList = memo(({ currentStep, onStepClick, validateAllPreviousSteps, is
 StepsList.displayName = 'StepsList';
 
 const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) => {
-  const { formData, items, errors, handleChange, handleBlur, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, updateFormData, empresaModificacoes, verificarModificacoesEmpresa, registrarEmpresaOriginal, limparModificacoesEmpresa, isGeneratingNumber, validateForm, generateDocumentNumber } = useInvoiceForm(tipo);
+  const { formData, items, errors, handleChange, handleBlur, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, updateFormData, empresaModificacoes, verificarModificacoesEmpresa, registrarEmpresaOriginal, limparModificacoesEmpresa, isGeneratingNumber, validateForm, generateDocumentNumber, setItems } = useInvoiceForm(tipo);
   const { empresas, loading: empresasLoading, error: empresasError, refetch: refetchEmpresas } = useListarEmissores();
   const { empresaPadrao, loading: empresaPadraoLoading, error: empresaPadraoError, refetch: refetchEmpresaPadrao } = useEmpresaPadrao();
   const [currentStep, setCurrentStep] = useState(0);
@@ -866,6 +1086,36 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
   const [isUpdatingEmpresa, setIsUpdatingEmpresa] = useState(false);
   const loading = empresasLoading || empresaPadraoLoading;
   const error = empresasError || empresaPadraoError;
+
+  // Prefill cloning via sessionStorage (sobrevive navegação)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = sessionStorage.getItem('clonedInvoiceData');
+    if (!raw) return;
+    try {
+      const cloned = JSON.parse(raw);
+      sessionStorage.removeItem('clonedInvoiceData');
+      if (!cloned?.formData) return;
+      // Atualiza formData completo
+      updateFormData({ ...cloned.formData, tipo });
+      // Substitui itens
+      if (Array.isArray(cloned.items) && cloned.items.length) {
+        const mapped = cloned.items.map((it: any, idx: number) => ({
+          id: idx + 1,
+          descricao: it.descricao || '',
+          quantidade: it.quantidade || 1,
+          precoUnitario: it.precoUnitario || 0,
+          taxas: Array.isArray(it.taxas) ? it.taxas : [],
+          totalItem: (it.quantidade || 1) * (it.precoUnitario || 0)
+        }));
+        setItems(mapped as any);
+      }
+      // Força salto para pré-visualização
+      setCurrentStep(3);
+    } catch (_e) {
+      // Ignorar erros de parsing
+    }
+  }, [setItems, updateFormData, tipo]);
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
@@ -897,13 +1147,20 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
   const toggleTemplateFullscreen = useCallback(() => { setIsTemplateFullscreen(!isTemplateFullscreen); }, [isTemplateFullscreen]);
 
   const handleItemBlur = useCallback((field: string) => {
-    handleBlur({
-      target: {
-        name: field,
-        value: ''
+    let value: any = '';
+    const match = field.match(/^item-(\d+)-(descricao|quantidade|preco)$/);
+    if (match) {
+      const id = parseInt(match[1]);
+      const itemField = match[2];
+      const targetItem = items.find(i => i.id === id);
+      if (targetItem) {
+        if (itemField === 'descricao') value = targetItem.descricao;
+        else if (itemField === 'quantidade') value = targetItem.quantidade;
+        else if (itemField === 'preco') value = targetItem.precoUnitario;
       }
-    } as any);
-  }, [handleBlur]);
+    }
+    handleBlur({ target: { name: field, value } } as any);
+  }, [handleBlur, items]);
 
   const validateStep = useCallback((step: number) => {
     const newErrors: Record<string, string> = {};
@@ -939,6 +1196,8 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
       return true;
     };
 
+    const isRecibo = formData.tipo === 'recibo';
+
     switch (step) {
       case 0:
         validateRequired(formData.emitente.nomeEmpresa, 'emitente.nomeEmpresa');
@@ -962,19 +1221,35 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
           validateRequired(formData.validezFatura, 'validezFatura');
           if (formData.validezFatura) {
             const dias = parseInt(formData.validezFatura);
-            if (dias < 1 || dias > 365)
-              newErrors['validezFatura'] = 'Validade deve ser entre 1 e 365 dias';
+            if (dias < 1 || dias > 365) newErrors['validezFatura'] = 'Validade deve ser entre 1 e 365 dias';
           }
-        } else {
+          validateRequired(formData.dataFatura, 'dataFatura');
+        } else if (formData.tipo === 'cotacao') {
           validateRequired(formData.cotacaoNumero, 'cotacaoNumero');
           validateRequired(formData.validezCotacao, 'validezCotacao');
           if (formData.validezCotacao) {
             const dias = parseInt(formData.validezCotacao);
-            if (dias < 1 || dias > 365)
-              newErrors['validezCotacao'] = 'Validade deve ser entre 1 e 365 dias';
+            if (dias < 1 || dias > 365) newErrors['validezCotacao'] = 'Validade deve ser entre 1 e 365 dias';
+          }
+          validateRequired(formData.dataFatura, 'dataFatura');
+        } else if (isRecibo) {
+          validateRequired(formData.reciboNumero, 'reciboNumero');
+          // Atualizado: usar dataRecebimento consistente com hook e template
+          validateRequired(formData.dataRecebimento, 'dataRecebimento');
+          validateRequired(formData.valorRecebido?.toString(), 'valorRecebido');
+          validateRequired(formData.formaPagamento, 'formaPagamento');
+          // Regras adicionais específicas para recibo
+          if (typeof formData.valorRecebido !== 'number' || formData.valorRecebido <= 0) {
+            newErrors['valorRecebido'] = 'Valor recebido deve ser maior que zero';
+            if (!invalidFields.includes('valorRecebido')) invalidFields.push('valorRecebido');
+          }
+          // Garante pelo menos 1 item no recibo (se itens são usados para detalhar o pagamento)
+          if (!items || items.length === 0) {
+            newErrors['faltaItens'] = 'Adicione pelo menos 1 item';
+            // Foca no botão de adicionar item
+            if (!invalidFields.includes('faltaItens')) invalidFields.push('item-0-descricao');
           }
         }
-        validateRequired(formData.dataFatura, 'dataFatura');
 
         if (formData.desconto < 0) {
           newErrors['desconto'] = 'Desconto não pode ser negativo';
@@ -1011,15 +1286,37 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
   const nextStep = useCallback(async () => {
     setIsNavigating(true);
     await new Promise(resolve => setTimeout(resolve, 300));
-    const { isValid, invalidFields } = validateStep(currentStep);
-    if (!isValid) { if (invalidFields.length > 0) { const firstInvalidFieldElement = document.getElementById(invalidFields[0]); firstInvalidFieldElement?.focus(); } setIsNavigating(false); return; }
+
+    // Valida todos os steps anteriores + o atual antes de avançar
+    for (let step = 0; step <= currentStep; step++) {
+      const { isValid, invalidFields } = validateStep(step);
+      if (!isValid) {
+        // Reposiciona para o step com erro e foca primeiro campo inválido
+        setCurrentStep(step);
+        if (invalidFields.length > 0) {
+          const firstInvalidFieldElement = document.getElementById(invalidFields[0]);
+          firstInvalidFieldElement?.focus();
+          firstInvalidFieldElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        setIsNavigating(false);
+        return;
+      }
+    }
+
+    // Verifica modificações de empresa somente se passo 0 foi validado
     if (currentStep === 0 && empresaModificacoes.empresaOriginal && selectedEmpresa) {
       const { camposModificados, houveModificacoes } = verificarModificacoesEmpresa(empresaModificacoes.empresaOriginal, formData.emitente);
       empresaModificacoes.camposModificados = camposModificados;
       empresaModificacoes.houveModificacoes = houveModificacoes;
-      if (houveModificacoes) { setPendingStep(currentStep + 1); setShowUpdateModal(true); setIsNavigating(false); return; }
+      if (houveModificacoes) {
+        setPendingStep(currentStep + 1);
+        setShowUpdateModal(true);
+        setIsNavigating(false);
+        return;
+      }
     }
-    setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1));
+
+    setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
     setIsNavigating(false);
   }, [currentStep, validateStep, empresaModificacoes, selectedEmpresa, verificarModificacoesEmpresa, formData.emitente]);
 
@@ -1068,6 +1365,7 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
   if (loading && empresas.length === 0) return (<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><FaSpinner className="animate-spin text-blue-500 text-4xl mb-4 mx-auto" /><p className="text-gray-600">Carregando dados das empresas...</p></div></div>);
   if (error && empresas.length === 0) return (<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md"><p className="font-bold">Erro ao carregar empresas</p><p className="text-sm">{error}</p><button onClick={refreshData} className="mt-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm">Tentar Novamente</button></div></div></div>);
   const isCotacao = tipo === 'cotacao';
+  const isRecibo = tipo === 'recibo';
 
   return (
     <div className="min-h-screen bg-gray-50 mt-3 p-3 md:p-4 relative">
@@ -1098,8 +1396,8 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
         <header className="mb-4 md:mb-6 text-center">
           <div className="bg-white rounded-lg border border-gray-200 p-2 mb-4">
             <div className="bg-gray-50 p-2">
-              <h5 className={`text-xl md:text-2xl font-bold uppercase text-gray-900 mb-2 mt-2 ${roboto.className}`}>{isCotacao ? 'Nova Cotação' : 'Nova Fatura'}</h5>
-              <p className={`text-gray-600 text-xs md:text-sm  ${roboto.className}`}>{isCotacao ? 'Preencha todas as etapas para criar sua cotação de forma simples e eficiente.' : 'Finalize todas as etapas para obter sua fatura de forma simples e eficiente.'}</p>
+              <h5 className={`text-xl md:text-2xl font-bold uppercase text-gray-900 mb-2 mt-2 ${roboto.className}`}>{isCotacao ? 'Nova Cotação' : (isRecibo ? 'Novo Recibo' : 'Nova Fatura')}</h5>
+              <p className={`text-gray-600 text-xs md:text-sm  ${roboto.className}`}>{isCotacao ? 'Preencha todas as etapas para criar sua cotação de forma simples e eficiente.' : (isRecibo ? 'Preencha as etapas para registar o recibo.' : 'Finalize todas as etapas para obter sua fatura de forma simples e eficiente.')}</p>
             </div>
           </div>
         </header>

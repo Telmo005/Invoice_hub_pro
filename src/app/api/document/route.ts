@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     
-    const tipo = searchParams.get('tipo') as 'faturas' | 'cotacoes' | null
+    const tipo = searchParams.get('tipo') as 'faturas' | 'cotacoes' | 'recibos' | null
     const status = searchParams.get('status')
     const search = searchParams.get('search') || ''
     const page = parseInt(searchParams.get('page') || '1')
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       .eq('user_id', user.id)
 
     if (tipo) {
-      const tipoDocumento = tipo === 'faturas' ? 'fatura' : 'cotacao'
+      const tipoDocumento = tipo === 'faturas' ? 'fatura' : (tipo === 'cotacoes' ? 'cotacao' : 'recibo')
       query = query.eq('tipo_documento', tipoDocumento)
     }
 
@@ -97,20 +97,26 @@ export async function GET(request: NextRequest) {
 
     const stats = await getDocumentStats(supabase, user.id)
 
-    const transformedDocuments = (documents || []).map((doc: any) => ({
-      id: doc.id,
-      numero: doc.numero || `DOC-${doc.id?.slice(0, 8) || '0000'}`,
-      tipo: doc.tipo_documento === 'cotacao' ? 'cotacao' : 'fatura',
-      status: doc.status_documento || 'rascunho',
-      emitente: doc.emitente || 'Emitente não definido',
-      destinatario: doc.destinatario || 'Destinatário não definido',
-      data_emissao: doc.data_criacao || new Date().toISOString(),
-      data_vencimento: doc.data_vencimento || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      valor_total: doc.valor_documento || 0,
-      moeda: doc.moeda || 'BRL',
-      itens_count: doc.quantidade_itens || 0,
-      pagamento_status: doc.status_pagamento || null
-    }))
+    const transformedDocuments = (documents || []).map((doc: any) => {
+      const tipoDoc = doc.tipo_documento === 'cotacao' ? 'cotacao' : (doc.tipo_documento === 'recibo' ? 'recibo' : 'fatura');
+      const valorBase = doc.valor_documento || 0;
+      const valorRecibo = tipoDoc === 'recibo' ? (doc.valor_recebido || valorBase) : valorBase;
+      return {
+        id: doc.id,
+        numero: doc.numero || `DOC-${doc.id?.slice(0, 8) || '0000'}`,
+        tipo: tipoDoc,
+        status: doc.status_documento || 'rascunho',
+        emitente: doc.emitente || 'Emitente não definido',
+        destinatario: doc.destinatario || 'Destinatário não definido',
+        data_emissao: doc.data_criacao || new Date().toISOString(),
+        data_vencimento: doc.data_vencimento || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        valor_total: valorRecibo,
+        moeda: doc.moeda || 'BRL',
+        itens_count: doc.quantidade_itens || 0,
+        pagamento_status: doc.status_pagamento || null,
+        referencia: doc.documento_referencia || null
+      };
+    })
 
     return NextResponse.json({
       documents: transformedDocuments,
@@ -133,54 +139,111 @@ export async function GET(request: NextRequest) {
 
 async function getDocumentStats(supabase: any, userId: string) {
   try {
+    // Totais simples por tabela
     const [
       { count: totalInvoices },
       { count: totalQuotes },
-      { data: pendingInvoices },
-      { data: pendingQuotes }
+      { count: totalReceipts }
     ] = await Promise.all([
-      supabase
-        .from('faturas')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId),
-      supabase
-        .from('cotacoes')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId),
-      supabase
-        .from('faturas')
-        .select('status_documento, status_pagamento')
-        .eq('user_id', userId)
-        .in('status_documento', ['emitida', 'rascunho']),
-      supabase
-        .from('cotacoes')
-        .select('status_documento')
-        .eq('user_id', userId)
-        .in('status_documento', ['emitida', 'rascunho'])
+      supabase.from('faturas').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase.from('cotacoes').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase.from('recibos').select('*', { count: 'exact', head: true }).eq('user_id', userId)
     ])
 
-    const pendingInvoicesCount = pendingInvoices?.filter((inv: any) => 
-      inv.status_documento === 'emitida' || inv.status_pagamento === 'pendente'
-    ).length || 0
+    // Fallback para recibos antigos que não tinham user_id (conta via view unificada)
+    let receiptsCountFinal = totalReceipts || 0;
+    if (!receiptsCountFinal) {
+      const { count: viewReceiptsCount } = await supabase
+        .from('view_documentos_pagamentos')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('tipo_documento', 'recibo');
+      receiptsCountFinal = viewReceiptsCount || 0;
+    }
 
-    const pendingQuotesCount = pendingQuotes?.filter((quote: any) => 
-      quote.status_documento === 'emitida'
-    ).length || 0
+    // Faturas pendentes: emitidas sem pagamento concluído
+    const { data: pendingInvoicesData } = await supabase
+      .from('view_documentos_pagamentos')
+      .select('id,status_documento,status_pagamento')
+      .eq('user_id', userId)
+      .eq('tipo_documento', 'fatura')
+      .in('status_documento', ['emitida'])
+      .or('status_pagamento.is.null,status_pagamento.in.(pendente,aguardando)');
+
+    const pendingInvoicesCount = (pendingInvoicesData || []).filter((d: { status_documento?: string }) => d.status_documento === 'emitida').length;
+
+    // Cotações pendentes: emitidas (ainda não convertidas) 
+    const { data: pendingQuotesData } = await supabase
+      .from('cotacoes')
+      .select('id,status_documento,data_vencimento')
+      .eq('user_id', userId)
+      .eq('status_documento', 'emitida');
+
+    const pendingQuotesCount = (pendingQuotesData || []).length;
+
+    // Cotações a expirar em <= 7 dias
+    const now = new Date();
+    const in7 = new Date();
+    in7.setDate(now.getDate() + 7);
+    const { data: expiringQuotesData } = await supabase
+      .from('cotacoes')
+      .select('id,status_documento,data_vencimento')
+      .eq('user_id', userId)
+      .eq('status_documento', 'emitida')
+      .gte('data_vencimento', now.toISOString())
+      .lte('data_vencimento', in7.toISOString());
+
+    const expiringQuotesCount = (expiringQuotesData || []).length;
+
+    // Cotações expiradas (status = expirada OU emitida com data_vencimento < hoje)
+    const { data: rawExpiredQuotes } = await supabase
+      .from('cotacoes')
+      .select('id,status_documento,data_vencimento')
+      .eq('user_id', userId)
+      .in('status_documento', ['expirada', 'emitida']);
+    const expiredQuotesCount = (rawExpiredQuotes || []).filter((q: any) => {
+      if (q.status_documento === 'expirada') return true;
+      if (q.status_documento === 'emitida' && q.data_vencimento) {
+        try { return new Date(q.data_vencimento) < now; } catch { return false; }
+      }
+      return false;
+    }).length;
+
+    // Faturas expiradas (status = expirada OU emitida com data_vencimento < hoje)
+    const { data: rawExpiredInvoices } = await supabase
+      .from('faturas')
+      .select('id,status_documento,data_vencimento')
+      .eq('user_id', userId)
+      .in('status_documento', ['expirada', 'emitida']);
+    const expiredInvoicesCount = (rawExpiredInvoices || []).filter((f: any) => {
+      if (f.status_documento === 'expirada') return true;
+      if (f.status_documento === 'emitida' && f.data_vencimento) {
+        try { return new Date(f.data_vencimento) < now; } catch { return false; }
+      }
+      return false;
+    }).length;
 
     return {
       pendingInvoicesCount,
       pendingQuotesCount,
       totalInvoices: totalInvoices || 0,
-      totalQuotes: totalQuotes || 0
-    }
-
+      totalQuotes: totalQuotes || 0,
+      totalReceipts: receiptsCountFinal,
+      expiringQuotesCount,
+      expiredQuotesCount,
+      expiredInvoicesCount,
+      pendingReceiptsCount: 0 // Recibos representam pagamentos concluídos na maioria dos casos
+    };
   } catch {
     return {
       pendingInvoicesCount: 0,
       pendingQuotesCount: 0,
       totalInvoices: 0,
-      totalQuotes: 0
-    }
+      totalQuotes: 0,
+      totalReceipts: 0,
+      expiringQuotesCount: 0,
+      pendingReceiptsCount: 0
+    };
   }
 }
 

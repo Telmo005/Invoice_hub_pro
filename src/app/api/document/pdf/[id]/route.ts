@@ -48,10 +48,13 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
         color-adjust: exact !important;
       }
       
-      .header, .footer, [class*="header"], [class*="footer"],
-      #header, #footer, .print-header, .print-footer {
+      .header, .footer, #header, #footer, .print-header, .print-footer {
         display: none !important;
       }
+      /* Permite cabeçalhos específicos de documentos (evita esconder .receipt-header) */
+      .receipt-header { display: block !important; }
+      .invoice-header { display: block !important; }
+      .quotation-header { display: block !important; }
     }
     
     table {
@@ -134,7 +137,7 @@ export async function GET(
       id: document.id,
       numero: document.numero,
       type: document.tipo_documento,
-      typeDisplay: document.tipo_documento === 'cotacao' ? 'Cotação' : 'Fatura',
+      typeDisplay: document.tipo_documento === 'cotacao' ? 'Cotação' : (document.tipo_documento === 'recibo' ? 'Recibo' : 'Fatura'),
       client: clientName,
       date: document.data_fatura,
       currency: document.moeda || 'MZN',
@@ -144,7 +147,7 @@ export async function GET(
     return new NextResponse(pdfHtml, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${document.tipo_documento === 'cotacao' ? 'cotacao' : 'fatura'}-${document.numero}.pdf"`,
+        'Content-Disposition': `attachment; filename="${document.tipo_documento === 'cotacao' ? 'cotacao' : (document.tipo_documento === 'recibo' ? 'recibo' : 'fatura')}-${document.numero}.pdf"`,
         'Cache-Control': 'public, max-age=3600',
       },
     });

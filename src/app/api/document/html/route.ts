@@ -82,105 +82,74 @@ export async function GET(request: NextRequest) {
       details: { user: user.id, documentId }
     });
 
-    const { data: document, error: documentError } = await supabase
-      .from('faturas')
-      .select('html_content, user_id, numero, tipo_documento, status')
+    // Buscar documento base (contém html_content na nova estrutura)
+    const { data: baseDoc, error: baseError } = await supabase
+      .from('documentos_base')
+      .select('id, numero, status, moeda, html_content, html_generated_at')
       .eq('id', documentId)
       .eq('user_id', user.id)
       .single();
 
-    if (documentError) {
-      if (documentError.code === 'PGRST116') {
-        await logger.log({
-          action: 'document_view',
-          level: 'warn',
-          message: 'Tentativa de acessar HTML de documento não encontrado',
-          details: { user: user.id, documentId }
-        });
-
-        const errorResponse: ApiResponse = {
-          success: false,
-          error: {
-            code: 'DOCUMENT_NOT_FOUND',
-            message: 'Documento não encontrado ou não pertence ao usuário'
-          }
-        };
-        return NextResponse.json(errorResponse, { status: 404 });
-      }
-
-      await logger.logError(documentError, 'get_document_html_database', {
-        user: user.id,
-        documentId
-      });
-
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: 'DATABASE_ERROR',
-          message: 'Erro ao buscar documento'
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 500 });
-    }
-
-    if (!document) {
+    if (baseError || !baseDoc) {
       await logger.log({
         action: 'document_view',
         level: 'warn',
-        message: 'Documento não encontrado para o usuário',
+        message: 'Documento base não encontrado',
         details: { user: user.id, documentId }
       });
-
-      const errorResponse: ApiResponse = {
+      return NextResponse.json({
         success: false,
-        error: {
-          code: 'DOCUMENT_NOT_FOUND',
-          message: 'Documento não encontrado'
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 404 });
+        error: { code: 'DOCUMENT_NOT_FOUND', message: 'Documento não encontrado' }
+      }, { status: 404 });
     }
 
-    if (!document.html_content) {
-      await logger.log({
-        action: 'document_view',
-        level: 'warn',
-        message: `Documento sem conteúdo HTML: ${document.numero}`,
-        details: {
-          user: user.id,
-          documentId,
-          documentNumero: document.numero
-        }
-      });
+    // Detectar tipo por existência nas tabelas especializadas
+    const [fatura, cotacao, recibo] = await Promise.all([
+      supabase.from('faturas').select('id').eq('id', documentId).maybeSingle(),
+      supabase.from('cotacoes').select('id').eq('id', documentId).maybeSingle(),
+      supabase.from('recibos').select('id').eq('id', documentId).maybeSingle()
+    ]);
 
-      const errorResponse: ApiResponse = {
-        success: false,
-        error: {
-          code: 'NO_HTML_CONTENT',
-          message: 'Documento não possui conteúdo HTML'
-        }
-      };
-      return NextResponse.json(errorResponse, { status: 404 });
+    let tipoDocumento: string = 'desconhecido';
+    if (fatura.data) tipoDocumento = 'fatura';
+    else if (cotacao.data) tipoDocumento = 'cotacao';
+    else if (recibo.data) tipoDocumento = 'recibo';
+
+    let htmlContent = baseDoc.html_content;
+
+    if (!htmlContent) {
+      if (tipoDocumento === 'recibo') {
+        htmlContent = `<div style="font-family:Arial; padding:16px;">
+          <h2 style="margin:0 0 8px;">Recibo ${baseDoc.numero}</h2>
+          <p style="color:#555;">Este recibo não possui HTML armazenado. Pode gerar PDF simplificado ou reprocessar mais tarde.</p>
+        </div>`;
+      } else {
+        htmlContent = `<div style="font-family:Arial; padding:16px;">
+          <h2 style="margin:0 0 8px;">Documento ${baseDoc.numero}</h2>
+          <p style="color:#555;">Nenhum HTML foi gerado ainda para este documento (${tipoDocumento}).</p>
+          <p style="font-size:12px; color:#888;">Regenere o conteúdo usando o template de impressão.</p>
+        </div>`;
+      }
     }
 
     await logger.log({
       action: 'document_view',
-      message: `HTML do documento recuperado com sucesso: ${document.numero}`,
+      message: `HTML preparado para documento: ${baseDoc.numero}`,
       details: {
         user: user.id,
         documentId,
-        documentNumero: document.numero,
-        htmlLength: document.html_content.length
+        tipo: tipoDocumento,
+        placeholder: baseDoc.html_content ? false : true
       }
     });
 
     const successResponse: ApiResponse<HtmlDocumentResponse> = {
       success: true,
       data: { 
-        html: document.html_content,
+        html: htmlContent,
         documentInfo: {
-          numero: document.numero,
-          tipo: document.tipo_documento
+          numero: baseDoc.numero,
+          tipo: tipoDocumento
         }
       }
     };

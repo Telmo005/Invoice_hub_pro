@@ -6,7 +6,9 @@ export type LogAction =
   | 'document_export' | 'document_download' | 'email_sent_success' | 'email_service_error' | 'mpesa_payment_success'
   | 'payment_create' | 'payment_success' | 'payment_failed' | 'payment_refund' | 'document_send' | 'health_check_diagnostic'
   | 'user_login' | 'user_logout' | 'user_profile_update' | 'email_send_attempt' | 'email_validation_error'
-  | 'api_call' | 'error' | 'system_alert' | 'mpesa_payment_error' | 'mpesa_health_check' |'health_check';
+  | 'api_call' | 'error' | 'system_alert' | 'mpesa_payment_error' | 'mpesa_health_check' | 'health_check'
+  | 'number_generate' | 'validation' | 'mpesa_payment_tipo_documento_normalized'
+  | 'payment_stage' | 'template_render_error' | 'security_event' | 'audit_action_generic' | 'api_error_detailed';
 
 export interface LogData {
   level?: LogLevel;
@@ -40,14 +42,16 @@ export class SystemLogger {
           ipAddress: headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || 'unknown',
           userAgent: headersList.get('user-agent') || 'unknown',
           endpoint: headersList.get('next-url') || 'unknown',
-          method: headersList.get('x-method') || 'GET'
+          method: headersList.get('x-method') || 'GET',
+          requestId: headersList.get('x-request-id') || 'unknown'
         };
       } else {
         return {
           ipAddress: 'client',
           userAgent: navigator.userAgent || 'unknown',
           endpoint: window.location.pathname || 'unknown',
-          method: 'GET'
+          method: 'GET',
+          requestId: (window as any).__REQUEST_ID__ || 'client'
         };
       }
     } catch (_error) {
@@ -55,7 +59,8 @@ export class SystemLogger {
         ipAddress: 'unknown',
         userAgent: 'unknown',
         endpoint: 'unknown',
-        method: 'unknown'
+        method: 'unknown',
+        requestId: 'unknown'
       };
     }
   }
@@ -86,7 +91,8 @@ export class SystemLogger {
           return;
         }
 
-        const logEntry = {
+        // Adaptar dinamicamente caso coluna request_id não exista ainda
+        const baseEntry: any = {
           user_id: user?.id || null,
           level,
           action: logData.action,
@@ -102,7 +108,22 @@ export class SystemLogger {
           created_at: new Date().toISOString()
         };
 
-        const insertOperation = supabase.from('system_logs').insert(logEntry);
+        // Tentativa de verificar metadados de tabela para request_id somente em ambiente server
+        let canUseRequestId = true;
+        try {
+          if (typeof window === 'undefined') {
+            const meta = await supabase.from('system_logs').select('request_id').limit(1);
+            if (meta.error && /request_id/.test(meta.error.message)) {
+              canUseRequestId = false;
+            }
+          }
+        } catch { canUseRequestId = false; }
+
+        if (canUseRequestId) {
+            baseEntry.request_id = context.requestId;
+        }
+
+        const insertOperation = supabase.from('system_logs').insert(baseEntry);
         
         const result = await Promise.race([
           insertOperation,
@@ -184,16 +205,30 @@ export class SystemLogger {
       'mpesa_payment_error': 'error',
       'mpesa_health_check': 'info',
       'health_check': 'info'
+      , 'number_generate': 'info',
+      'validation': 'warn',
+      'mpesa_payment_tipo_documento_normalized': 'warn',
+      'payment_stage': 'info',
+      'template_render_error': 'error',
+      'security_event': 'warn',
+      'audit_action_generic': 'audit',
+      'api_error_detailed': 'error'
     };
     return levelMap[action] || 'info';
   }
 
   async logDocumentCreation(documentType: string, documentId: string, documentData: any) {
+    const typeLabelMap: Record<string, string> = {
+      'fatura': 'Fatura',
+      'cotacao': 'Cotação',
+      'recibo': 'Recibo'
+    };
+    const label = typeLabelMap[documentType] || documentType;
     this.addToQueue({
       action: 'document_create',
       resourceType: documentType,
       resourceId: documentId,
-      message: `${documentType === 'fatura' ? 'Fatura' : 'Cotação'} criada: ${documentData.numero}`,
+      message: `${label} criada: ${documentData.numero}`,
       details: {
         numero: documentData.numero,
         total: documentData.totais?.totalFinal,
@@ -201,7 +236,8 @@ export class SystemLogger {
         emitente: documentData.emitente?.nomeEmpresa?.substring(0, 50),
         destinatario: documentData.destinatario?.nomeCompleto?.substring(0, 50),
         validez: documentData.validez,
-        dataVencimento: documentData.dataVencimento
+        dataVencimento: documentData.dataVencimento,
+        valorRecebido: documentData.valorRecebido
       }
     });
   }
@@ -233,6 +269,67 @@ export class SystemLogger {
         context,
         ...details
       }
+    });
+  }
+
+  async logPaymentLifecycle(stage: 'initiated' | 'validated' | 'processing' | 'success' | 'failed' | 'refunded', paymentId: string | undefined, details?: any) {
+    const actionMap: Record<typeof stage, LogAction> = {
+      initiated: 'payment_create',
+      validated: 'payment_stage',
+      processing: 'mpesa_payment_processing',
+      success: 'payment_success',
+      failed: 'payment_failed',
+      refunded: 'payment_refund'
+    } as const;
+    const action = actionMap[stage];
+    this.addToQueue({
+      action,
+      message: `Pagamento ${stage}${paymentId ? ' - ' + paymentId : ''}`.substring(0, 120),
+      resourceType: 'payment',
+      resourceId: paymentId,
+      details: { stage, ...details }
+    });
+  }
+
+  async logTemplateRenderIssue(template: string, error: Error, context?: string, details?: any) {
+    this.addToQueue({
+      action: 'template_render_error',
+      level: 'error',
+      message: `Falha ao renderizar template ${template}: ${error.message.substring(0,120)}`,
+      resourceType: 'template',
+      resourceId: template,
+      details: { errorMessage: error.message, context, ...details }
+    });
+  }
+
+  async logSecurityEvent(eventType: string, severity: 'low' | 'medium' | 'high', details?: any) {
+    this.addToQueue({
+      action: 'security_event',
+      level: severity === 'high' ? 'error' : severity === 'medium' ? 'warn' : 'info',
+      message: `Evento de segurança (${severity}): ${eventType}`.substring(0,140),
+      resourceType: 'security',
+      details: { eventType, severity, ...details }
+    });
+  }
+
+  async logAuditAction(actionName: string, userId?: string, details?: any) {
+    this.addToQueue({
+      action: 'audit_action_generic',
+      level: 'audit',
+      message: `Ação auditada: ${actionName}`.substring(0,140),
+      resourceType: 'audit',
+      resourceId: userId,
+      details: { actionName, userId, ...details }
+    });
+  }
+
+  async logApiError(endpoint: string, method: string, error: Error, details?: any) {
+    this.addToQueue({
+      action: 'api_error_detailed',
+      level: 'error',
+      message: `Erro API ${method} ${endpoint}: ${error.message.substring(0,120)}`,
+      resourceType: 'api',
+      details: { endpoint, method, errorMessage: error.message, stack: process.env.NODE_ENV==='development'? error.stack?.substring(0,300): undefined, ...details }
     });
   }
 }

@@ -95,50 +95,68 @@ export async function GET(
       );
     }
 
-    const { data: document, error } = await supabaseAdmin
-      .from('faturas')
-      .select(`
-        id, 
-        numero, 
-        tipo_documento, 
-        status, 
-        html_content, 
-        data_fatura, 
-        moeda,
-        destinatarios (
-          nome_completo
-        )
-      `)
-      .eq('id', documentId)
-      .single();
+    // 1. Tentar obter metadados via view unificada para determinar tipo
+    let tipoDocumento: string | null = null;
+    let numero: string | null = null;
+    let moeda: string | null = null;
+    let statusDoc: string | null = null;
+    let dataFatura: string | null = null;
+    let clientName: string = 'Cliente não especificado';
 
-    if (error || !document) {
+    const { data: viewDoc } = await supabaseAdmin
+      .from('view_documentos_pagamentos')
+      .select('id, tipo_documento, numero, moeda, status_documento, data_criacao, destinatario')
+      .eq('id', documentId)
+      .maybeSingle();
+
+    if (viewDoc) {
+      tipoDocumento = viewDoc.tipo_documento;
+      numero = viewDoc.numero;
+      moeda = viewDoc.moeda;
+      statusDoc = viewDoc.status_documento;
+      dataFatura = viewDoc.data_criacao;
+      if (viewDoc.destinatario) {
+        clientName = viewDoc.destinatario;
+      }
+    }
+
+    // 2. Buscar html_content diretamente na tabela base (fonte de verdade)
+    const { data: baseDoc } = await supabaseAdmin
+      .from('documentos_base')
+      .select('id, numero, status, html_content, data_emissao, moeda')
+      .eq('id', documentId)
+      .maybeSingle();
+
+    if (!baseDoc) {
       return NextResponse.json(
         { success: false, error: 'Documento não encontrado' },
         { status: 404 }
       );
     }
 
-    if (!document.html_content) {
+    if (!baseDoc.html_content) {
       return NextResponse.json(
         { success: false, error: 'Conteúdo não disponível para visualização' },
         { status: 404 }
       );
     }
 
-    const clientName = document.destinatarios && Array.isArray(document.destinatarios) 
-      ? document.destinatarios[0]?.nome_completo 
-      : 'Cliente não especificado';
+    // Ajustar tipo e numero com fallback para dados da tabela base
+    tipoDocumento = tipoDocumento || 'fatura';
+    numero = numero || baseDoc.numero;
+    moeda = moeda || baseDoc.moeda || 'MZN';
+    statusDoc = statusDoc || baseDoc.status;
+    dataFatura = dataFatura || baseDoc.data_emissao;
 
-    const pdfHtml = getPdfTemplate(document.html_content, {
-      id: document.id,
-      numero: document.numero,
-      type: document.tipo_documento,
-      typeDisplay: document.tipo_documento === 'cotacao' ? 'Cotação' : 'Fatura',
+    const pdfHtml = getPdfTemplate(baseDoc.html_content, {
+      id: baseDoc.id,
+      numero,
+      type: tipoDocumento,
+      typeDisplay: tipoDocumento === 'cotacao' ? 'Cotação' : (tipoDocumento === 'recibo' ? 'Recibo' : 'Fatura'),
       client: clientName,
-      date: document.data_fatura,
-      currency: document.moeda || 'MZN',
-      status: document.status
+      date: dataFatura,
+      currency: moeda,
+      status: statusDoc
     });
 
     return new NextResponse(pdfHtml, {

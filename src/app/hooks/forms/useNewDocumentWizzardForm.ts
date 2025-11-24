@@ -47,7 +47,7 @@ const generateNextDocumentNumber = async (tipo: TipoDocumento): Promise<string> 
     if (data.success) return data.data.numero;
     throw new Error(data.error);
   } catch (_error) {
-    const prefixo = tipo === 'fatura' ? 'FTR' : 'COT';
+    const prefixo = tipo === 'fatura' ? 'FTR' : (tipo === 'cotacao' ? 'COT' : 'RCB');
     const fallback = Math.floor(Math.random() * 9000) + 1000;
     return `${prefixo}_${String(fallback).padStart(4, '0')}`;
   }
@@ -102,6 +102,14 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       telefone: '',
     },
     faturaNumero: '',
+    reciboNumero: '',
+    valorRecebido: 0,
+    referenciaRecebimento: '',
+    formaPagamento: '',
+    documentoReferencia: '',
+    motivoPagamento: '',
+    dataRecebimento: new Date().toISOString().split('T')[0],
+    dataPagamento: new Date().toISOString().split('T')[0],
     cotacaoNumero: '',
     ordemCompra: '',
     dataFatura: new Date().toISOString().split('T')[0],
@@ -156,8 +164,10 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       const numero = await generateNextDocumentNumber(formData.tipo);
       if (formData.tipo === 'fatura') {
         setFormData(prev => ({ ...prev, faturaNumero: numero }));
-      } else {
+      } else if (formData.tipo === 'cotacao') {
         setFormData(prev => ({ ...prev, cotacaoNumero: numero }));
+      } else if (formData.tipo === 'recibo') {
+        setFormData(prev => ({ ...prev, reciboNumero: numero }));
       }
     } catch (error) {
       console.error('Erro ao gerar número:', error);
@@ -519,7 +529,12 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     } else {
       allFields.push('validezCotacao');
     }
-    allFields.push('dataFatura');
+    // Campos de data específicos por tipo
+    if (formData.tipo === 'recibo') {
+      allFields.push('dataPagamento');
+    } else {
+      allFields.push('dataFatura');
+    }
 
     const newTouched: Record<string, boolean> = {};
     allFields.forEach(field => { newTouched[field] = true; });
@@ -558,7 +573,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       newErrors['desconto'] = 'Desconto percentual não pode ser maior que 100%';
     }
 
-    items.forEach((item, _index) => { // CORRIGIDO: renomeado para _index
+    items.forEach((item, _index) => {
       if (!item.descricao.trim()) {
         newErrors[`item-${item.id}-descricao`] = 'Descrição obrigatória';
         newTouched[`item-${item.id}-descricao`] = true;
@@ -573,7 +588,14 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       }
     });
 
-    if (!formData.dataFatura) newErrors.dataFatura = 'Data da fatura é obrigatória';
+    if (formData.tipo === 'recibo') {
+      if (!(formData as any).dataPagamento) newErrors.dataPagamento = 'Data do pagamento é obrigatória';
+      if (typeof formData.valorRecebido !== 'number' || formData.valorRecebido <= 0) {
+        newErrors['valorRecebido'] = 'Valor recebido deve ser maior que 0';
+      }
+    } else {
+      if (!formData.dataFatura) newErrors.dataFatura = 'Data da fatura é obrigatória';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -602,6 +624,15 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
         ...safeFormData,
         faturaNumero: formData.tipo === 'fatura' ? sanitizeString(safeFormData.faturaNumero) : '',
         cotacaoNumero: formData.tipo === 'cotacao' ? sanitizeString(safeFormData.cotacaoNumero) : '',
+        reciboNumero: formData.tipo === 'recibo' ? sanitizeString(safeFormData.reciboNumero) : '',
+        // Campos específicos de recibo (sanitização básica)
+        formaPagamento: formData.tipo === 'recibo' ? sanitizeString(safeFormData.formaPagamento || '') : safeFormData.metodoPagamento,
+        referenciaRecebimento: formData.tipo === 'recibo' ? sanitizeString(safeFormData.referenciaRecebimento || '') : safeFormData.referenciaRecebimento,
+        documentoReferencia: formData.tipo === 'recibo' ? sanitizeString(safeFormData.documentoReferencia || '') : undefined,
+        motivoPagamento: formData.tipo === 'recibo' ? sanitizeString(safeFormData.motivoPagamento || '') : undefined,
+        dataPagamento: formData.tipo === 'recibo' ? safeFormData.dataPagamento : undefined,
+        dataRecebimento: formData.tipo === 'recibo' ? safeFormData.dataRecebimento : undefined,
+        valorRecebido: formData.tipo === 'recibo' ? (typeof safeFormData.valorRecebido === 'number' ? safeFormData.valorRecebido : 0) : undefined,
         termos: sanitizeString(safeFormData.termos).slice(0, VALIDATION_RULES.MAX_TERMS_LENGTH),
         moeda: safeFormData.moeda === 'MT' ? 'MZN' : safeFormData.moeda,
         metodoPagamento: sanitizeString(safeFormData.metodoPagamento).slice(0, VALIDATION_RULES.MAX_TERMS_LENGTH),
@@ -653,7 +684,8 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     verificarModificacoesEmpresa, 
     registrarEmpresaOriginal, 
     limparModificacoesEmpresa,
-    generateDocumentNumber
+    generateDocumentNumber,
+    setItems // exposto para clonagem
   };
 };
 

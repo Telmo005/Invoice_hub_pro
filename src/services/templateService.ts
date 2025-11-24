@@ -7,7 +7,7 @@ import { generateDataHash } from '@/lib/hash';
 
 // Tipo unificado para dados de documentos
 export type DocumentData = InvoiceData | QuotationData;
-export type DocumentType = 'invoice' | 'quotation';
+export type DocumentType = 'invoice' | 'quotation' | 'receipt';
 
 export interface RenderOptions {
   signal?: AbortSignal;
@@ -81,6 +81,28 @@ export class TemplateService {
         backendId: 'template-3',
         supportedTypes: ['invoice', 'quotation']
       }
+      ,
+      // Recibos - novos templates locais
+      {
+        id: 'receipt-1',
+        name: 'Recibo Clássico',
+        description: 'Recibo simples e elegante',
+        thumbnail: 'bg-gradient-to-br from-yellow-50 to-orange-100',
+        templateType: 'default',
+        imageUrl: '/receipt1.JPG',
+        backendId: 'template-receipt-1',
+        supportedTypes: ['receipt']
+      },
+      {
+        id: 'receipt-2',
+        name: 'Recibo Premium',
+        description: 'Recibo com estilo premium',
+        thumbnail: 'bg-gradient-to-br from-indigo-50 to-purple-100',
+        templateType: 'detailed',
+        imageUrl: '/receipt2.JPG',
+        backendId: 'template-receipt-2',
+        supportedTypes: ['receipt']
+      }
     ];
 
     this.metrics.setActiveTemplates(this.templates.length);
@@ -97,7 +119,7 @@ export class TemplateService {
     const { signal, useCache = true, documentType = 'invoice' } = options;
 
     if (!documentData) {
-      const docType = documentType === 'invoice' ? 'fatura' : 'cotação';
+      const docType = documentType === 'invoice' ? 'fatura' : (documentType === 'quotation' ? 'cotação' : 'recibo');
       return { html: '', isLoading: false, error: `Dados da ${docType} não fornecidos` };
     }
 
@@ -115,7 +137,7 @@ export class TemplateService {
 
     // Verificar se o template suporta o tipo de documento
     if (!this.supportsDocumentType(templateId, documentType)) {
-      const docType = documentType === 'invoice' ? 'faturas' : 'cotações';
+      const docType = documentType === 'invoice' ? 'faturas' : (documentType === 'quotation' ? 'cotações' : 'recibos');
       return {
         html: '',
         isLoading: false,
@@ -341,6 +363,48 @@ export class TemplateService {
     };
   }
 
+  private getEmptyReceiptData(): Partial<InvoiceData> {
+    return {
+      formData: {
+        tipo: 'recibo' as any,
+        emitente: { 
+          nomeEmpresa: '',
+          documento: '',
+          pais: '',
+          cidade: '',
+          bairro: '',
+          email: '',
+          telefone: ''
+        },
+        destinatario: { 
+          nomeCompleto: '',
+          documento: '',
+          pais: '',
+          cidade: '',
+          bairro: '',
+          email: '',
+          telefone: ''
+        },
+        reciboNumero: '',
+        dataFatura: '',
+        dataRecebimento: '',
+        moeda: 'MZN',
+        termos: '',
+        desconto: 0,
+        tipoDesconto: 'fixed',
+        formaPagamento: ''
+      },
+      items: [],
+      totais: { 
+        subtotal: 0, 
+        totalTaxas: 0, 
+        totalFinal: 0, 
+        taxasDetalhadas: [],
+        desconto: 0
+      }
+    };
+  }
+
   private getEmptyQuotationData(): Partial<QuotationData> {
     return {
       formData: {
@@ -371,7 +435,7 @@ export class TemplateService {
         termos: '',
         desconto: 0,
         tipoDesconto: 'fixed',
-        validezCotacao: ''
+        validezCotacao: undefined
       },
       items: [],
       totais: { 
@@ -385,7 +449,7 @@ export class TemplateService {
   }
 
   private getErrorFallbackHtml(error: string, documentType: DocumentType): string {
-    const documentName = documentType === 'invoice' ? 'fatura' : 'cotação';
+    const documentName = documentType === 'invoice' ? 'fatura' : (documentType === 'quotation' ? 'cotação' : 'recibo');
     return `
       <div class="p-4 text-red-500 text-center">
         <p>Erro ao carregar o template da ${documentName}:</p>

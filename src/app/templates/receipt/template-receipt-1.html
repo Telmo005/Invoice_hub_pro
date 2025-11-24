@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recibo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* === CONFIGURAÇÕES CRÍTICAS DE IMPRESSÃO === */
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+
+    @media print {
+      body.rcb-body {
+        width: 210mm !important;
+        min-height: 297mm !important;
+        margin: 0 auto !important;
+        padding: 0 !important; /* removemos qualquer padding extra no body */
+        background: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      
+      .rcb-container {
+        width: 100% !important; /* usar largura total disponível dentro da página */
+        min-height: auto !important;
+        padding: 12mm 12mm 14mm !important; /* padding superior ligeiramente menor para evitar corte */
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        page-break-after: avoid; /* evitar quebra automática logo após o primeiro container */
+        overflow: visible !important; /* garantir que nada dentro seja cortado */
+      }
+      
+      .rcb-watermark {
+        display: none !important;
+      }
+      
+      /* Garantir que todas as cores sejam impressas */
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      
+      /* Evitar quebras de página em elementos críticos */
+      .rcb-header,
+      .rcb-totals,
+      .rcb-payment {
+        page-break-inside: avoid;
+      }
+
+      /* Correção: remover layout flex no body para evitar bugs de impressão que cortam o topo */
+      body.rcb-body {
+        display: block !important;
+      }
+      html, body { height: auto !important; }
+      .rcb-header { display: flex !important; }
+      /* Garantir que o cabeçalho nunca seja ocultado por overflow */
+      .rcb-header { position: relative !important; top: 0 !important; }
+      /* Caso algum estilo externo oculte elementos */
+      .rcb-brand, .rcb-info { visibility: visible !important; }
+    }
+
+    .rcb-root * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body.rcb-body {
+      font-family: Inter, sans-serif;
+      background: #f5f7fa;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .rcb-container {
+      width: 210mm;
+      background: #fff;
+      padding: 20px 25px;
+      position: relative;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .rcb-watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-25deg);
+      font-size: 80px;
+      font-weight: 700;
+      color: #1e3a8a08;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .rcb-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .rcb-brand {
+      flex: 1;
+    }
+
+    .rcb-logo {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1e3a8a;
+      margin-bottom: 4px;
+    }
+
+    .rcb-sub {
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.3;
+    }
+
+    .rcb-info {
+      background: #1e3a8a;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      min-width: 200px;
+      text-align: center;
+    }
+
+    .rcb-info h1 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .rcb-info p {
+      margin: 2px 0;
+      font-size: 12px;
+    }
+
+    .rcb-status {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 600;
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .rcb-cliente-section {
+      margin: 15px 0;
+      padding: 12px;
+      background: #f8fafc;
+      border-radius: 6px;
+      border-left: 3px solid #334155;
+    }
+
+    .rcb-cliente-section h3 {
+      margin: 0 0 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #0f172a;
+      text-transform: uppercase;
+    }
+
+    .rcb-valor-destaque {
+      font-size: 20px;
+      font-weight: 700;
+      color: #166534;
+      text-align: center;
+      margin: 15px 0;
+      padding: 12px;
+      background: #f0fdf4;
+      border: 2px solid #bbf7d0;
+      border-radius: 8px;
+    }
+
+    .rcb-section {
+      margin: 15px 0;
+    }
+
+    .rcb-section h2 {
+      font-size: 12px;
+      font-weight: 600;
+      margin: 0 0 8px;
+      color: #0f172a;
+      text-transform: uppercase;
+    }
+
+    .rcb-table-wrapper {
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    table.rcb-items {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    table.rcb-items thead th {
+      background: #1e3a8a;
+      color: #fff;
+      padding: 8px 6px;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 10px;
+    }
+
+    table.rcb-items tbody td {
+      padding: 8px 6px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    table.rcb-items tbody tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+
+    table.rcb-items td.text-right {
+      text-align: right;
+    }
+
+    table.rcb-items td.text-center {
+      text-align: center;
+    }
+
+    .rcb-taxa-detail {
+      font-size: 9px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .rcb-totals {
+      margin-top: 15px;
+      display: grid;
+      gap: 4px;
+      max-width: 280px;
+      margin-left: auto;
+      font-size: 12px;
+    }
+
+    .rcb-totals .rcb-line {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 8px;
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+
+    .rcb-totals .rcb-total-final {
+      background: #1e3a8a;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .rcb-payment {
+      margin-top: 15px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px;
+      background: #f8fafc;
+    }
+
+    .rcb-payment h3 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e3a8a;
+      text-transform: uppercase;
+    }
+
+    .rcb-payment p {
+      margin: 3px 0;
+      font-size: 11px;
+      color: #475569;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .rcb-signatures {
+      margin-top: 25px;
+      display: flex;
+      gap: 30px;
+      padding-top: 15px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .rcb-signature {
+      flex: 1;
+      text-align: center;
+    }
+
+    .rcb-signature .line {
+      border-top: 1px solid #cbd5e1;
+      padding-top: 8px;
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    footer.rcb-footer {
+      margin-top: 20px;
+      font-size: 9px;
+      text-align: center;
+      color: #64748b;
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .rcb-compact-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 11px;
+    }
+
+    .rcb-compact-label {
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .rcb-compact-value {
+      color: #6b7280;
+    }
+  </style>
+</head>
+
+<body class="rcb-body rcb-root">
+  <div class="rcb-container">
+    <div class="rcb-watermark" id="documento-titulo">RECIBO</div>
+
+    <!-- Cabeçalho -->
+    <div class="rcb-header">
+      <div class="rcb-brand">
+        <div class="rcb-logo" id="emitente-nomeEmpresa">Carregando...</div>
+        <div class="rcb-sub" id="emitente-documento">Carregando...</div>
+        <div class="rcb-sub" id="emitente-contato">Carregando...</div>
+      </div>
+      <div class="rcb-info">
+        <h1 id="titulo-documento">RECIBO</h1>
+        <p><strong>Nº:</strong> <span id="recibo-numero">Carregando...</span></p>
+        <p><strong>Data:</strong> <span id="data-recebimento">Carregando...</span></p>
+        <p style="font-size:11px;">Ref: Fatura/Cotação: <span id="documento-referencia-header">&nbsp;</span></p>
+      </div>
+    </div>
+
+    <!-- Cliente -->
+    <div class="rcb-compact-row">
+      <div>
+        <span class="rcb-compact-label">Cliente:</span>
+        <span class="rcb-compact-value" id="destinatario-nomeCompleto">Carregando...</span>
+      </div>
+      <div>
+        <span class="rcb-compact-label">Documento:</span>
+        <span class="rcb-compact-value" id="destinatario-documento">Carregando...</span>
+      </div>
+    </div>
+
+    <!-- Motivo -->
+    <div class="rcb-payment">
+      <h3>Motivo do Recebimento</h3>
+      <p id="motivo-pagamento">Carregando...</p>
+    </div>
+
+    <!-- Itens -->
+    <div class="rcb-section">
+      <h2>Descrição</h2>
+      <div class="rcb-table-wrapper">
+        <table class="rcb-items">
+          <thead>
+            <tr>
+              <th class="text-center" style="width: 15%">Qtd</th>
+              <th style="width: 50%; text-align: left" class="text-left">Descrição</th>
+              <th class="text-left" style="width: 15%; text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody id="items-tbody" data-compact="true">
+            <tr>
+              <td colspan="3" style="text-align:center; font-size:9px; opacity:0.6;">Carregando itens...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Totais -->
+    <div class="rcb-totals">
+      <div class="rcb-line"><strong>Subtotal</strong><span id="subtotal">0,00</span></div>
+      <div class="rcb-line"><strong>Taxas</strong><span id="taxas-total">0,00</span></div>
+      <div class="rcb-line"><strong>Total</strong><span id="total-final">0,00</span></div>
+      <div class="rcb-line rcb-total-final"><strong>Valor Recebido</strong><span id="valor-recebido">0,00</span></div>
+    </div>
+
+    <!-- Pagamento -->
+    <div class="rcb-payment">
+      <h3>Detalhes do Pagamento</h3>
+      <p><span>Ref: Fatura/Cotação:</span><span id="documento-referencia">Carregando...</span></p>
+      <p><span>Forma:</span><span id="forma-pagamento">Carregando...</span></p>
+      <p><span>Referência:</span><span id="referencia-recebimento">Carregando...</span></p>
+      <p><span>Data Pagamento:</span><span id="data-pagamento">Carregando...</span></p>
+    </div>
+
+    <footer class="rcb-footer">
+      <p>Documento gerado eletronicamente - Válido sem assinatura</p>
+    </footer>
+  </div>
+</body>
+
+</html>

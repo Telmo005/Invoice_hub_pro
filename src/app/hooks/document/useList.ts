@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 interface Document {
     id: string;
     numero: string;
-    tipo: 'fatura' | 'cotacao';
+    tipo: 'fatura' | 'cotacao' | 'recibo';
     status: string;
     emitente: string;
     destinatario: string;
@@ -16,7 +16,7 @@ interface Document {
 }
 
 interface useListProps {
-    tipo?: 'faturas' | 'cotacoes';
+    tipo?: 'faturas' | 'cotacoes' | 'recibos';
     status?: string;
     search?: string;
     page?: number;
@@ -36,6 +36,11 @@ interface DocumentsResponse {
         pendingQuotesCount: number;
         totalInvoices: number;
         totalQuotes: number;
+        totalReceipts?: number; // Novo campo vindo da API
+        pendingReceiptsCount?: number; // Reservado para uso futuro
+        expiringQuotesCount?: number; // Novas cotações a expirar em <=7 dias
+        expiredQuotesCount?: number; // Cotações já expiradas
+        expiredInvoicesCount?: number; // Faturas já expiradas
     };
 }
 

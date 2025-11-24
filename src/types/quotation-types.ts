@@ -1,5 +1,5 @@
 // types/invoice-types.ts
-export type TipoDocumento = 'fatura' | 'cotacao';
+export type TipoDocumento = 'fatura' | 'cotacao' | 'recibo';
 
 /**
  * Tipos relacionados a emissor de fatura/cotação
@@ -47,14 +47,20 @@ export interface FormDataDocumento {
   
   // Campos específicos de FATURA (opcionais para cotação)
   faturaNumero?: string;
+  // Campos específicos de RECIBO (opcionais)
+  reciboNumero?: string;
+  valorRecebido?: number;
+  referenciaRecebimento?: string;
+  formaPagamento?: string;
+  dataRecebimento?: string;
   dataVencimento?: string;
   metodoPagamento?: string;
   validezFatura?: string; 
   
   // Campos específicos de COTAÇÃO (opcionais para fatura)
   cotacaoNumero?: string;
-  validezCotacao?: string;
-  dataExpiracao?: string; // data calculada de expiração
+  validezCotacao?: number; // dias de validade
+  dataExpiracao?: string; // data calculada de expiração (YYYY-MM-DD)
 }
 
 /**

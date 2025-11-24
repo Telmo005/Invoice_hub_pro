@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Recibo Proforma - Documento Fiscal</title>
+  <style>
+    :root {
+      --roll-width: 80mm;
+      --font-primary: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      --font-mono: 'Courier New', 'Monaco', monospace;
+      --primary-color: #1a365d;
+      --secondary-color: #2d3748;
+      --accent-color: #2b6cb0;
+      --border-color: #e2e8f0;
+      --bg-color: #ffffff;
+      --text-color: #2d3748;
+      --text-light: #718096;
+      --success-color: #38a169;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    * { 
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      background: #f7fafc;
+      font-family: var(--font-primary);
+      color: var(--text-color);
+      line-height: 1.4;
+    }
+
+    .receipt-container {
+      width: var(--roll-width);
+      margin: 20px auto;
+      background: var(--bg-color);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-color);
+    }
+
+    .receipt-header {
+      background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+      color: white;
+      padding: 15px 12px;
+      text-align: center;
+    }
+
+    .company-name {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .company-details {
+      font-size: 10px;
+      opacity: 0.9;
+      line-height: 1.3;
+    }
+
+    .document-type {
+      background: var(--accent-color);
+      color: white;
+      text-align: center;
+      padding: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .receipt-body {
+      padding: 15px 12px;
+    }
+
+    .document-meta {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 15px;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+
+    .meta-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .meta-label {
+      font-weight: 600;
+      color: var(--text-light);
+    }
+
+    .meta-value {
+      font-weight: 500;
+      text-align: right;
+    }
+
+    .client-info {
+      background: #f0fff4;
+      border: 1px solid #c6f6d5;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 15px;
+    }
+
+    .client-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--success-color);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--border-color), transparent);
+      margin: 12px 0;
+    }
+
+    .items-section {
+      margin-bottom: 15px;
+    }
+
+    /* Nova tabela de itens com colgroup para alinhamento consistente */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+      table-layout: fixed;
+    }
+    .items-table col:nth-child(1) { width: 15%; }
+    .items-table col:nth-child(2) { width: 55%; }
+    .items-table col:nth-child(3) { width: 30%; }
+    .items-table thead th {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-light);
+      border-bottom: 2px solid var(--border-color);
+      padding: 6px 0 4px;
+      background: #f8fafc;
+    }
+    .items-table tbody tr td {
+      font-size: 9px;
+      border-bottom: 1px dashed var(--border-color);
+      padding: 4px 0;
+    }
+    .items-table tbody tr:last-child td { border-bottom: none; }
+
+    .item-desc {
+      font-weight: 500;
+      overflow-wrap: break-word;
+    }
+
+    .item-qty, .item-total {
+      text-align: right;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+
+    .totals-section {
+      background: #f8fafc;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 15px;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 11px;
+    }
+
+    .total-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .total-label {
+      color: var(--text-light);
+      font-weight: 500;
+    }
+
+    .total-value {
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+
+    .total-final {
+      border-top: 2px solid var(--border-color);
+      padding-top: 8px;
+      margin-top: 8px;
+      font-size: 12px;
+    }
+
+    .total-final .total-label {
+      color: var(--primary-color);
+      font-weight: 700;
+    }
+
+    .total-final .total-value {
+      color: var(--primary-color);
+      font-size: 13px;
+    }
+
+    .payment-info {
+      background: #fffaf0;
+      border: 1px solid #feebc8;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 15px;
+    }
+
+    .payment-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #dd6b20;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .payment-details .detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+
+    .receipt-footer {
+      text-align: center;
+      padding: 15px 12px;
+      background: #f7fafc;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .legal-notice {
+      font-size: 9px;
+      color: var(--text-light);
+      line-height: 1.3;
+      margin-bottom: 10px;
+    }
+
+    .signature-area {
+      margin: 15px 0;
+      padding: 10px;
+      border-top: 1px dashed var(--border-color);
+    }
+
+    .signature-line {
+      width: 80%;
+      height: 1px;
+      background: var(--text-color);
+      margin: 20px auto 5px;
+    }
+
+    .signature-label {
+      font-size: 9px;
+      color: var(--text-light);
+      text-align: center;
+    }
+
+    .barcode-area {
+      margin: 10px 0;
+      text-align: center;
+    }
+
+    .barcode-placeholder {
+      display: inline-block;
+      width: 120px;
+      height: 40px;
+      background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        var(--border-color) 2px,
+        var(--border-color) 4px
+      );
+      border: 1px solid var(--border-color);
+    }
+
+    .security-features {
+      font-size: 8px;
+      color: var(--text-light);
+      margin-top: 8px;
+    }
+
+    .cut-line {
+      text-align: center;
+      color: var(--text-light);
+      font-size: 10px;
+      margin: 10px 0;
+      position: relative;
+    }
+
+    .cut-line::before {
+      content: "✄ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ✄";
+      letter-spacing: 1px;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        background: white;
+        margin: 0;
+        padding: 0;
+      }
+      
+      .receipt-container {
+        width: 80mm;
+        margin: 0;
+        box-shadow: none;
+        border: none;
+        border-radius: 0;
+      }
+      
+      .cut-line {
+        display: none;
+      }
+      
+      .receipt-header {
+        background: #1a365d !important;
+        -webkit-print-color-adjust: exact; /* Safari/WebKit */
+        print-color-adjust: exact; /* Standard */
+      }
+    }
+
+    /* Responsive */
+    @media (max-width: 80mm) {
+      .receipt-container {
+        width: 100%;
+        margin: 0;
+        border-radius: 0;
+        border: none;
+      }
+    }
+
+    /* Animation for modern browsers */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .receipt-container {
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    /* Linhas dinâmicas inseridas no tbody (itens) */
+    #items-tbody tr { font-size: 9px; }
+    #items-tbody td { padding: 4px 0; vertical-align: top; }
+    #items-tbody td:nth-child(1) { /* QTD */
+      text-align: center;
+      width: 15%;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+    #items-tbody td:nth-child(2) { /* DESCRIÇÃO */
+      text-align: left;
+      width: 55%;
+      overflow-wrap: break-word;
+    }
+    #items-tbody td:nth-child(3) { /* TOTAL */
+      text-align: right;
+      width: 30%;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-container">
+    <!-- Cabeçalho -->
+    <div class="receipt-header">
+      <div class="company-name" id="emitente-nomeEmpresa">EMPRESA & NEGÓCIOS LDA</div>
+      <div class="company-details">
+        <div id="emitente-documento">NUIT: 123456789</div>
+        <div id="emitente-endereco">Av. 25 de Setembro, Maputo</div>
+        <div id="emitente-contato">Tel: +258 84 123 4567 · Email: info@empresa.co.mz</div>
+      </div>
+    </div>
+
+    <!-- Tipo de Documento -->
+    <div class="document-type" id="documento-titulo">RECIBO PROFORMA</div>
+
+    <!-- Corpo do Recibo -->
+    <div class="receipt-body">
+      <!-- Metadados do Documento -->
+      <div class="document-meta">
+        <div class="meta-row">
+          <span class="meta-label">Nº do Documento:</span>
+          <span class="meta-value" id="recibo-numero">REC/2024/001</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Data de Emissão:</span>
+          <span class="meta-value" id="data-recebimento">15/01/2024</span>
+        </div>
+      </div>
+
+      <!-- Informação do Cliente -->
+      <div class="client-info">
+        <div class="client-title">Dados do Cliente</div>
+        <div class="meta-row">
+          <span class="meta-label">Nome:</span>
+          <span class="meta-value" id="destinatario-nomeCompleto">João Carlos Silva</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Documento:</span>
+          <span class="meta-value" id="destinatario-documento">ID: 123456789012</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Contacto:</span>
+          <span class="meta-value" id="destinatario-contato">+258 82 987 6543</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Itens (dinâmicos via backend: tbody id="items-tbody") -->
+      <div class="items-section">
+        <table class="items-table">
+          <colgroup>
+            <col />
+            <col />
+            <col />
+          </colgroup>
+          <thead>
+            <tr>
+              <th style="text-align:center;">QTD</th>
+              <th style="text-align:left;">DESCRIÇÃO</th>
+              <th style="text-align:right;">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody id="items-tbody" data-compact="true"></tbody>
+        </table>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Totais -->
+      <div class="totals-section">
+        <div class="total-row">
+          <span class="total-label">Subtotal:</span>
+          <span class="total-value" id="subtotal">22.500,00</span>
+        </div>
+ 
+        <div class="total-row">
+          <span class="total-label">IVA / Taxas:</span>
+          <span class="total-value" id="taxas-total">0,00</span>
+        </div>
+        <div class="total-row total-final">
+          <span class="total-label">TOTAL GERAL:</span>
+          <span class="total-value" id="total-final">26.325,00</span>
+        </div>
+      </div>
+
+      <!-- Informação de Pagamento -->
+      <div class="payment-info">
+        <div class="payment-title">Informação de Pagamento</div>
+        <div class="payment-details">
+          <div class="detail-row">
+            <span>Método:</span>
+            <span id="forma-pagamento">Transferência Bancária</span>
+          </div>
+          <div class="detail-row">
+            <span>Referência:</span>
+            <span id="referencia-recebimento">REF/2024/001</span>
+          </div>
+          <div class="detail-row">
+            <span>Documento Ref.:</span>
+            <span id="documento-referencia">—</span>
+          </div>
+          <div class="detail-row">
+            <span>Moeda:</span>
+            <span id="moeda-pagamento">MZN (Meticais)</span>
+          </div>
+          <div class="detail-row">
+            <span>Motivo do Pagamento:</span>
+            <span id="motivo-pagamento">—</span>
+          </div>
+          <div class="detail-row">
+            <span>Data do Pagamento:</span>
+            <span id="data-pagamento">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rodapé -->
+    <div class="receipt-footer">
+              <div class="signature-area">
+        <div class="signature-line"></div>
+        <div class="signature-label">Assinatura do Responsável</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Linha de corte para impressão -->
+  <div class="cut-line"></div>
+
+  <script>
+    // Oculta linha de desconto se for zero ao carregar
+    document.addEventListener('DOMContentLoaded', () => {
+      const descontoEl = document.getElementById('desconto');
+      const descontoRow = document.getElementById('desconto-row');
+      if (descontoEl && descontoRow) {
+        const txt = descontoEl.textContent?.replace(/[^0-9,\.]/g, '') || '';
+        if (/^(0|0[.,]00)$/i.test(txt)) {
+          descontoRow.style.display = 'none';
+        }
+      }
+    });
+  </script>
+</body>
+</html>

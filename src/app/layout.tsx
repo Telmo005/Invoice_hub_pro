@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import '@/styles/globals.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
-import 'bootstrap/dist/css/bootstrap.min.css';
+// Removido import duplicado de bootstrap para evitar carga redundante
 import { Inter } from 'next/font/google';
 import  AuthProvider  from '@/app/providers/AuthProvider';
 
@@ -22,10 +22,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="pt">
       <body className={inter.className}>
         <AuthProvider>
-          {children}
+          <main role="main" className="min-h-screen">
+            {children}
+          </main>
         </AuthProvider>
       </body>
     </html>

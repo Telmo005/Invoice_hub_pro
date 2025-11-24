@@ -28,6 +28,18 @@ export class TemplateCache {
         await this.cache.set(key, html, 30 * 60 * 1000); // 30 minutes
     }
 
+    // Métodos de compatibilidade para antiga assinatura get(tipo, id) / set(tipo, id, html)
+    // Preservamos a nova API, mas adicionamos uma chave que inclui o tipo para evitar colisões entre invoice/quotation/receipt
+    async get(tipo: string, templateId: string): Promise<string | null> {
+        const key = `template:${tipo}:${templateId}`;
+        return this.cache.get(key) || null;
+    }
+
+    async set(tipo: string, templateId: string, html: string): Promise<void> {
+        const key = `template:${tipo}:${templateId}`;
+        await this.cache.set(key, html, 30 * 60 * 1000);
+    }
+
     // Cache de renders (mais curto devido aos dados dinâmicos)
     async getRenderedTemplate(templateId: string, dataHash: string): Promise<string | null> {
         const key = `render:${templateId}:${dataHash}`;
@@ -49,3 +61,5 @@ export class TemplateCache {
         await this.renderCache.clear();
     }
 }
+
+  export const templateCache = TemplateCache.getInstance();

@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { emailService } from '@/services/email-service';
 import { logger } from '@/lib/logger';
+import { withApiGuard } from '@/lib/api/guard';
+import { isEmail, isNonEmptyString, safeTrim } from '@/lib/validation';
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -30,7 +32,7 @@ const ERROR_CODES = {
   INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
 
-export async function POST(request: NextRequest) {
+export const POST = withApiGuard(async (request: NextRequest) => {
   const startTime = Date.now();
   let emailData: EmailRequest | null = null;
 
@@ -71,10 +73,10 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    const missingFields = [];
-    if (!documentId?.trim()) missingFields.push('documentId');
-    if (!documentNumber?.trim()) missingFields.push('documentNumber');
-    if (!clientEmail?.trim()) missingFields.push('clientEmail');
+    const missingFields: string[] = [];
+    if (!isNonEmptyString(documentId)) missingFields.push('documentId');
+    if (!isNonEmptyString(documentNumber)) missingFields.push('documentNumber');
+    if (!isNonEmptyString(clientEmail) || !isEmail(clientEmail)) missingFields.push('clientEmail');
 
     if (missingFields.length > 0) {
       await logger.log({
@@ -100,16 +102,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Validação do tipo de documento
-    const validDocumentType = documentType === 'cotacao' || documentType === 'fatura' 
-      ? documentType 
-      : 'fatura';
+    const validDocumentType = documentType === 'cotacao' || documentType === 'fatura' ? documentType : 'fatura';
 
     const result = await emailService.sendDocumentLink({
-      documentId: documentId.trim(),
-      documentNumber: documentNumber.trim(),
+      documentId: safeTrim(documentId)!,
+      documentNumber: safeTrim(documentNumber)!,
       documentType: validDocumentType,
-      clientName: clientName?.trim() || 'Cliente',
-      clientEmail: clientEmail.trim(),
+      clientName: safeTrim(clientName) || 'Cliente',
+      clientEmail: safeTrim(clientEmail)!,
       date: body.date || new Date().toISOString(),
       totalValue: body.totalValue,
       currency: body.currency
@@ -187,12 +187,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(errorResponse, { status: 500 });
   } finally {
     const duration = Date.now() - startTime;
-    
-    await logger.logApiCall(
-      '/api/email/send-document',
-      'POST',
-      duration,
-      emailData !== null
-    );
+    await logger.log({ action: 'document_send', level: 'debug', message: 'Finalizou envio email', details: { durationMs: duration, hasData: !!emailData } });
   }
-}
+// Removido csrf para evitar requisição adicional /api/auth/csrf durante criação/envio
+}, { auth: true, rate: { limit: 20, intervalMs: 60_000 }, auditAction: 'email_send_document' });

@@ -50,9 +50,9 @@ function LoginContent() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="flex items-center gap-3 group">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
-              <span className="text-white font-semibold text-sm">IH</span>
+          <div className="flex items-center gap-3 group" aria-label="Logotipo Invoice Hub PRO">
+            <div className="w-12 h-12 rounded-full bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow" aria-hidden="true">
+              <span className="text-white font-semibold text-sm" aria-hidden="true">IH</span>
             </div>
           </div>
         </div>
@@ -70,7 +70,7 @@ function LoginContent() {
             {(error || errorMessage) && (
               <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
                 <div className="flex">
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
@@ -86,17 +86,19 @@ function LoginContent() {
               <button
                 onClick={() => handleLogin('google')}
                 disabled={isLoading}
-                className="w-full relative inline-flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-50 transition-all duration-200 font-medium rounded-lg shadow hover:shadow-md px-8 py-3.5 text-gray-700 overflow-hidden group disabled:opacity-70 disabled:cursor-not-allowed"
+                aria-busy={isLoading && currentProvider === 'google'}
+                aria-label={isLoading && currentProvider === 'google' ? 'A abrir autenticação Google' : 'Autenticar com Google'}
+                className="w-full relative inline-flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-50 transition-all duration-200 font-medium rounded-lg shadow hover:shadow-md px-8 py-3.5 text-gray-700 overflow-hidden group disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <span className="flex items-center justify-center w-full">
                   {isLoading && currentProvider === 'google' ? (
                     <>
-                      <FaSpinner className="w-5 h-5 mr-3 animate-spin text-blue-600" />
+                      <FaSpinner className="w-5 h-5 mr-3 animate-spin text-blue-600" aria-hidden="true" />
                       <span className="text-gray-600">Abrindo Google...</span>
                     </>
                   ) : (
                     <>
-                      <FcGoogle className="w-5 h-5 mr-3" />
+                      <FcGoogle className="w-5 h-5 mr-3" aria-hidden="true" />
                       <span>Continuar com Google</span>
                     </>
                   )}
@@ -113,12 +115,12 @@ function LoginContent() {
                 <span className="flex items-center justify-center w-full">
                   {isLoading && currentProvider === 'facebook' ? (
                     <>
-                      <FaSpinner className="w-5 h-5 mr-3 animate-spin text-blue-600" />
+                      <FaSpinner className="w-5 h-5 mr-3 animate-spin text-blue-600" aria-hidden="true" />
                       <span className="text-gray-600">Abrindo Facebook...</span>
                     </>
                   ) : (
                     <>
-                      <FaFacebook className="w-5 h-5 mr-3 text-blue-600" />
+                      <FaFacebook className="w-5 h-5 mr-3 text-blue-600" aria-hidden="true" />
                       <span>Continuar com Facebook</span>
                     </>
                   )}
@@ -166,7 +168,7 @@ export default function LoginPage() {
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="flex justify-center">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
+            <div className="w-12 h-12 rounded-full bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
               <span className="text-white font-semibold text-sm">IH</span>
             </div>
           </div>
