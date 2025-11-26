@@ -341,7 +341,7 @@ export const usePayment = ({
   const [thirdPartyReference, setThirdPartyReference] = useState<string>('');
 
   const isProcessingRef = useRef(false);
-  const currentAttemptRef = useRef(0);
+  // Removido controle de tentativas automáticas: processamento agora é single-shot
 
   const { user } = useAuth();
 
@@ -440,52 +440,23 @@ export const usePayment = ({
     }
   }, [invoiceData, isCotacao, dynamicDocumentData.typeDisplay]);
 
-  const processPaymentWithRetry = useCallback(async (
+  const processPaymentSingleAttempt = useCallback(async (
     contact: string,
     amount: number,
     documentNumber: string,
     thirdPartyRef: string,
-    docSnapshot: any,
-    maxRetries: number = 3
+    docSnapshot: any
   ): Promise<void> => {
-    let lastError: Error | null = null;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        currentAttemptRef.current = attempt;
-
-        if (attempt > 1) {
-          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
-        }
-
-        await processRealPayment(
-          contact,
-          amount,
-          documentNumber,
-          thirdPartyRef,
-          documentType,
-          invoiceData?.formData?.moeda || 'MZN',
-          docSnapshot
-        );
-        return;
-
-      } catch (error) {
-        lastError = error as Error;
-
-        const errorMessage = error instanceof Error ? error.message.toLowerCase() : '';
-        const isRetryableError =
-          errorMessage.includes('duplicate') ||
-          errorMessage.includes('timeout') ||
-          errorMessage.includes('network');
-
-        if (!isRetryableError || attempt === maxRetries) {
-          throw lastError;
-        }
-      }
-    }
-
-    throw lastError;
-  }, []);
+    await processRealPayment(
+      contact,
+      amount,
+      documentNumber,
+      thirdPartyRef,
+      documentType,
+      invoiceData?.formData?.moeda || 'MZN',
+      docSnapshot
+    );
+  }, [documentType, invoiceData?.formData?.moeda]);
 
   const handleSaveDocument = useCallback(async (htmlContent: string): Promise<{
     id: string;
@@ -557,7 +528,7 @@ export const usePayment = ({
 
     // Reset do estado
     isProcessingRef.current = true;
-    currentAttemptRef.current = 0;
+    // Sem controle de tentativas
     setPaymentStatus('processing');
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -590,13 +561,12 @@ export const usePayment = ({
         validezFatura: fd.validezFatura
       };
 
-      await processPaymentWithRetry(
+      await processPaymentSingleAttempt(
         contactNumber,
         LIBERATION_FEE,
         dynamicDocumentData.id,
         currentThirdPartyReference,
-        docSnapshot,
-        3
+        docSnapshot
       );
 
       // 5. Salvar documento
@@ -669,8 +639,6 @@ export const usePayment = ({
                 setErrorMessage(error.message);
               }
           }
-        } else if (currentAttemptRef.current > 1) {
-          setErrorMessage(`Falha após ${currentAttemptRef.current} tentativas. ${error.message}`);
         } else {
           setErrorMessage(error.message);
         }
@@ -686,7 +654,7 @@ export const usePayment = ({
     handleSaveDocument,
     onInvoiceCreated,
     validateDocumentNumber,
-    processPaymentWithRetry,
+    processPaymentSingleAttempt,
     user?.email
   ]);
 
@@ -725,7 +693,7 @@ export const usePayment = ({
     setSuccessMessage(null);
     setDocumentSaveResult(null);
     isProcessingRef.current = false;
-    currentAttemptRef.current = 0;
+    // Sem reset de tentativas porque não há retry automático
   }, []);
 
   return {
