@@ -176,7 +176,8 @@ export async function POST(request: NextRequest) {
 
     const mpesaPayload = { transaction_reference, customer_msisdn: formattedMsisdn, amount, third_party_reference, service_provider_code: '171717' }
 
-    const paymentResult = await mpesaService.processPaymentWithRetry(mpesaPayload)
+    // Pagamento agora é tentativa única; removidos retries automáticos
+    const paymentResult = await mpesaService.processPayment(mpesaPayload)
 
     if (paymentResult.success) {
       const mpesaData = paymentResult.data?.data;
@@ -188,7 +189,6 @@ export async function POST(request: NextRequest) {
         details: {
           transactionReference,
           amount,
-          retryAttempts: paymentResult.retryAttempts || 0,
           responseData: paymentResult.data
         }
       })
@@ -233,25 +233,8 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(successResponse)
     } else {
-      let healthStatus = null
-      if (paymentResult.retryAttempts && paymentResult.retryAttempts > 0) {
-        healthStatus = await mpesaService.healthCheck()
-        
-        await logger.log({
-          action: 'health_check_diagnostic',
-          level: 'warn',
-          message: 'Health check após falhas de retry',
-          details: {
-            transactionReference,
-            retryAttempts: paymentResult.retryAttempts,
-            serviceHealth: healthStatus.status
-          }
-        })
-      }
-
-      const isServiceUnavailable = 
-        healthStatus?.status === 'unhealthy' || 
-        paymentResult.message?.toLowerCase().includes('indisponível')
+      // Sem retries automáticos: apenas uma tentativa e retorno direto ao cliente
+      const isServiceUnavailable = paymentResult.message?.toLowerCase().includes('indisponível')
 
       await logger.log({
         action: 'mpesa_payment_error',
@@ -260,9 +243,7 @@ export async function POST(request: NextRequest) {
         details: {
           transactionReference,
           mpesaError: paymentResult.message,
-          isRetryable: paymentResult.isRetryable,
-          retryAttempts: paymentResult.retryAttempts,
-          serviceHealth: healthStatus?.status
+          isRetryable: paymentResult.isRetryable
         }
       })
 
@@ -273,7 +254,7 @@ export async function POST(request: NextRequest) {
             'Serviço temporariamente indisponível',
             'Tente novamente em alguns minutos',
             paymentResult.message,
-            true
+            false
           ),
           { status: 503 }
         )
@@ -285,11 +266,11 @@ export async function POST(request: NextRequest) {
           paymentResult.message || 'Erro ao processar pagamento',
           paymentResult.message,
           paymentResult.message,
-          paymentResult.isRetryable
+          false // nunca sugerir retry automático
         ),
         { status: 422 }
       )
-  }
+    }
 
   } catch (error) {
     const duration = Date.now() - startTime

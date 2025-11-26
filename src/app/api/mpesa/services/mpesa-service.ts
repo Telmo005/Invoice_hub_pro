@@ -13,7 +13,6 @@ interface PaymentResult {
   data?: MpesaPaymentResponse;
   message?: string;
   isRetryable?: boolean;
-  retryAttempts?: number;
   lastError?: string;
 }
 
@@ -263,43 +262,7 @@ export class MpesaService {
     }
   }
 
-  /**
-   * Processamento com retry automático para erros recuperáveis
-   */
-  async processPaymentWithRetry(payload: MpesaPaymentPayload, maxRetries: number = 2): Promise<PaymentResult> {
-    let lastResult: PaymentResult
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      lastResult = await this.processPayment(payload)
-
-      // Sucesso na primeira tentativa
-      if (lastResult.success && attempt === 0) {
-        return lastResult
-      }
-
-      // Sucesso após retry
-      if (lastResult.success) {
-        return {
-          ...lastResult,
-          retryAttempts: attempt
-        }
-      }
-
-      // Se não é recuperável ou última tentativa, para
-      if (!lastResult.isRetryable || attempt === maxRetries) {
-        break
-      }
-
-      // Exponential backoff: 1s, 2s, 4s...
-      const delayMs = 1000 * Math.pow(2, attempt)
-      await new Promise(resolve => setTimeout(resolve, delayMs))
-    }
-
-    return {
-      ...lastResult!,
-      retryAttempts: maxRetries
-    }
-  }
+  // Removido mecanismo de retry automático; pagamentos são single-shot
 
   /**
    * Método original mantido para compatibilidade
