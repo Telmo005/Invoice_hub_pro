@@ -9,13 +9,14 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Não autenticado' } }, { status: 401 });
 
   try {
+    // Busca APENAS pagamentos que NUNCA foram tentados (retry_count é null)
     const { data: pendentes } = await supabase
       .from('pagamentos')
       .select('*')
       .eq('user_id', user.id)
       .eq('status', 'aguardando_documento')
       .is('documento_id', null)
-      .lt('retry_count', 5)
+      .is('retry_count', null)  // Apenas os que nunca tentaram
       .limit(10);
 
     const resultados: any[] = [];
@@ -36,8 +37,18 @@ export async function POST(request: NextRequest) {
       };
 
       if (!baseInsert.emitente_id || !baseInsert.destinatario_id) {
-        await supabase.from('pagamentos').update({ retry_count: (pagamento.retry_count || 0) + 1, last_retry_at: new Date().toISOString() }).eq('id', pagamento.id);
-        resultados.push({ payment_id: pagamento.id, status: 'skipped', reason: 'missing emitente/destinatario' });
+        // Marca como falha permanente - SEM retry
+        await supabase.from('pagamentos')
+          .update({ 
+            status: 'falha_permanente',
+            erro: 'Dados incompletos: emitente ou destinatário faltando'
+          })
+          .eq('id', pagamento.id);
+        resultados.push({ 
+          payment_id: pagamento.id, 
+          status: 'failed', 
+          reason: 'missing emitente/destinatario' 
+        });
         continue;
       }
 
@@ -48,8 +59,18 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (baseErr || !baseDoc) {
-        await supabase.from('pagamentos').update({ retry_count: (pagamento.retry_count || 0) + 1, last_retry_at: new Date().toISOString() }).eq('id', pagamento.id);
-        resultados.push({ payment_id: pagamento.id, status: 'failed', error: baseErr?.message });
+        // Marca como falha permanente - SEM retry
+        await supabase.from('pagamentos')
+          .update({ 
+            status: 'falha_permanente',
+            erro: `Erro ao criar documento base: ${baseErr?.message}`
+          })
+          .eq('id', pagamento.id);
+        resultados.push({ 
+          payment_id: pagamento.id, 
+          status: 'failed', 
+          error: baseErr?.message 
+        });
         continue;
       }
 
@@ -57,34 +78,85 @@ export async function POST(request: NextRequest) {
       let specErr: any = null;
       const tipo = pagamento.tipo_documento;
       if (tipo === 'fatura') {
-        const { error } = await supabase.from('faturas').insert({ id: baseDoc.id, data_vencimento: payload.data_vencimento || new Date().toISOString().slice(0,10) });
+        const { error } = await supabase.from('faturas').insert({ 
+          id: baseDoc.id, 
+          data_vencimento: payload.data_vencimento || new Date().toISOString().slice(0,10) 
+        });
         specErr = error;
       } else if (tipo === 'cotacao') {
-        const { error } = await supabase.from('cotacoes').insert({ id: baseDoc.id, validez_dias: payload.validez_dias || 15 });
+        const { error } = await supabase.from('cotacoes').insert({ 
+          id: baseDoc.id, 
+          validez_dias: payload.validez_dias || 15 
+        });
         specErr = error;
       } else if (tipo === 'recibo') {
-        const { error } = await supabase.from('recibos').insert({ id: baseDoc.id, user_id: user.id, tipo_recibo: payload.tipo_recibo || 'pagamento', valor_recebido: pagamento.valor, forma_pagamento: 'mpesa' });
+        const { error } = await supabase.from('recibos').insert({ 
+          id: baseDoc.id, 
+          user_id: user.id, 
+          tipo_recibo: payload.tipo_recibo || 'pagamento', 
+          valor_recebido: pagamento.valor, 
+          forma_pagamento: 'mpesa' 
+        });
         specErr = error;
       }
 
       if (specErr) {
+        // Rollback e marca como falha permanente - SEM retry
         await supabase.from('documentos_base').delete().eq('id', baseDoc.id);
-        await supabase.from('pagamentos').update({ retry_count: (pagamento.retry_count || 0) + 1, last_retry_at: new Date().toISOString() }).eq('id', pagamento.id);
-        resultados.push({ payment_id: pagamento.id, status: 'failed', error: specErr.message });
+        await supabase.from('pagamentos')
+          .update({ 
+            status: 'falha_permanente',
+            erro: `Erro ao criar documento especializado: ${specErr.message}`
+          })
+          .eq('id', pagamento.id);
+        resultados.push({ 
+          payment_id: pagamento.id, 
+          status: 'failed', 
+          error: specErr.message 
+        });
         continue;
       }
 
-      await supabase.from('pagamentos').update({ documento_id: baseDoc.id, status: 'pago', paid_at: new Date().toISOString() }).eq('id', pagamento.id);
-      resultados.push({ payment_id: pagamento.id, status: 'associated', documento_id: baseDoc.id });
+      // SUCESSO - processa normalmente
+      await supabase.from('pagamentos')
+        .update({ 
+          documento_id: baseDoc.id, 
+          status: 'pago', 
+          paid_at: new Date().toISOString() 
+        })
+        .eq('id', pagamento.id);
+      resultados.push({ 
+        payment_id: pagamento.id, 
+        status: 'associated', 
+        documento_id: baseDoc.id 
+      });
     }
 
-    return NextResponse.json({ success: true, data: { processed: resultados }, message: 'Retry executado', timestamp: new Date().toISOString() });
+    return NextResponse.json({ 
+      success: true, 
+      data: { 
+        processed: resultados,
+        total: resultados.length,
+        success: resultados.filter(r => r.status === 'associated').length,
+        failed: resultados.filter(r => r.status === 'failed').length
+      }, 
+      message: 'Processamento executado (apenas uma tentativa)', 
+      timestamp: new Date().toISOString() 
+    });
   } catch (e) {
     await logger.logError(e as Error, 'mpesa_retry_unexpected', {});
-    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Erro interno' } }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: { 
+        code: 'INTERNAL_ERROR', 
+        message: 'Erro interno' 
+      } 
+    }, { status: 500 });
   } finally {
     await logger.logApiCall('/api/mpesa/retry', 'POST', Date.now() - start, true);
   }
 }
 
-export async function OPTIONS() { return new NextResponse(null, { status: 200 }); }
+export async function OPTIONS() { 
+  return new NextResponse(null, { status: 200 }); 
+}
