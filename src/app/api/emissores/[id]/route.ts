@@ -13,7 +13,7 @@ export const GET = withApiGuard(async (request: NextRequest, { user }) => {
   const supabase = await supabaseServer();
   const { data, error } = await supabase
     .from('emissores')
-    .select('id,nome_empresa,documento,pais,cidade,bairro,telefone,email,pessoa_contato,padrao')
+    .select('id,nome_empresa,documento,pais,cidade,bairro,telefone,email,pessoa_contato,padrao,logo_url')
     .eq('user_id', user.id)
     .eq('id', id)
     .single();
@@ -31,7 +31,8 @@ export const GET = withApiGuard(async (request: NextRequest, { user }) => {
     telefone: data.telefone,
     email: data.email,
     pessoa_contato: data.pessoa_contato,
-    padrao: data.padrao
+    padrao: data.padrao,
+    logo_url: data.logo_url ?? null
   }};
 }, { auth: true, rate: { limit: 60, intervalMs: 60_000 }, auditAction: 'emissor_get' });
 
@@ -64,11 +65,12 @@ export const PATCH = withApiGuard(async (request: NextRequest, { user }) => {
       pessoa_contato: data.pessoa_contato,
       email: data.email,
       telefone: data.telefone,
-      padrao: data.padrao || false
+      padrao: data.padrao || false,
+      logo_url: (body as any).logo_url !== undefined ? (body as any).logo_url : undefined
     })
     .eq('user_id', user.id)
     .eq('id', id)
-    .select('id,nome_empresa,documento,pais,cidade,bairro,telefone,email,pessoa_contato,padrao')
+    .select('id,nome_empresa,documento,pais,cidade,bairro,telefone,email,pessoa_contato,padrao,logo_url')
     .single();
   if (error || !updated) {
     await logger.logError(error as any, 'emissor_patch');

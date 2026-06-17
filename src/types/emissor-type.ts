@@ -9,4 +9,5 @@ export interface Empresa {
     email: string
     pessoa_contato?: string
     padrao: boolean
+    logo_url?: string | null
 }

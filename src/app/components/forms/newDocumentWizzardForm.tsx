@@ -38,6 +38,8 @@ interface EmitenteStepProps {
   selectedEmpresa: Empresa | null;
   onEmpresaChange: (empresa: Empresa) => void;
   empresasLoading: boolean;
+  logo: string | null;
+  setLogo: (logo: string | null) => void;
 }
 
 interface DestinatarioStepProps {
@@ -316,8 +318,10 @@ const FormField = memo(({
 ));
 FormField.displayName = 'FormField';
 
-const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresas, selectedEmpresa, onEmpresaChange, empresasLoading }: EmitenteStepProps) => {
+const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresas, selectedEmpresa, onEmpresaChange, empresasLoading, logo, setLogo }: EmitenteStepProps) => {
   const [localLoading, setLocalLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const isCotacao = formData.tipo === 'cotacao';
   const isRecibo = formData.tipo === 'recibo';
 
@@ -331,6 +335,66 @@ const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresa
       setTimeout(() => setLocalLoading(false), 300);
     }
   }, [empresas, onEmpresaChange, empresasLoading]);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError('Formato de imagem inválido. Use JPEG, PNG, GIF, WEBP ou SVG.');
+      return;
+    }
+
+    const maxSize = 2 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setUploadError('Tamanho da imagem excede o limite de 2MB.');
+      return;
+    }
+
+    setUploading(true);
+    setUploadError(null);
+
+    try {
+      const csrfRes = await fetch('/api/auth/csrf', { method: 'GET', credentials: 'include' });
+      const csrfData = await csrfRes.json();
+      const csrfToken = csrfData?.csrfToken || csrfData?.token;
+
+      if (!csrfToken) {
+        throw new Error('Falha ao obter token CSRF para upload');
+      }
+
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+
+      const response = await fetch('/api/emissores/logo', {
+        method: 'POST',
+        headers: {
+          'x-csrf-token': csrfToken
+        },
+        credentials: 'include',
+        body: uploadFormData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao fazer upload da imagem');
+      }
+
+      const data = await response.json();
+      if (data && data.url) {
+        setLogo(data.url);
+      } else if (data && data.data && data.data.url) {
+        setLogo(data.data.url);
+      } else {
+        throw new Error('URL da imagem não recebida');
+      }
+    } catch (err: any) {
+      setUploadError(err.message || 'Erro no processamento do upload');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <div className="w-full relative">
@@ -352,6 +416,60 @@ const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresa
         )}
         {!empresasLoading && empresas.length === 0 && <div className="p-4 bg-yellow-50 border border-yellow-200 rounded text-center"><FaExclamationTriangle className="text-yellow-500 mx-auto mb-2" /><p className="text-sm text-yellow-700">Nenhuma empresa cadastrada.<span className="underline ml-1 hover:text-yellow-800">Por favor, prossiga preenchendo os espaços em branco.</span></p></div>}
         {selectedEmpresa && !localLoading && <div className="mt-2 text-xs text-gray-500">Dados preenchidos automaticamente. Você pode editar manualmente se necessário.</div>}
+
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Logotipo do Documento (Opcional)</label>
+          {logo && !localLoading ? (
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="relative w-20 h-20 border border-gray-300 rounded bg-white flex items-center justify-center shadow-sm overflow-hidden">
+                  <img src={logo} alt="Logo" className="max-h-full max-w-full object-contain p-1" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Logotipo ativo</p>
+                  <p className="text-xs text-gray-500">Este logotipo será exibido na pré-visualização e no PDF gerado.</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <label className="cursor-pointer bg-white hover:bg-gray-50 text-gray-700 px-3 py-1.5 border border-gray-300 rounded text-xs font-semibold transition-colors flex items-center">
+                  Alterar
+                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploading} />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setLogo(null)}
+                  className="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 border border-red-200 rounded text-xs font-semibold transition-colors"
+                  disabled={uploading}
+                >
+                  Remover
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-blue-500 transition-colors bg-gray-50 flex flex-col items-center justify-center text-center cursor-pointer min-h-[100px]">
+              <input
+                type="file"
+                accept="image/*"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                onChange={handleLogoUpload}
+                disabled={uploading}
+              />
+              {uploading ? (
+                <div className="py-2">
+                  <FaSpinner className="animate-spin text-blue-500 text-2xl mx-auto mb-2" />
+                  <p className="text-sm text-blue-600 font-semibold">Enviando logotipo...</p>
+                </div>
+              ) : (
+                <>
+                  <span className="text-3xl mb-1">🖼️</span>
+                  <p className="text-sm font-semibold text-gray-700">Clique ou arraste o logotipo aqui</p>
+                  <p className="text-xs text-gray-400 mt-1">Formatos suportados: PNG, JPG, WEBP, SVG (máx. 2MB)</p>
+                </>
+              )}
+            </div>
+          )}
+          {uploadError && <div className="text-red-500 text-xs mt-2 font-medium">{uploadError}</div>}
+        </div>
       </div>
       {localLoading && <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center rounded-lg z-10"><div className="text-center"><FaSpinner className="animate-spin text-blue-500 text-2xl mb-2 mx-auto" /><p className="text-sm text-gray-600">Preenchendo dados da empresa...</p></div></div>}
       <div className={`space-y-3 ${localLoading ? 'opacity-50' : ''}`}>
@@ -1073,7 +1191,7 @@ const StepsList = memo(({ currentStep, onStepClick, validateAllPreviousSteps, is
 StepsList.displayName = 'StepsList';
 
 const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) => {
-  const { formData, items, errors, handleChange, handleBlur, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, updateFormData, empresaModificacoes, verificarModificacoesEmpresa, registrarEmpresaOriginal, limparModificacoesEmpresa, isGeneratingNumber, validateForm, generateDocumentNumber, setItems } = useInvoiceForm(tipo);
+  const { formData, items, errors, handleChange, handleBlur, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, updateFormData, empresaModificacoes, verificarModificacoesEmpresa, registrarEmpresaOriginal, limparModificacoesEmpresa, isGeneratingNumber, validateForm, generateDocumentNumber, setItems, logo, setLogo } = useInvoiceForm(tipo);
   const { empresas, loading: empresasLoading, error: empresasError, refetch: refetchEmpresas } = useListarEmissores();
   const { empresaPadrao, loading: empresaPadraoLoading, error: empresaPadraoError, refetch: refetchEmpresaPadrao } = useEmpresaPadrao();
   const [currentStep, setCurrentStep] = useState(0);
@@ -1139,10 +1257,10 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
 
   useEffect(() => {
     const hasEmitenteData = formData.emitente.nomeEmpresa || formData.emitente.documento || formData.emitente.telefone;
-    if (empresaPadrao && !selectedEmpresa && !hasEmitenteData && !loading) { setSelectedEmpresa(empresaPadrao); fillEmitterData(empresaPadrao); registrarEmpresaOriginal(empresaPadrao); }
-  }, [empresaPadrao, selectedEmpresa, formData.emitente, loading, fillEmitterData, registrarEmpresaOriginal]);
+    if (empresaPadrao && !selectedEmpresa && !hasEmitenteData && !loading) { setSelectedEmpresa(empresaPadrao); fillEmitterData(empresaPadrao); registrarEmpresaOriginal(empresaPadrao); setLogo(empresaPadrao.logo_url ?? null); }
+  }, [empresaPadrao, selectedEmpresa, formData.emitente, loading, fillEmitterData, registrarEmpresaOriginal, setLogo]);
 
-  const handleEmpresaChange = useCallback((empresa: Empresa) => { setSelectedEmpresa(empresa); fillEmitterData(empresa); registrarEmpresaOriginal(empresa); }, [fillEmitterData, registrarEmpresaOriginal]);
+  const handleEmpresaChange = useCallback((empresa: Empresa) => { setSelectedEmpresa(empresa); fillEmitterData(empresa); registrarEmpresaOriginal(empresa); setLogo(empresa.logo_url ?? null); }, [fillEmitterData, registrarEmpresaOriginal, setLogo]);
   const handleHtmlRendered = useCallback((html: string) => { setRenderedHtml(html); }, []);
   const toggleTemplateFullscreen = useCallback(() => { setIsTemplateFullscreen(!isTemplateFullscreen); }, [isTemplateFullscreen]);
 
@@ -1353,14 +1471,14 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
 
   const renderStepContent = useCallback(() => {
     const stepComponents = {
-      0: <EmitenteStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} empresas={empresas} selectedEmpresa={selectedEmpresa} onEmpresaChange={handleEmpresaChange} empresasLoading={loading} />,
+      0: <EmitenteStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} empresas={empresas} selectedEmpresa={selectedEmpresa} onEmpresaChange={handleEmpresaChange} empresasLoading={loading} logo={logo} setLogo={setLogo} />,
       1: <DestinatarioStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} />,
       2: <ItensStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} items={items} adicionarItem={adicionarItem} removerItem={removerItem} atualizarItem={atualizarItem} adicionarTaxa={adicionarTaxa} removerTaxa={removerTaxa} onItemBlur={handleItemBlur} isGeneratingNumber={isGeneratingNumber} generateDocumentNumber={generateDocumentNumber} />,
       3: <PreviewStep invoiceData={prepareInvoiceData()} tipo={tipo} isFullscreen={isTemplateFullscreen} onToggleFullscreen={toggleTemplateFullscreen} onHtmlRendered={handleHtmlRendered} />,
       4: <Payment invoiceData={prepareDocumentData()} renderedHtml={renderedHtml} />
     };
     return stepComponents[currentStep as keyof typeof stepComponents] || null;
-  }, [currentStep, formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, isTemplateFullscreen, toggleTemplateFullscreen, handleHtmlRendered, renderedHtml, handleItemBlur, empresas, selectedEmpresa, handleEmpresaChange, loading, prepareDocumentData, tipo, isGeneratingNumber, generateDocumentNumber]);
+  }, [currentStep, formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, isTemplateFullscreen, toggleTemplateFullscreen, handleHtmlRendered, renderedHtml, handleItemBlur, empresas, selectedEmpresa, handleEmpresaChange, loading, prepareDocumentData, tipo, isGeneratingNumber, generateDocumentNumber, logo, setLogo]);
 
   if (loading && empresas.length === 0) return (<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><FaSpinner className="animate-spin text-blue-500 text-4xl mb-4 mx-auto" /><p className="text-gray-600">Carregando dados das empresas...</p></div></div>);
   if (error && empresas.length === 0) return (<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md"><p className="font-bold">Erro ao carregar empresas</p><p className="text-sm">{error}</p><button onClick={refreshData} className="mt-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm">Tentar Novamente</button></div></div></div>);

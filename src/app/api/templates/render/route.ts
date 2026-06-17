@@ -32,6 +32,7 @@ interface DocumentData {
   items: any[];
   totais: any;
   tipoDocumento?: 'invoice' | 'quotation' | 'receipt';
+  logo?: string | null;
 }
 
 class TemplateService {
@@ -158,6 +159,24 @@ class TemplateService {
         renderedHtml = this.replaceElementContent(renderedHtml, 'emitente-endereco-card', escapeHtml([e.bairro, e.cidade, e.pais].filter(Boolean).join(', ') || ' '));
         renderedHtml = this.replaceElementContent(renderedHtml, 'emitente-contato-card', escapeHtml(e.telefone || e.email || ' '));
         renderedHtml = this.replaceElementContent(renderedHtml, 'emitente-documento-card', escapeHtml(e.documento || ' '));
+      }
+
+      // Injetar logo da empresa se existir
+      if (data.logo) {
+        renderedHtml = renderedHtml.replace(
+          /<img([^>]*\sid=["']emitente-logo["'][^>]*?)>/gi,
+          (match) => {
+            if (/src=["'][^"']*["']/i.test(match)) {
+              return match.replace(/src=["'][^"']*["']/i, `src="${escapeHtml(data.logo)}"`);
+            } else {
+              return match.replace(/\s*\/?>$/, ` src="${escapeHtml(data.logo)}" />`);
+            }
+          }
+        );
+        renderedHtml = renderedHtml.replace(
+          /id=["']emitente-logo-wrapper["']\s+style=["']display:\s*none;?\s*([^"']*)["']/gi,
+          'id="emitente-logo-wrapper" style="display:block; $1"'
+        );
       }
 
       // 2. DADOS DO DESTINATÁRIO (comum a ambos)
