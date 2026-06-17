@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
 import { withApiGuard } from '@/lib/api/guard';
-import { FormDataFatura, ItemFatura, TotaisFatura, Emitente, Destinatario } from '@/types/invoice-types';
+import { ItemFatura, TotaisFatura, Emitente, Destinatario } from '@/types/invoice-types';
 
 interface ApiError { code: string; message: string; details?: unknown }
 interface ApiResponse<T = unknown> { success: boolean; data?: T; error?: ApiError }
@@ -246,6 +246,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       documento_referencia: formData.documentoAssociadoCustom || null,
       data_recebimento: formData.dataRecebimento,
       local_emissao: formData.emitente?.cidade || null,
+      logo_url: logo || null,
       status: statusDocumento
     };
 

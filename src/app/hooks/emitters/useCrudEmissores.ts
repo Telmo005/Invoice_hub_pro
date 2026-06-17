@@ -25,6 +25,7 @@ interface Empresa {
     pessoa_contato: string
     email: string
     telefone: string
+    logo_url?: string | null
 }
 
 interface UseCrudEmissoresReturn {
@@ -60,7 +61,8 @@ export function useCrudEmissores(): UseCrudEmissoresReturn {
                     bairro: empresaData.endereco,
                     pessoa_contato: empresaData.pessoa_contato,
                     email: empresaData.email,
-                    telefone: empresaData.telefone
+                    telefone: empresaData.telefone,
+                    logo_url: empresaData.logo_url ?? null
                 })
             })
 
@@ -97,7 +99,8 @@ export function useCrudEmissores(): UseCrudEmissoresReturn {
                     bairro: empresaData.endereco,
                     pessoa_contato: empresaData.pessoa_contato,
                     email: empresaData.email,
-                    telefone: empresaData.telefone
+                    telefone: empresaData.telefone,
+                    logo_url: empresaData.logo_url !== undefined ? empresaData.logo_url : undefined
                 })
             })
 

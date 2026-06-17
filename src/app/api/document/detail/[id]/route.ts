@@ -38,7 +38,7 @@ export async function GET(_req: Request, context: DetailContext) {
     // Carregar emitente/destinatario detalhados via documentos_base
     const { data: baseDoc, error: baseErr } = await supabase
       .from('documentos_base')
-      .select('id, numero, moeda, termos, ordem_compra, data_emissao, emitente_id, destinatario_id')
+      .select('id, numero, moeda, termos, ordem_compra, data_emissao, emitente_id, destinatario_id, logo_url')
       .eq('id', documentoId)
       .single();
 
@@ -180,7 +180,7 @@ export async function GET(_req: Request, context: DetailContext) {
     const subtotal = items.reduce((s, it) => s + (it.quantidade * it.precoUnitario), 0);
     const totais = { subtotal, totalTaxas: 0, totalFinal: subtotal, taxasDetalhadas: [], desconto: formData.desconto };
 
-    const invoiceData: InvoiceData = { tipo, formData, items, totais, logo: null, assinatura: null };
+    const invoiceData: InvoiceData = { tipo, formData, items, totais, logo: (baseDoc as any).logo_url || null, assinatura: null };
 
     return NextResponse.json<ApiResponse>({ success: true, data: { invoiceData } });
   } catch (e) {

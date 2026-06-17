@@ -30,6 +30,19 @@ const roboto = Roboto({
   variable: '--font-roboto',
 });
 
+let cachedCsrfToken: string | null = null;
+const fetchCsrfToken = async (): Promise<string> => {
+    if (cachedCsrfToken) return cachedCsrfToken;
+    const res = await fetch('/api/auth/csrf', { method: 'GET', credentials: 'include' });
+    const data = await res.json();
+    const received = data?.csrfToken || data?.token;
+    if (typeof received === 'string' && received.length > 10) {
+        cachedCsrfToken = received;
+        return cachedCsrfToken;
+    }
+    throw new Error('Falha ao obter CSRF token');
+};
+
 // Componente auxiliar
 const Info = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
   <div className="flex items-start gap-2">
@@ -263,8 +276,11 @@ const Screen = () => {
     endereco: '',
     telefone: '',
     email: '',
-    pessoa_contato: ''
+    pessoa_contato: '',
+    logo_url: null
   });
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
@@ -462,8 +478,10 @@ const Screen = () => {
       endereco: '',
       telefone: '',
       email: '',
-      pessoa_contato: ''
+      pessoa_contato: '',
+      logo_url: null
     });
+    setLogoUploadError(null);
   }, []);
 
   const openEditModal = useCallback((empresa: Empresa) => {
@@ -476,11 +494,13 @@ const Screen = () => {
       endereco: empresa.endereco,
       telefone: empresa.telefone,
       email: empresa.email,
-      pessoa_contato: empresa.pessoa_contato || ''
+      pessoa_contato: empresa.pessoa_contato || '',
+      logo_url: empresa.logo_url ?? null
     });
     setModalMode('edit');
     setIsModalOpen(true);
     setFormErrors({});
+    setLogoUploadError(null);
   }, []);
 
   const handleInputChange = useCallback((field: keyof Omit<Empresa, 'id' | 'padrao'>) => (
@@ -497,6 +517,49 @@ const Screen = () => {
       }));
     }
   }, [formErrors]);
+
+  const handleLogoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoUploadError('Tamanho da imagem excede o limite de 2MB.');
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    setLogoUploadError(null);
+
+    try {
+      const csrfToken = await fetchCsrfToken();
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/emissores/logo', {
+        method: 'POST',
+        headers: {
+          'x-csrf-token': csrfToken
+        },
+        credentials: 'include',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao enviar logotipo');
+      }
+
+      const data = await response.json();
+      if (data.url) {
+        setNewEmpresa(prev => ({ ...prev, logo_url: data.url }));
+      }
+    } catch (err) {
+      console.error('Erro no upload do logo:', err);
+      setLogoUploadError(err instanceof Error ? err.message : 'Erro ao enviar logotipo');
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  }, []);
 
   // Memoização da lista de entidades para performance
   const empresaList = useMemo(() =>
@@ -705,6 +768,19 @@ const Screen = () => {
                   <Info icon={<FaMapMarkerAlt />} label="Endereço" value={selectedEmpresa.endereco} />
                   <Info icon={<FaPhone />} label="Telefone" value={selectedEmpresa.telefone} />
                   <Info icon={<FaEnvelope />} label="Email" value={selectedEmpresa.email} />
+                  <div className="flex items-start gap-2">
+                    <div className="flex items-center min-w-[120px] text-gray-500 text-sm">
+                      <span className="text-gray-400 text-xs mr-1">🖼️</span>
+                      <span>Logotipo:</span>
+                    </div>
+                    <div>
+                      {selectedEmpresa.logo_url ? (
+                        <img src={selectedEmpresa.logo_url} alt="Logo" className="max-h-16 max-w-[160px] object-contain border p-1 rounded bg-white shadow-sm" />
+                      ) : (
+                        <span className="text-gray-400 text-xs italic">Nenhum configurado</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Ações */}
@@ -1007,6 +1083,16 @@ const Screen = () => {
                       <span className="text-gray-600 font-bold">Email:</span>
                       <span className="font-medium text-gray-800">{selectedEmpresa.email}</span>
                     </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-gray-600 font-bold">Logotipo:</span>
+                      <span className="font-medium text-gray-800">
+                        {selectedEmpresa.logo_url ? (
+                          <img src={selectedEmpresa.logo_url} alt="Logo" className="max-h-12 max-w-[120px] object-contain border p-1 rounded" />
+                        ) : (
+                          <span className="text-gray-400 text-xs italic">Nenhum</span>
+                        )}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1103,6 +1189,51 @@ const Screen = () => {
                       halfWidth
                       disabled={isProcessing}
                     />
+                    
+                    <div className="w-full px-2 mb-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Logotipo da Empresa
+                      </label>
+                      <div className="flex items-center gap-4 border p-3 rounded bg-gray-50">
+                        {newEmpresa.logo_url ? (
+                          <div className="relative w-20 h-20 border rounded overflow-hidden bg-white flex items-center justify-center shadow-sm">
+                            <img src={newEmpresa.logo_url} alt="Logo preview" className="object-contain w-full h-full p-1" />
+                            <button
+                              type="button"
+                              onClick={() => setNewEmpresa(prev => ({ ...prev, logo_url: null }))}
+                              className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors shadow"
+                              title="Remover logotipo"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-20 h-20 border border-dashed rounded bg-white flex items-center justify-center text-gray-400 text-xs text-center p-2 shadow-inner">
+                            Sem Logo
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                            onChange={handleLogoUpload}
+                            disabled={isUploadingLogo || isProcessing}
+                            className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer disabled:opacity-50"
+                          />
+                          <p className="text-[11px] text-gray-500 mt-1">
+                            PNG, JPG, SVG, GIF ou WEBP (máx. 2MB).
+                          </p>
+                          {isUploadingLogo && (
+                            <span className="text-xs text-blue-600 flex items-center gap-1 mt-1">
+                              <FaSpinner className="animate-spin" /> A enviar logo...
+                            </span>
+                          )}
+                          {logoUploadError && (
+                            <span className="text-xs text-red-500 block mt-1">{logoUploadError}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <button
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-medium text-sm mt-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"

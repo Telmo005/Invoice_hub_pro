@@ -13,6 +13,7 @@ interface Empresa {
   pessoa_contato?: string;
   email: string;
   telefone: string;
+  logo_url?: string | null;
 }
 
 interface EmpresaModificacoes {
@@ -149,6 +150,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     houveModificacoes: false
   });
   const [isGeneratingNumber, setIsGeneratingNumber] = useState(false);
+  const [logo, setLogo] = useState<string | null>(null);
 
   const atualizarTermosAutomaticamente = useCallback((currentFormData: FormDataFatura) => {
     const dias = currentFormData.tipo === 'cotacao'
@@ -608,6 +610,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     setErrors({});
     setTouched({});
     setEmpresaModificacoes({ empresaOriginal: null, camposModificados: {}, houveModificacoes: false });
+    setLogo(null);
   };
 
   const prepareInvoiceData = (): InvoiceData => {
@@ -656,7 +659,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
         taxasDetalhadas: totais.taxasDetalhadas,
         desconto: desconto
       },
-      logo: null, 
+      logo: logo, 
       assinatura: null
     };
   };
@@ -685,7 +688,9 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     registrarEmpresaOriginal, 
     limparModificacoesEmpresa,
     generateDocumentNumber,
-    setItems // exposto para clonagem
+    setItems, // exposto para clonagem
+    logo,
+    setLogo
   };
 };
 
