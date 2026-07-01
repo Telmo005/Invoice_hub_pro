@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
+import { withApiGuard } from '@/lib/api/guard';
 
-export async function POST(request: NextRequest) {
+export const POST = withApiGuard(async (request: NextRequest, { user }) => {
   const start = Date.now();
   const supabase = await supabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Não autenticado' } }, { status: 401 });
 
   try {
     // Busca APENAS pagamentos que NUNCA foram tentados (retry_count é null)
@@ -155,8 +154,8 @@ export async function POST(request: NextRequest) {
   } finally {
     await logger.logApiCall('/api/mpesa/retry', 'POST', Date.now() - start, true);
   }
-}
+}, { auth: true, rate: { limit: 10, intervalMs: 60_000 }, csrf: true, auditAction: 'mpesa_retry' })
 
-export async function OPTIONS() { 
+export async function OPTIONS() {
   return new NextResponse(null, { status: 200 }); 
 }
