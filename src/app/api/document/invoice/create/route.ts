@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
 import { withApiGuard } from '@/lib/api/guard';
 import { FormDataFatura, ItemFatura, TotaisFatura } from '@/types/invoice-types';
+import { validateInvoicePayload } from '@/lib/validation/documentSchemas';
 
 interface ApiError {
   code: string;
@@ -88,7 +89,23 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       return NextResponse.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'documentData ausente' } }, { status: 400 });
     }
 
-    const { formData, items, totais, logo, assinatura } = documentData;
+    // Validação estrutural completa via Zod (ver A4 em docs/auditoria-inicial.md
+    // -- o schema já existia em documentSchemas.ts mas nunca era chamado aqui)
+    const validation = validateInvoicePayload(documentData);
+    if (!validation.ok) {
+      await logger.log({
+        action: 'validation',
+        level: 'warn',
+        message: 'Payload de fatura reprovado na validação de schema',
+        details: { user: user.id, issues: validation.errors }
+      });
+      return NextResponse.json({
+        success: false,
+        error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Dados da fatura inválidos', details: validation.errors }
+      }, { status: 400 });
+    }
+
+    const { formData, items, totais, logo, assinatura } = validation.data;
 
     await logger.log({
       action: 'document_create',
@@ -261,7 +278,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       metodo_pagamento: metodoInformativo,
     };
 
-    const itensMapeados = (items || []).map((it: ItemFatura) => ({
+    const itensMapeados = (items || []).map((it) => ({
       id_original: it.id,
       quantidade: it.quantidade,
       descricao: it.descricao,

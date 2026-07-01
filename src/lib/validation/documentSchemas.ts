@@ -1,10 +1,27 @@
 import { z } from 'zod';
+import { isMozambiquePais, isValidNuit } from '@/lib/validation';
 
 // Helpers devolvem instâncias para permitir encadeamento (min, email, regex)
 const trimmed = () => z.string().trim();
 const optTrimmed = () => z.string().trim().optional();
 
-export const emitenteSchema = z.object({
+// NUIT (9 dígitos) só é exigido quando país = Moçambique (ver A5 em
+// docs/auditoria-inicial.md); emitentes/destinatários estrangeiros mantêm
+// apenas a verificação de "não vazio" já feita pelo .min(1). Recebe uma
+// função em vez de um schema genérico para não perder o tipo de saída
+// completo (um genérico com constraint estreita faz o TS colapsar o output
+// do superRefine para a própria constraint).
+function checkNuit(val: { documento?: string; pais?: string }, ctx: z.RefinementCtx) {
+  if (isMozambiquePais(val.pais) && val.documento && !isValidNuit(val.documento)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['documento'],
+      message: 'NUIT inválido: deve ter 9 dígitos'
+    });
+  }
+}
+
+const emitenteBaseSchema = z.object({
   nomeEmpresa: trimmed().min(2),
   documento: trimmed().min(1),
   pais: trimmed().min(1),
@@ -15,7 +32,7 @@ export const emitenteSchema = z.object({
   telefone: trimmed().min(3)
 });
 
-export const destinatarioSchema = z.object({
+const destinatarioBaseSchema = z.object({
   nomeCompleto: trimmed().min(2),
   documento: optTrimmed(),
   pais: optTrimmed(),
@@ -24,6 +41,12 @@ export const destinatarioSchema = z.object({
   email: trimmed().email(),
   telefone: trimmed().min(3)
 });
+
+export const emitenteSchema = emitenteBaseSchema.superRefine(checkNuit);
+export const destinatarioSchema = destinatarioBaseSchema.superRefine(checkNuit);
+// Versão parcial (usada em recibos, onde o destinatário é opcional) --
+// aplica-se .partial() ao schema base antes de acrescentar a verificação de NUIT.
+const destinatarioPartialSchema = destinatarioBaseSchema.partial().superRefine(checkNuit);
 
 const taxaSchema = z.object({
   nome: trimmed().min(1),
@@ -86,7 +109,9 @@ export function validateInvoicePayload(raw: unknown) {
 
 // Cotação schemas (reuse base invoice concepts)
 export const quotationFormDataSchema = invoiceFormDataSchema.extend({
-  cotacaoNumero: trimmed().regex(/^(CTC)\/\d{4}\/\d{3}$/),
+  // Prefixo real gerado pela BD é 'COT' (ver gerar_numero_documento em
+  // database.sql), não 'CTC' -- corrigido (ver A4 em docs/auditoria-inicial.md)
+  cotacaoNumero: trimmed().regex(/^(COT)\/\d{4}\/\d{3}$/),
   validezCotacao: z.number().int().positive().max(365).default(15)
 }).omit({ faturaNumero: true });
 
@@ -121,7 +146,9 @@ export function validateQuotationPayload(raw: unknown) {
 
 // Recibo schemas
 export const receiptFormDataSchema = z.object({
-  reciboNumero: trimmed().regex(/^(RCB)\/\d{4}\/\d{3}$/),
+  // Prefixo real gerado pela BD é 'REC' (ver gerar_numero_documento em
+  // database.sql), não 'RCB' -- corrigido (ver A4 em docs/auditoria-inicial.md)
+  reciboNumero: trimmed().regex(/^(REC)\/\d{4}\/\d{3}$/),
   dataRecebimento: trimmed(),
   dataPagamento: optTrimmed(),
   valorRecebido: z.number().positive(),
@@ -133,7 +160,7 @@ export const receiptFormDataSchema = z.object({
   ordemCompra: optTrimmed(),
   termos: optTrimmed(),
   emitente: emitenteSchema,
-  destinatario: destinatarioSchema.partial().optional(),
+  destinatario: destinatarioPartialSchema.optional(),
   status: z.enum(['emitida', 'paga']).optional()
 });
 
