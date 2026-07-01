@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { withApiGuard } from '@/lib/api/guard';
+import { logger } from '@/lib/logger';
 
 const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?: string): string => {
   const documentType = documentData?.type === 'cotacao' ? 'Cotação' : 'Fatura';
@@ -12,21 +14,21 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
   <title>${documentType} ${documentNumber || documentData?.numero}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    * { 
-      margin: 0; 
-      padding: 0; 
-      box-sizing: border-box; 
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
       font-family: 'Arial', 'Helvetica', sans-serif;
     }
-    
-    body { 
+
+    body {
       background: white !important;
       color: #000 !important;
       line-height: 1.4;
       padding: 5mm;
       margin: 0 !important;
     }
-    
+
     @media print {
       @page {
         margin: 5mm !important;
@@ -35,36 +37,36 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
         margin-footer: 0 !important;
         marks: none !important;
       }
-      
-      body { 
+
+      body {
         padding: 0 !important;
         margin: 0 !important;
         width: 100% !important;
       }
-      
+
       * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
       }
-      
+
       .header, .footer, [class*="header"], [class*="footer"],
       #header, #footer, .print-header, .print-footer {
         display: none !important;
       }
     }
-    
+
     table {
       width: 100%;
       border-collapse: collapse;
       page-break-inside: avoid;
     }
-    
+
     th, td {
       padding: 8px 12px;
       border: 1px solid #ddd;
     }
-    
+
     .no-break {
       page-break-inside: avoid;
     }
@@ -72,7 +74,7 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
 </head>
 <body>
   ${htmlContent}
-  
+
   <script>
     setTimeout(() => window.print(), 500);
     window.onbeforeunload = () => "PDF gerado com sucesso? Pode fechar esta janela.";
@@ -81,96 +83,95 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
 </html>`;
 };
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id: documentId } = await context.params;
+// Rota pública por desenho: o link é enviado por email a clientes sem conta no
+// Invoice Hub Pro (ver src/services/email-service.ts generateViewLink). Exigir
+// login quebraria esse fluxo. Mitigação escolhida para o IDOR (ver C2 em
+// docs/auditoria-inicial.md): manter público, mas com rate limiting por IP e
+// registo de acesso para detetar tentativas de enumeração em massa do UUID.
+export const GET = withApiGuard(async (request: NextRequest) => {
+  const documentId = request.nextUrl.pathname.split('/').pop();
 
-    if (!documentId || documentId === 'undefined' || documentId === 'null') {
-      return NextResponse.json(
-        { success: false, error: 'ID do documento é obrigatório' },
-        { status: 400 }
-      );
-    }
-
-    // 1. Tentar obter metadados via view unificada para determinar tipo
-    let tipoDocumento: string | null = null;
-    let numero: string | null = null;
-    let moeda: string | null = null;
-    let statusDoc: string | null = null;
-    let dataFatura: string | null = null;
-    let clientName: string = 'Cliente não especificado';
-
-    const { data: viewDoc } = await supabaseAdmin
-      .from('view_documentos_pagamentos')
-      .select('id, tipo_documento, numero, moeda, status_documento, data_criacao, destinatario')
-      .eq('id', documentId)
-      .maybeSingle();
-
-    if (viewDoc) {
-      tipoDocumento = viewDoc.tipo_documento;
-      numero = viewDoc.numero;
-      moeda = viewDoc.moeda;
-      statusDoc = viewDoc.status_documento;
-      dataFatura = viewDoc.data_criacao;
-      if (viewDoc.destinatario) {
-        clientName = viewDoc.destinatario;
-      }
-    }
-
-    // 2. Buscar html_content diretamente na tabela base (fonte de verdade)
-    const { data: baseDoc } = await supabaseAdmin
-      .from('documentos_base')
-      .select('id, numero, status, html_content, data_emissao, moeda')
-      .eq('id', documentId)
-      .maybeSingle();
-
-    if (!baseDoc) {
-      return NextResponse.json(
-        { success: false, error: 'Documento não encontrado' },
-        { status: 404 }
-      );
-    }
-
-    if (!baseDoc.html_content) {
-      return NextResponse.json(
-        { success: false, error: 'Conteúdo não disponível para visualização' },
-        { status: 404 }
-      );
-    }
-
-    // Ajustar tipo e numero com fallback para dados da tabela base
-    tipoDocumento = tipoDocumento || 'fatura';
-    numero = numero || baseDoc.numero;
-    moeda = moeda || baseDoc.moeda || 'MZN';
-    statusDoc = statusDoc || baseDoc.status;
-    dataFatura = dataFatura || baseDoc.data_emissao;
-
-    const pdfHtml = getPdfTemplate(baseDoc.html_content, {
-      id: baseDoc.id,
-      numero,
-      type: tipoDocumento,
-      typeDisplay: tipoDocumento === 'cotacao' ? 'Cotação' : (tipoDocumento === 'recibo' ? 'Recibo' : 'Fatura'),
-      client: clientName,
-      date: dataFatura,
-      currency: moeda,
-      status: statusDoc
-    });
-
-    return new NextResponse(pdfHtml, {
-      headers: {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=3600',
-      },
-    });
-
-  } catch (error) {
-    console.error('Erro ao gerar visualização PDF:', error);
+  if (!documentId || documentId === 'undefined' || documentId === 'null') {
     return NextResponse.json(
-      { success: false, error: 'Erro interno do servidor' },
-      { status: 500 }
+      { success: false, error: 'ID do documento é obrigatório' },
+      { status: 400 }
     );
   }
-}
+
+  // 1. Tentar obter metadados via view unificada para determinar tipo
+  let tipoDocumento: string | null = null;
+  let numero: string | null = null;
+  let moeda: string | null = null;
+  let statusDoc: string | null = null;
+  let dataFatura: string | null = null;
+  let clientName: string = 'Cliente não especificado';
+
+  const { data: viewDoc } = await supabaseAdmin
+    .from('view_documentos_pagamentos')
+    .select('id, tipo_documento, numero, moeda, status_documento, data_criacao, destinatario')
+    .eq('id', documentId)
+    .maybeSingle();
+
+  if (viewDoc) {
+    tipoDocumento = viewDoc.tipo_documento;
+    numero = viewDoc.numero;
+    moeda = viewDoc.moeda;
+    statusDoc = viewDoc.status_documento;
+    dataFatura = viewDoc.data_criacao;
+    if (viewDoc.destinatario) {
+      clientName = viewDoc.destinatario;
+    }
+  }
+
+  // 2. Buscar html_content diretamente na tabela base (fonte de verdade)
+  const { data: baseDoc } = await supabaseAdmin
+    .from('documentos_base')
+    .select('id, numero, status, html_content, data_emissao, moeda')
+    .eq('id', documentId)
+    .maybeSingle();
+
+  if (!baseDoc) {
+    await logger.log({
+      action: 'document_view',
+      level: 'warn',
+      message: `Tentativa de visualização de documento inexistente: ${documentId}`,
+      details: { documentId }
+    });
+    return NextResponse.json(
+      { success: false, error: 'Documento não encontrado' },
+      { status: 404 }
+    );
+  }
+
+  if (!baseDoc.html_content) {
+    return NextResponse.json(
+      { success: false, error: 'Conteúdo não disponível para visualização' },
+      { status: 404 }
+    );
+  }
+
+  // Ajustar tipo e numero com fallback para dados da tabela base
+  tipoDocumento = tipoDocumento || 'fatura';
+  numero = numero || baseDoc.numero;
+  moeda = moeda || baseDoc.moeda || 'MZN';
+  statusDoc = statusDoc || baseDoc.status;
+  dataFatura = dataFatura || baseDoc.data_emissao;
+
+  const pdfHtml = getPdfTemplate(baseDoc.html_content, {
+    id: baseDoc.id,
+    numero,
+    type: tipoDocumento,
+    typeDisplay: tipoDocumento === 'cotacao' ? 'Cotação' : (tipoDocumento === 'recibo' ? 'Recibo' : 'Fatura'),
+    client: clientName,
+    date: dataFatura,
+    currency: moeda,
+    status: statusDoc
+  });
+
+  return new NextResponse(pdfHtml, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600',
+    },
+  });
+}, { rate: { limit: 30, intervalMs: 60_000 }, auditAction: 'document_view' });
