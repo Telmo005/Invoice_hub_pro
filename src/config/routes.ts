@@ -45,6 +45,11 @@ export const ROUTES = {
     ROUTES.RECEIPTS_NEW,
     ROUTES.INVOICES_NEW,
     ROUTES.QUOTATIONS_NEW,
+    ROUTES.QUOTES_INVOICES,
+    '/invoices/new',
+    '/quotations/new',
+    '/receipts/new',
+    '/pages/receipts',
   ],
 
   isPublicRoute: (path: string) => ROUTES.getPublicRoutes().includes(path),
