@@ -121,6 +121,32 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
 
     // Lista de itens garantida pelo schema
 
+    // VALIDAÇÃO DO DESCONTO (mesma regra de invoice/create -- ver M1 em
+    // docs/auditoria-inicial.md; o schema Zod não valida o limite condicional
+    // ao tipoDesconto, por isso mantém-se este check manual)
+    if (formData.tipoDesconto === 'percent' && formData.desconto && formData.desconto > 100) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Desconto percentual acima de 100%',
+        details: {
+          user: user.id,
+          numero: formData.cotacaoNumero,
+          desconto: formData.desconto,
+          tipoDesconto: formData.tipoDesconto
+        }
+      });
+
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'Desconto percentual inválido',
+          details: { invalidField: 'desconto', message: 'Desconto percentual não pode ser maior que 100%' }
+        }
+      }, { status: 400 });
+    }
+
     // Obter ou criar IDs de emitente e destinatário conforme novo schema
     const ensureEmissor = async () => {
       const emissor: Emitente = formData.emitente;
