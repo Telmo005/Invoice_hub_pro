@@ -36,10 +36,14 @@ export async function GET(_req: Request, context: DetailContext) {
     const tipo = (viewDoc as any).tipo_documento as 'fatura' | 'cotacao' | 'recibo';
 
     // Carregar emitente/destinatario detalhados via documentos_base
+    // (filtra também por user_id -- defesa em profundidade, ver A7 em
+    // docs/auditoria-inicial.md -- para não depender só da verificação feita
+    // na query anterior caso a ordem das chamadas mude num refactor futuro)
     const { data: baseDoc, error: baseErr } = await supabase
       .from('documentos_base')
       .select('id, numero, moeda, termos, ordem_compra, data_emissao, emitente_id, destinatario_id, logo_url')
       .eq('id', documentoId)
+      .eq('user_id', userId)
       .single();
 
     if (baseErr || !baseDoc) {
