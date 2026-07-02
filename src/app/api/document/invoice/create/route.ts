@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { withApiGuard } from '@/lib/api/guard';
 import { FormDataFatura, ItemFatura, TotaisFatura } from '@/types/invoice-types';
 import { validateInvoicePayload } from '@/lib/validation/documentSchemas';
+import { ensureEmitenteId, ensureDestinatarioId } from '@/lib/document/party';
 
 interface ApiError {
   code: string;
@@ -169,94 +170,11 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    // ===== ADAPTAR PARA NOVA FUNÇÃO criar_documento_completo =====
-    // Garantir / obter IDs do emitente e destinatário
-    const ensureEmissor = async () => {
-      const emissor = formData.emitente;
-      let emissorId: string | null = null;
-      if (emissor?.documento) {
-        const { data: foundByDoc } = await supabase
-          .from('emissores')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('documento', emissor.documento)
-          .maybeSingle();
-        emissorId = foundByDoc?.id ?? null;
-      }
-      if (!emissorId && emissor?.nomeEmpresa) {
-        const { data: foundByName } = await supabase
-          .from('emissores')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('nome_empresa', emissor.nomeEmpresa)
-          .maybeSingle();
-        emissorId = foundByName?.id ?? null;
-      }
-      if (!emissorId) {
-        const { data: created } = await supabase
-          .from('emissores')
-          .insert({
-            user_id: user.id,
-            nome_empresa: emissor?.nomeEmpresa ?? 'Empresa',
-            documento: emissor?.documento ?? '',
-            pais: emissor?.pais ?? '',
-            cidade: emissor?.cidade ?? '',
-            bairro: emissor?.bairro ?? '',
-            pessoa_contato: emissor?.pessoaContato ?? null,
-            email: emissor?.email ?? '',
-            telefone: emissor?.telefone ?? ''
-          })
-          .select('id')
-          .single();
-        emissorId = created?.id ?? null;
-      }
-      return emissorId as string;
-    };
-
-    const ensureDestinatario = async () => {
-      const dest = formData.destinatario;
-      let destinatarioId: string | null = null;
-      if (dest?.documento) {
-        const { data: foundByDoc } = await supabase
-          .from('destinatarios')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('documento', dest.documento)
-          .maybeSingle();
-        destinatarioId = foundByDoc?.id ?? null;
-      }
-      if (!destinatarioId && dest?.nomeCompleto) {
-        const { data: foundByName } = await supabase
-          .from('destinatarios')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('nome_completo', dest.nomeCompleto)
-          .maybeSingle();
-        destinatarioId = foundByName?.id ?? null;
-      }
-      if (!destinatarioId) {
-        const { data: created } = await supabase
-          .from('destinatarios')
-          .insert({
-            user_id: user.id,
-            nome_completo: dest?.nomeCompleto ?? 'Cliente',
-            documento: dest?.documento ?? null,
-            pais: dest?.pais ?? null,
-            cidade: dest?.cidade ?? null,
-            bairro: dest?.bairro ?? null,
-            email: dest?.email ?? '',
-            telefone: dest?.telefone ?? ''
-          })
-          .select('id')
-          .single();
-        destinatarioId = created?.id ?? null;
-      }
-      return destinatarioId as string;
-    };
-
+    // Garantir / obter IDs do emitente e destinatário (lógica partilhada com
+    // quotation/create e receipt/create -- ver src/lib/document/party.ts)
     const [emitenteId, destinatarioId] = await Promise.all([
-      ensureEmissor(),
-      ensureDestinatario()
+      ensureEmitenteId(user.id, formData.emitente),
+      ensureDestinatarioId(user.id, formData.destinatario)
     ]);
 
     // Método de pagamento: agora livre/informativo. Persistimos exatamente o valor informado.
