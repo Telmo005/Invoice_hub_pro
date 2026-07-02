@@ -87,8 +87,12 @@ async function renewSubscription(pagamento: any): Promise<void> {
     .from('subscriptions')
     .update({
       status: 'ativa',
+      data_inicio: new Date().toISOString().slice(0, 10),
       data_proxima_cobranca: proximaCobranca.toISOString().slice(0, 10),
-      bloqueado_em: null
+      bloqueado_em: null,
+      // Novo ciclo começa -- o lembrete deste ciclo (se algum foi enviado
+      // antes desta renovação) já não é relevante para o próximo.
+      lembrete_enviado_em: null
     })
     .eq('id', subscriptionId);
 }

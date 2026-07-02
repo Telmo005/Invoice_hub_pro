@@ -24,4 +24,10 @@ export type PlanoId = keyof typeof PLANS;
 // (2026-07-02): imediato por defeito, mas configurável -- mudar aqui.
 export const SUBSCRIPTION_GRACE_PERIOD_DAYS = 0;
 
+// O PaySuite não suporta cobrança recorrente/tokenizada (só pagamentos
+// avulsos) -- por isso a renovação mensal é sempre iniciada manualmente
+// pelo utilizador. Este valor controla quantos dias antes de
+// `data_proxima_cobranca` o lembrete por email é enviado.
+export const SUBSCRIPTION_REMINDER_DAYS_BEFORE = 3;
+
 export const PAYSUITE_BASE_URL = 'https://paysuite.tech/api/v1';
