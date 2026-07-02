@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { InvoiceData, TipoDocumento } from '@/types/invoice-types';
 import { useTemplateManager } from '@/app/hooks/panels/useTemplateManager';
@@ -21,6 +21,11 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
   onToggleFullscreen = () => {},
   onHtmlRendered = () => {}
 }) => {
+  // Cor de destaque personalizada (título, cabeçalho da tabela, bordas) --
+  // só suportada no "template-1" por agora (ver Fase 3 em
+  // docs/auditoria-inicial.md e src/lib/document/applyAccentColor.ts)
+  const [corDestaque, setCorDestaque] = useState<string | null>(null);
+
   const {
     selectedTemplateId,
     selectedTemplate,
@@ -34,11 +39,14 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
     handleZoomOut,
     isZoomInDisabled,
     isZoomOutDisabled
-  } = useTemplateManager({ 
-    invoiceData, 
-    tipo, 
-    onHtmlRendered 
+  } = useTemplateManager({
+    invoiceData,
+    tipo,
+    onHtmlRendered,
+    corDestaque
   });
+
+  const suportaCorPersonalizada = selectedTemplateId === 'template-1';
 
   const {
     templatesContainerRef,
@@ -73,11 +81,25 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
             📄 {tipo === 'cotacao' ? 'Modelos de Cotação' : (tipo === 'recibo' ? 'Modelos de Recibo' : 'Modelos de Fatura')}
           </h5>
         </div>
-        <span className={`px-3 py-1 rounded-full text-white text-xs font-bold ${
-          tipo === 'cotacao' ? 'bg-green-500' : (tipo === 'recibo' ? 'bg-yellow-600' : 'bg-blue-500')
-        }`}>
-          {tipo === 'cotacao' ? 'COTAÇÃO' : (tipo === 'recibo' ? 'RECIBO' : 'FATURA')}
-        </span>
+        <div className="flex items-center gap-3">
+          {suportaCorPersonalizada && (
+            <label className="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer" title="Cor de destaque (título, tabela, bordas)">
+              🎨 Cor
+              <input
+                type="color"
+                value={corDestaque || '#2c3e50'}
+                onChange={(e) => setCorDestaque(e.target.value)}
+                className="h-6 w-8 rounded border border-gray-300 cursor-pointer"
+                aria-label="Escolher cor de destaque do documento"
+              />
+            </label>
+          )}
+          <span className={`px-3 py-1 rounded-full text-white text-xs font-bold ${
+            tipo === 'cotacao' ? 'bg-green-500' : (tipo === 'recibo' ? 'bg-yellow-600' : 'bg-blue-500')
+          }`}>
+            {tipo === 'cotacao' ? 'COTAÇÃO' : (tipo === 'recibo' ? 'RECIBO' : 'FATURA')}
+          </span>
+        </div>
       </div>
 
       {/* Template Selection */}
