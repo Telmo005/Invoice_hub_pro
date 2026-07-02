@@ -301,7 +301,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       await logger.log({
         action: 'error',
         level: 'error',
-        message: 'Erro na função criar_fatura_completa para recibo',
+        message: 'Erro na função criar_documento_completo para recibo',
         details: {
           user: user.id,
           numero: formData.reciboNumero || '(auto)',
