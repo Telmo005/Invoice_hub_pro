@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger'
 import { supabaseServer } from '@/lib/supabase-server'
 import { validateMpesaBody } from './lib/validation'
 import { persistMpesaPayment } from './lib/persist'
+import { withApiGuard } from '@/lib/api/guard'
 
 interface SuccessResponse {
   success: true
@@ -68,7 +69,7 @@ const createErrorResponse = (
   timestamp: new Date().toISOString()
 })
 
-export async function POST(request: NextRequest) {
+export const POST = withApiGuard(async (request: NextRequest, { user }) => {
   const startTime = Date.now()
   let transactionReference: string | null = null
   let customerMsisdn: string | null = null
@@ -126,10 +127,6 @@ export async function POST(request: NextRequest) {
     customerMsisdn = customer_msisdn
 
     const supabase = await supabaseServer()
-    const { data: { user }, error: authErr } = await supabase.auth.getUser()
-    if (authErr || !user) {
-      return NextResponse.json(createErrorResponse(ERROR_CODES.INTERNAL_ERROR, 'Não autenticado'), { status: 401 })
-    }
 
     const mpesaService = new MpesaService()
     const formattedMsisdn = mpesaService.formatPhoneNumber(customer_msisdn)
@@ -300,7 +297,7 @@ export async function POST(request: NextRequest) {
       transactionReference !== null
     )
   }
-}
+}, { auth: true, rate: { limit: 5, intervalMs: 60_000 }, csrf: true, auditAction: 'mpesa_payment' })
 
 export async function OPTIONS() {
   await logger.log({

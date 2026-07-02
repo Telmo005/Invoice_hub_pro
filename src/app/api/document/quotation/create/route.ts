@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
 import { withApiGuard } from '@/lib/api/guard';
 import { FormDataFatura, ItemFatura, TotaisFatura, Emitente, Destinatario } from '@/types/invoice-types';
+import { validateQuotationPayload } from '@/lib/validation/documentSchemas';
 
 interface ApiError { code: string; message: string; details?: unknown }
 interface ApiResponse<T = unknown> { success: boolean; data?: T; error?: ApiError }
@@ -81,7 +82,23 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       return NextResponse.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'documentData ausente' } }, { status: 400 });
     }
 
-    const { formData, items, totais, logo, assinatura } = documentData;
+    // Validação estrutural completa via Zod (ver A4 em docs/auditoria-inicial.md
+    // -- o schema já existia em documentSchemas.ts mas nunca era chamado aqui)
+    const validation = validateQuotationPayload(documentData);
+    if (!validation.ok) {
+      await logger.log({
+        action: 'validation',
+        level: 'warn',
+        message: 'Payload de cotação reprovado na validação de schema',
+        details: { user: user.id, issues: validation.errors }
+      });
+      return NextResponse.json({
+        success: false,
+        error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Dados da cotação inválidos', details: validation.errors }
+      }, { status: 400 });
+    }
+
+    const { formData, items, totais, logo, assinatura } = validation.data;
 
     await logger.log({
       action: 'document_create',
@@ -103,6 +120,32 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
     // Campos obrigatórios já tratados pelo schema
 
     // Lista de itens garantida pelo schema
+
+    // VALIDAÇÃO DO DESCONTO (mesma regra de invoice/create -- ver M1 em
+    // docs/auditoria-inicial.md; o schema Zod não valida o limite condicional
+    // ao tipoDesconto, por isso mantém-se este check manual)
+    if (formData.tipoDesconto === 'percent' && formData.desconto && formData.desconto > 100) {
+      await logger.log({
+        action: 'api_call',
+        level: 'warn',
+        message: 'Desconto percentual acima de 100%',
+        details: {
+          user: user.id,
+          numero: formData.cotacaoNumero,
+          desconto: formData.desconto,
+          tipoDesconto: formData.tipoDesconto
+        }
+      });
+
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'Desconto percentual inválido',
+          details: { invalidField: 'desconto', message: 'Desconto percentual não pode ser maior que 100%' }
+        }
+      }, { status: 400 });
+    }
 
     // Obter ou criar IDs de emitente e destinatário conforme novo schema
     const ensureEmissor = async () => {
@@ -214,7 +257,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
     };
 
     // Mapear itens para o formato do banco
-    const itensMapeados = (items || []).map((it: ItemFatura) => ({
+    const itensMapeados = (items || []).map((it) => ({
       id_original: it.id,
       quantidade: it.quantidade,
       descricao: it.descricao,

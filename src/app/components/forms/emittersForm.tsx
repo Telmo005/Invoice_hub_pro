@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Roboto } from 'next/font/google';
+import { isMozambiquePais, isValidNuit } from '@/lib/validation';
 import { 
   FaEye, 
   FaPlus, 
@@ -332,6 +333,9 @@ const Screen = () => {
 
     if (!newEmpresa.nome.trim()) errors.nome = 'Nome da entidade é obrigatório';
     if (!newEmpresa.nuip.trim()) errors.nuip = 'Documento é obrigatório';
+    else if (isMozambiquePais(newEmpresa.pais) && !isValidNuit(newEmpresa.nuip)) {
+      errors.nuip = 'NUIT inválido: deve ter 9 dígitos';
+    }
     if (!newEmpresa.pais.trim()) errors.pais = 'País é obrigatório';
     if (!newEmpresa.cidade.trim()) errors.cidade = 'Cidade é obrigatória';
     if (!newEmpresa.endereco.trim()) errors.endereco = 'Endereço é obrigatório';

@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
 import { withApiGuard } from '@/lib/api/guard';
 import { ItemFatura, TotaisFatura, Emitente, Destinatario } from '@/types/invoice-types';
+import { validateReceiptPayload } from '@/lib/validation/documentSchemas';
 
 interface ApiError { code: string; message: string; details?: unknown }
 interface ApiResponse<T = unknown> { success: boolean; data?: T; error?: ApiError }
@@ -109,7 +110,21 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       formData.dataRecebimento = new Date().toISOString().split('T')[0];
     }
 
-    // Campos obrigatórios já tratados pelo schema
+    // Validação estrutural completa via Zod (ver A4 em docs/auditoria-inicial.md
+    // -- o schema já existia em documentSchemas.ts mas nunca era chamado aqui)
+    const validation = validateReceiptPayload(documentData);
+    if (!validation.ok) {
+      await logger.log({
+        action: 'validation',
+        level: 'warn',
+        message: 'Payload de recibo reprovado na validação de schema',
+        details: { user: user.id, issues: validation.errors }
+      });
+      return NextResponse.json({
+        success: false,
+        error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Dados do recibo inválidos', details: validation.errors }
+      }, { status: 400 });
+    }
 
     // Preparar dados completos do recibo para o RPC (chaves esperadas pela função unificada)
     const reciboData = {

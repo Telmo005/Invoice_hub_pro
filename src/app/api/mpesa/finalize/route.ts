@@ -9,10 +9,10 @@ interface SuccessResponse { success: true; data: any; message: string; timestamp
 const error = (code: string, message: string, details?: any, status: number = 400) =>
   NextResponse.json<ErrorResponse>({ success: false, error: { code, message, details } }, { status });
 
-export async function POST(request: NextRequest) {
+export const POST = withApiGuard(async (request: NextRequest, { user }) => {
   const start = Date.now();
   const supabase = await supabaseServer();
-  const userId: string | null = null; // Placeholder: consider retrieving authenticated user id
+  const userId: string = user.id;
   try {
     const body = await request.json();
     const { payment_id, document_payload } = body;
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
   } finally {
     await logger.logApiCall('/api/mpesa/finalize', 'POST', Date.now() - start, true);
   }
-}
+}, { auth: true, rate: { limit: 10, intervalMs: 60_000 }, csrf: true, auditAction: 'mpesa_finalize' })
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 200 });

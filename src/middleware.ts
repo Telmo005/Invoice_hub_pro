@@ -1,8 +1,48 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { ROUTES } from '@/config/routes';
 
-export function middleware(request: NextRequest) {
-  const response = NextResponse.next();
+function isPrivatePath(pathname: string): boolean {
+  return ROUTES.getPrivateRoutes().some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
+
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({ request });
+
+  // Auth gating para rotas privadas (defesa em profundidade -- ver A1 em
+  // docs/auditoria-inicial.md: nada verificava autenticação antes disto,
+  // cada página/rota API tinha de se lembrar de o fazer sozinha).
+  // Não se aplica a /api/* (essas rotas fazem a sua própria verificação e
+  // devolvem 401 JSON; redirecionar para /login quebraria os clientes fetch).
+  if (!request.nextUrl.pathname.startsWith('/api/') && isPrivatePath(request.nextUrl.pathname)) {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+            response = NextResponse.next({ request });
+            cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+          },
+        },
+      }
+    );
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      const loginUrl = new URL(ROUTES.LOGIN, request.url);
+      loginUrl.searchParams.set('redirect_to', request.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
 
   // Request ID propagation
   const incomingId = request.headers.get('x-request-id');
@@ -11,7 +51,7 @@ export function middleware(request: NextRequest) {
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2));
   response.headers.set('X-Request-Id', requestId);
-  
+
   // 1. Headers de Segurança (Sempre aplicados) + CSP & cross-origin policies
   const securityHeaders: Record<string,string> = {
     'X-Content-Type-Options': 'nosniff',
@@ -41,14 +81,14 @@ export function middleware(request: NextRequest) {
   if (process.env.NODE_ENV === 'production') {
     const proto = request.headers.get('x-forwarded-proto');
     const host = request.headers.get('host');
-    
+
     if (proto === 'http') {
       return NextResponse.redirect(
         `https://${host}${request.nextUrl.pathname}${request.nextUrl.search}`,
         301
       );
     }
-    
+
     // HSTS Header para HTTPS
     response.headers.set(
       'Strict-Transport-Security',

@@ -29,6 +29,16 @@ export class EmailService {
     });
   }
 
+  private escapeHtml(text: unknown): string {
+    if (text === null || text === undefined) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   private getDocumentDisplayInfo(documentType: 'fatura' | 'cotacao') {
     const isCotacao = documentType === 'cotacao';
     return {
@@ -109,7 +119,7 @@ export class EmailService {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${typeDisplay} ${documentData.documentNumber} - DigitalHub</title>
+    <title>${typeDisplay} ${this.escapeHtml(documentData.documentNumber)} - DigitalHub</title>
     <style>
         * {
             margin: 0;
@@ -243,10 +253,10 @@ export class EmailService {
         </div>
         
         <div class="content">
-            <p class="greeting">Prezado(a) <strong>${documentData.clientName}</strong>,</p>
-            
+            <p class="greeting">Prezado(a) <strong>${this.escapeHtml(documentData.clientName)}</strong>,</p>
+
             <p class="message">
-                Informamos que sua ${typeDisplayLower} <strong>${documentData.documentNumber}</strong> foi processada com sucesso e está disponível para download.
+                Informamos que sua ${typeDisplayLower} <strong>${this.escapeHtml(documentData.documentNumber)}</strong> foi processada com sucesso e está disponível para download.
                 <br><br>
                 Clique no botão abaixo para visualizar e baixar sua ${typeDisplayLower} em formato PDF.
             </p>

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { withApiGuard } from '@/lib/api/guard';
+import { logger } from '@/lib/logger';
 
 const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?: string): string => {
   const documentType = documentData?.type === 'cotacao' ? 'Cotação' : 'Fatura';
@@ -12,21 +14,21 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
   <title>${documentType} ${documentNumber || documentData?.numero}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    * { 
-      margin: 0; 
-      padding: 0; 
-      box-sizing: border-box; 
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
       font-family: 'Arial', 'Helvetica', sans-serif;
     }
-    
-    body { 
+
+    body {
       background: white !important;
       color: #000 !important;
       line-height: 1.4;
       padding: 5mm;
       margin: 0 !important;
     }
-    
+
     @media print {
       @page {
         margin: 5mm !important;
@@ -35,19 +37,19 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
         margin-footer: 0 !important;
         marks: none !important;
       }
-      
-      body { 
+
+      body {
         padding: 0 !important;
         margin: 0 !important;
         width: 100% !important;
       }
-      
+
       * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
       }
-      
+
       .header, .footer, #header, #footer, .print-header, .print-footer {
         display: none !important;
       }
@@ -56,18 +58,18 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
       .invoice-header { display: block !important; }
       .quotation-header { display: block !important; }
     }
-    
+
     table {
       width: 100%;
       border-collapse: collapse;
       page-break-inside: avoid;
     }
-    
+
     th, td {
       padding: 8px 12px;
       border: 1px solid #ddd;
     }
-    
+
     .no-break {
       page-break-inside: avoid;
     }
@@ -75,7 +77,7 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
 </head>
 <body>
   ${htmlContent}
-  
+
   <script>
     setTimeout(() => window.print(), 500);
     window.onbeforeunload = () => "PDF gerado com sucesso? Pode fechar esta janela.";
@@ -84,79 +86,94 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
 </html>`;
 };
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id: documentId } = await context.params;
+// Rota pública por desenho (fallback de download usado por useDocumentHtml.ts
+// para clientes/utilizadores que recebem o link do documento). Antes desta
+// correção, a query usava a tabela `faturas` com colunas que já não existem
+// desde a normalização do schema (numero, tipo_documento, status, html_content,
+// data_fatura, moeda, destinatarios) -- por isso esta rota estava
+// silenciosamente quebrada. Passa a usar `documentos_base`/`view_documentos_pagamentos`,
+// a mesma fonte já usada em document/view/[id]. Mitigação do IDOR (C2, ver
+// docs/auditoria-inicial.md): manter público, mas com rate limiting + registo.
+export const GET = withApiGuard(async (request: NextRequest) => {
+  const documentId = request.nextUrl.pathname.split('/').pop();
 
-    if (!documentId || documentId === 'undefined' || documentId === 'null') {
-      return NextResponse.json(
-        { success: false, error: 'ID do documento é obrigatório' },
-        { status: 400 }
-      );
-    }
-
-    const { data: document, error } = await supabaseAdmin
-      .from('faturas')
-      .select(`
-        id, 
-        numero, 
-        tipo_documento, 
-        status, 
-        html_content, 
-        data_fatura, 
-        moeda,
-        destinatarios (
-          nome_completo
-        )
-      `)
-      .eq('id', documentId)
-      .single();
-
-    if (error || !document) {
-      return NextResponse.json(
-        { success: false, error: 'Documento não encontrado' },
-        { status: 404 }
-      );
-    }
-
-    if (!document.html_content) {
-      return NextResponse.json(
-        { success: false, error: 'Conteúdo não disponível para geração de PDF' },
-        { status: 404 }
-      );
-    }
-
-    const clientName = document.destinatarios && Array.isArray(document.destinatarios) 
-      ? document.destinatarios[0]?.nome_completo 
-      : 'Cliente não especificado';
-
-    const pdfHtml = getPdfTemplate(document.html_content, {
-      id: document.id,
-      numero: document.numero,
-      type: document.tipo_documento,
-      typeDisplay: document.tipo_documento === 'cotacao' ? 'Cotação' : (document.tipo_documento === 'recibo' ? 'Recibo' : 'Fatura'),
-      client: clientName,
-      date: document.data_fatura,
-      currency: document.moeda || 'MZN',
-      status: document.status
-    });
-
-    return new NextResponse(pdfHtml, {
-      headers: {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${document.tipo_documento === 'cotacao' ? 'cotacao' : (document.tipo_documento === 'recibo' ? 'recibo' : 'fatura')}-${document.numero}.pdf"`,
-        'Cache-Control': 'public, max-age=3600',
-      },
-    });
-
-  } catch (error) {
-    console.error('Erro ao gerar PDF:', error);
+  if (!documentId || documentId === 'undefined' || documentId === 'null') {
     return NextResponse.json(
-      { success: false, error: 'Erro interno do servidor' },
-      { status: 500 }
+      { success: false, error: 'ID do documento é obrigatório' },
+      { status: 400 }
     );
   }
-}
+
+  let tipoDocumento: string | null = null;
+  let numero: string | null = null;
+  let moeda: string | null = null;
+  let statusDoc: string | null = null;
+  let clientName: string = 'Cliente não especificado';
+
+  const { data: viewDoc } = await supabaseAdmin
+    .from('view_documentos_pagamentos')
+    .select('id, tipo_documento, numero, moeda, status_documento, destinatario')
+    .eq('id', documentId)
+    .maybeSingle();
+
+  if (viewDoc) {
+    tipoDocumento = viewDoc.tipo_documento;
+    numero = viewDoc.numero;
+    moeda = viewDoc.moeda;
+    statusDoc = viewDoc.status_documento;
+    if (viewDoc.destinatario) {
+      clientName = viewDoc.destinatario;
+    }
+  }
+
+  const { data: baseDoc } = await supabaseAdmin
+    .from('documentos_base')
+    .select('id, numero, status, html_content, moeda')
+    .eq('id', documentId)
+    .maybeSingle();
+
+  if (!baseDoc) {
+    await logger.log({
+      action: 'document_download',
+      level: 'warn',
+      message: `Tentativa de geração de PDF para documento inexistente: ${documentId}`,
+      details: { documentId }
+    });
+    return NextResponse.json(
+      { success: false, error: 'Documento não encontrado' },
+      { status: 404 }
+    );
+  }
+
+  if (!baseDoc.html_content) {
+    return NextResponse.json(
+      { success: false, error: 'Conteúdo não disponível para geração de PDF' },
+      { status: 404 }
+    );
+  }
+
+  tipoDocumento = tipoDocumento || 'fatura';
+  numero = numero || baseDoc.numero;
+  moeda = moeda || baseDoc.moeda || 'MZN';
+  statusDoc = statusDoc || baseDoc.status;
+
+  const pdfHtml = getPdfTemplate(baseDoc.html_content, {
+    id: baseDoc.id,
+    numero,
+    type: tipoDocumento,
+    typeDisplay: tipoDocumento === 'cotacao' ? 'Cotação' : (tipoDocumento === 'recibo' ? 'Recibo' : 'Fatura'),
+    client: clientName,
+    currency: moeda,
+    status: statusDoc
+  });
+
+  const filePrefix = tipoDocumento === 'cotacao' ? 'cotacao' : (tipoDocumento === 'recibo' ? 'recibo' : 'fatura');
+
+  return new NextResponse(pdfHtml, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filePrefix}-${numero}.pdf"`,
+      'Cache-Control': 'public, max-age=3600',
+    },
+  });
+}, { rate: { limit: 30, intervalMs: 60_000 }, auditAction: 'document_pdf' });

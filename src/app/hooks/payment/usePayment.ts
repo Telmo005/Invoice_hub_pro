@@ -53,6 +53,20 @@ const PAYMENT_METHODS: PaymentMethod[] = [
 const LIBERATION_FEE = 10;
 const CURRENCY = 'MT';
 
+// Cache simples em memória para token CSRF (mesmo padrão de useCrudEmissores.ts)
+let cachedCsrfToken: string | null = null;
+const fetchCsrfToken = async (): Promise<string> => {
+  if (cachedCsrfToken) return cachedCsrfToken;
+  const res = await fetch('/api/auth/csrf', { method: 'GET', credentials: 'include' });
+  const data = await res.json();
+  const received = data?.csrfToken || data?.token;
+  if (typeof received === 'string' && received.length > 10) {
+    cachedCsrfToken = received;
+    return cachedCsrfToken;
+  }
+  throw new Error('Falha ao obter CSRF token');
+};
+
 class ApiError extends Error {
   constructor(
     public code: string,
@@ -225,9 +239,14 @@ const processRealPayment = async (
     document_snapshot: documentSnapshot || {}
   };
 
+  const csrfToken = await fetchCsrfToken();
   const response = await fetch('/api/mpesa', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-csrf-token': csrfToken
+    },
+    credentials: 'include',
     body: JSON.stringify(payload),
   });
 

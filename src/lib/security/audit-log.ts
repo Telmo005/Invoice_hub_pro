@@ -16,7 +16,7 @@ export async function logAuthEvent(params: {
   }
 
   try {
-    const { supabaseAdmin } = await import('@/lib/security/supabase-admin');
+    const { supabaseAdmin } = await import('@/lib/supabase-admin');
     await supabaseAdmin.from('auth_audit_log').insert({
       event_type: params.event,
       metadata: params.metadata,
