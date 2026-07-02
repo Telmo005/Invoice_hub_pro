@@ -107,6 +107,83 @@ export class EmailService {
     }
   }
 
+  private createSimpleEmailTemplate(title: string, message: string, buttonLabel: string, buttonLink: string): string {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${this.escapeHtml(title)} - Invoice Hub Pro</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:'Inter','Segoe UI',system-ui,sans-serif;color:#1f2937;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;">
+        <div style="background:linear-gradient(135deg,#1e40af 0%,#3b82f6 100%);color:white;padding:32px 30px;text-align:center;">
+            <div style="font-size:22px;font-weight:700;">Invoice Hub Pro</div>
+            <h1 style="font-size:22px;font-weight:600;margin:12px 0 0 0;">${this.escapeHtml(title)}</h1>
+        </div>
+        <div style="padding:32px 30px;">
+            <p style="font-size:15px;color:#4b5563;line-height:1.6;margin:0 0 28px 0;">${message}</p>
+            <div style="text-align:center;">
+                <a href="${buttonLink}" style="display:inline-block;background:#2563eb;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;" target="_blank" rel="noopener noreferrer">
+                    ${this.escapeHtml(buttonLabel)}
+                </a>
+            </div>
+        </div>
+        <div style="text-align:center;padding:24px 30px;background:#f8fafc;border-top:1px solid #e5e7eb;color:#6b7280;font-size:13px;">
+            <p style="margin:4px 0;">Invoice Hub Pro</p>
+            <p style="margin:4px 0;">Esta é uma mensagem automática. Por favor, não responda a este email.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+  }
+
+  async sendSubscriptionReminder(email: string, dueDate: string, renewLink: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const formattedDate = new Date(dueDate).toLocaleDateString('pt-MZ', { day: '2-digit', month: 'long', year: 'numeric' });
+      const html = this.createSimpleEmailTemplate(
+        'A sua assinatura vai renovar em breve',
+        `A sua assinatura mensal da Invoice Hub Pro vence em <strong>${this.escapeHtml(formattedDate)}</strong>. Para continuar a criar documentos sem interrupção, renove agora.`,
+        'Renovar assinatura',
+        renewLink
+      );
+      await this.transporter.sendMail({
+        from: `"Invoice Hub Pro" <${process.env.GMAIL_USER}>`,
+        to: email,
+        subject: 'A sua assinatura Invoice Hub Pro vence em breve',
+        html
+      });
+      return { success: true, message: 'Lembrete enviado' };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao enviar lembrete';
+      console.error('❌ Erro ao enviar lembrete de assinatura:', errorMessage);
+      return { success: false, message: errorMessage };
+    }
+  }
+
+  async sendSubscriptionBlocked(email: string, renewLink: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const html = this.createSimpleEmailTemplate(
+        'A sua assinatura expirou',
+        'A sua assinatura mensal da Invoice Hub Pro expirou e a criação direta de novos documentos foi bloqueada. Renove a assinatura para recuperar o acesso, ou continue a usar a app pagando 10 MT por documento.',
+        'Renovar assinatura',
+        renewLink
+      );
+      await this.transporter.sendMail({
+        from: `"Invoice Hub Pro" <${process.env.GMAIL_USER}>`,
+        to: email,
+        subject: 'A sua assinatura Invoice Hub Pro expirou',
+        html
+      });
+      return { success: true, message: 'Aviso de bloqueio enviado' };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao enviar aviso';
+      console.error('❌ Erro ao enviar aviso de bloqueio de assinatura:', errorMessage);
+      return { success: false, message: errorMessage };
+    }
+  }
+
   private createEmailTemplate(
     documentData: EmailDocumentData, 
     typeDisplay: string, 
