@@ -20,7 +20,8 @@ import {
   faSignInAlt,
   faSpinner,
   faBuilding,
-  faPlus
+  faPlus,
+  faTag
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
@@ -38,7 +39,8 @@ library.add(
   faSignInAlt,
   faSpinner,
   faBuilding,
-  faPlus
+  faPlus,
+  faTag
 );
 
 // Mapeamento de ícones
@@ -56,7 +58,8 @@ const ICONS = {
   faSpinner,
   faBuilding,
   faPlus,
-  faCompany: faBuilding
+  faCompany: faBuilding,
+  faTag
 };
 
 // Interfaces
@@ -289,6 +292,13 @@ export default function Navbar() {
 
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-4">
+          <NavLink
+            href={ROUTES.PRICING}
+            icon="faTag"
+            label="Preços"
+            onClick={() => handleNavigate(ROUTES.PRICING, 'Preços')}
+            isLoading={isNavigating === 'Preços'}
+          />
           {!user ? (
             <button
               onClick={handleNavigateToLogin}
@@ -312,10 +322,10 @@ export default function Navbar() {
             </button>
           ) : (
             <>
-              <NavLink 
-                href={ROUTES.DASHBOARD} 
-                icon="faGauge" 
-                label="Dashboard" 
+              <NavLink
+                href={ROUTES.DASHBOARD}
+                icon="faGauge"
+                label="Dashboard"
                 onClick={() => handleNavigate(ROUTES.DASHBOARD, 'Dashboard')}
                 isLoading={isNavigating === 'Dashboard'}
               />
@@ -449,11 +459,18 @@ export default function Navbar() {
 
           {mobileDropdownOpen && (
             <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 animate-fade-in">
+              <MobileDropdownLink
+                href={ROUTES.PRICING}
+                icon="faTag"
+                label="Preços"
+                onClick={() => handleNavigate(ROUTES.PRICING, 'Preços')}
+                isLoading={isNavigating === 'Preços'}
+              />
               {!user ? (
                 <button
                   onClick={handleNavigateToLogin}
                   disabled={isRedirecting}
-                  className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mb-2"
+                  className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mb-2 mt-1"
                 >
                   {isRedirecting ? (
                     <>

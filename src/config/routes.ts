@@ -8,6 +8,7 @@ export const ROUTES = {
   ABOUT: '/about',
   CONTACT: '/contact',
   DASHBOARD: '/dashboard',
+  PRICING: '/pricing',
 
   // Rotas privadas (requerem autenticação)
   PROFILE: '/pages/PROFILE',
@@ -36,6 +37,7 @@ export const ROUTES = {
     ROUTES.ABOUT,
     ROUTES.CONTACT,
     ROUTES.DASHBOARD,
+    ROUTES.PRICING,
   ],
 
   getPrivateRoutes: () => [
