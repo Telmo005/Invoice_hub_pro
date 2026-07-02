@@ -6,6 +6,8 @@ import { withApiGuard } from '@/lib/api/guard';
 import { FormDataFatura, ItemFatura, TotaisFatura, Emitente, Destinatario } from '@/types/invoice-types';
 import { validateQuotationPayload } from '@/lib/validation/documentSchemas';
 import { ensureEmitenteId, ensureDestinatarioId } from '@/lib/document/party';
+import { buildDadosEspecificos, mapItensParaRpc } from '@/lib/document/buildDadosEspecificos';
+import { hasActiveSubscription } from '@/lib/payments/hasActiveSubscription';
 
 interface ApiError { code: string; message: string; details?: unknown }
 interface ApiResponse<T = unknown> { success: boolean; data?: T; error?: ApiError }
@@ -31,10 +33,11 @@ interface RequestBody { documentData: QuotationData }
 
 const ERROR_CODES = {
   UNAUTHORIZED: 'UNAUTHORIZED',
-  VALIDATION_ERROR: 'VALIDATION_ERROR', 
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
   DATABASE_ERROR: 'DATABASE_ERROR',
   DOCUMENT_ALREADY_EXISTS: 'DOCUMENT_ALREADY_EXISTS',
   SUPABASE_TIMEOUT: 'SUPABASE_TIMEOUT',
+  PAYMENT_REQUIRED: 'PAYMENT_REQUIRED',
   INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
 
@@ -45,6 +48,20 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
 
   try {
     const supabase = await supabaseServer();
+
+    // Fase 4: ver o mesmo comentário em invoice/create/route.ts -- criação
+    // direta exige assinatura mensal ativa; sem ela, o caminho é
+    // /api/payments/checkout.
+    if (!(await hasActiveSubscription(supabase, user.id))) {
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: ERROR_CODES.PAYMENT_REQUIRED,
+          message: 'É necessário pagamento ou assinatura ativa para criar este documento',
+          details: { checkoutEndpoint: '/api/payments/checkout' }
+        }
+      }, { status: 402 });
+    }
 
     let body: RequestBody;
     try {
@@ -158,31 +175,8 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
     // Método de pagamento em cotação é informativo; não validar de forma restritiva.
 
     // Mapear dados específicos conforme a função criar_documento_completo
-    const statusDocumento = formData.status === 'paga' ? 'paga' : 'emitida';
-    const dadosEspecificos = {
-      numero: formData.cotacaoNumero,
-      data_emissao: formData.dataFatura ?? null,
-      data_vencimento: formData.dataVencimento ?? null,
-      ordem_compra: formData.ordemCompra ?? null,
-      termos: formData.termos ?? null,
-      moeda: formData.moeda ?? 'MT',
-      logo_url: logo ?? null,
-      assinatura_base64: assinatura ?? null,
-      validez_dias: formData.validezCotacao ? Number(formData.validezCotacao) : 15,
-      desconto: typeof formData.desconto === 'number' ? formData.desconto : (totais?.desconto ?? 0),
-      tipo_desconto: formData.tipoDesconto ?? 'fixed',
-      metodo_pagamento: formData.metodoPagamento || null,
-      status: statusDocumento
-    };
-
-    // Mapear itens para o formato do banco
-    const itensMapeados = (items || []).map((it) => ({
-      id_original: it.id,
-      quantidade: it.quantidade,
-      descricao: it.descricao,
-      preco_unitario: it.precoUnitario,
-      taxas: Array.isArray(it.taxas) ? it.taxas.map(t => ({ nome: t.nome, valor: t.valor, tipo: t.tipo })) : []
-    }));
+    const dadosEspecificos = buildDadosEspecificos({ tipo: 'cotacao', formData, logo, assinatura, totais });
+    const itensMapeados = mapItensParaRpc(items);
 
     await logger.log({
       action: 'api_call',

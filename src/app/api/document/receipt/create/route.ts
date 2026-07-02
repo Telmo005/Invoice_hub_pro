@@ -6,6 +6,8 @@ import { withApiGuard } from '@/lib/api/guard';
 import { ItemFatura, TotaisFatura, Emitente, Destinatario } from '@/types/invoice-types';
 import { validateReceiptPayload } from '@/lib/validation/documentSchemas';
 import { ensureEmitenteId, ensureDestinatarioId } from '@/lib/document/party';
+import { buildDadosEspecificos, mapItensParaRpc } from '@/lib/document/buildDadosEspecificos';
+import { hasActiveSubscription } from '@/lib/payments/hasActiveSubscription';
 
 interface ApiError { code: string; message: string; details?: unknown }
 interface ApiResponse<T = unknown> { success: boolean; data?: T; error?: ApiError }
@@ -41,6 +43,7 @@ const ERROR_CODES = {
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   DATABASE_ERROR: 'DATABASE_ERROR',
   DOCUMENT_ALREADY_EXISTS: 'DOCUMENT_ALREADY_EXISTS',
+  PAYMENT_REQUIRED: 'PAYMENT_REQUIRED',
   INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
 
@@ -51,6 +54,20 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
 
   try {
     const supabase = await supabaseServer();
+
+    // Fase 4: ver o mesmo comentário em invoice/create/route.ts -- criação
+    // direta exige assinatura mensal ativa; sem ela, o caminho é
+    // /api/payments/checkout.
+    if (!(await hasActiveSubscription(supabase, user.id))) {
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: ERROR_CODES.PAYMENT_REQUIRED,
+          message: 'É necessário pagamento ou assinatura ativa para criar este documento',
+          details: { checkoutEndpoint: '/api/payments/checkout' }
+        }
+      }, { status: 402 });
+    }
 
     let body: RequestBody;
     try {
@@ -127,32 +144,6 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       }, { status: 400 });
     }
 
-    // Preparar dados completos do recibo para o RPC (chaves esperadas pela função unificada)
-    const reciboData = {
-      // Identificadores do número (manter ambos para compatibilidade)
-      reciboNumero: formData.reciboNumero,
-      faturaNumero: formData.reciboNumero,
-      // Datas
-      dataFatura: formData.dataRecebimento, // usado como data base
-      dataRecebimento: formData.dataRecebimento,
-      dataPagamento: formData.dataPagamento || null,
-      dataVencimento: null,
-      // Valores / pagamento
-      valorRecebido: formData.valorRecebido,
-      formaPagamento: formData.formaPagamento || null,
-      // Referências
-      referenciaPagamento: formData.referenciaPagamento || null,
-      documentoAssociadoCustom: formData.documentoAssociadoCustom || null,
-      motivoPagamento: formData.motivoPagamento || null,
-      // Outros campos opcionais
-      ordemCompra: formData.ordemCompra || null,
-      termos: formData.termos || (formData.formaPagamento ? `Forma de pagamento: ${formData.formaPagamento}` : null),
-      moeda: formData.moeda || 'MT',
-      metodoPagamento: formData.formaPagamento || null,
-      logoUrl: logo || null,
-      assinaturaBase64: assinatura || null
-    };
-
     // ===== BLOCO RPC UNIFICADO PARA RECIBO =====
     // Obter ou criar IDs de emitente e destinatário (lógica partilhada com
     // invoice/create e quotation/create -- ver src/lib/document/party.ts)
@@ -163,33 +154,8 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
 
     // Forma de pagamento em recibo é informativa para o usuário; não validar de forma restritiva.
 
-    const statusDocumento = formData.status === 'paga' ? 'paga' : 'emitida';
-    const dadosEspecificos = {
-      numero: formData.reciboNumero,
-      data_emissao: formData.dataRecebimento,
-      moeda: formData.moeda || 'MT',
-      termos: reciboData.termos,
-      ordem_compra: reciboData.ordemCompra,
-      tipo_recibo: 'pagamento',
-      valor_recebido: formData.valorRecebido,
-      forma_pagamento: formData.formaPagamento || null,
-      metodo_pagamento: formData.formaPagamento || null,
-      referencia_recebimento: formData.referenciaPagamento || null,
-      motivo_pagamento: formData.motivoPagamento || null,
-      documento_referencia: formData.documentoAssociadoCustom || null,
-      data_recebimento: formData.dataRecebimento,
-      local_emissao: formData.emitente?.cidade || null,
-      logo_url: logo || null,
-      status: statusDocumento
-    };
-
-    const itensMapeados = (items || []).map((it: ItemFatura) => ({
-      id_original: it.id,
-      quantidade: it.quantidade,
-      descricao: it.descricao,
-      preco_unitario: it.precoUnitario,
-      taxas: Array.isArray(it.taxas) ? it.taxas.map(t => ({ nome: t.nome, valor: t.valor, tipo: t.tipo })) : []
-    }));
+    const dadosEspecificos = buildDadosEspecificos({ tipo: 'recibo', formData, logo, assinatura });
+    const itensMapeados = mapItensParaRpc(items || []);
 
     await logger.log({
       action: 'api_call',

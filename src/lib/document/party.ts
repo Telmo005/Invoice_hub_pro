@@ -21,8 +21,11 @@ export interface PartyDestinatarioInput {
   telefone?: string;
 }
 
-export async function ensureEmitenteId(userId: string, emissor: PartyEmitenteInput) : Promise<string> {
-  const supabase = await supabaseServer();
+// client é opcional -- por defeito usa supabaseServer() (contexto de sessão
+// autenticada, respeita RLS). O webhook do PaySuite (Fase 4) não tem sessão
+// de utilizador, por isso passa explicitamente supabaseAdmin (service role).
+export async function ensureEmitenteId(userId: string, emissor: PartyEmitenteInput, client?: any) : Promise<string> {
+  const supabase = client ?? await supabaseServer();
   let emissorId: string | null = null;
   if (emissor.documento) {
     const { data } = await supabase
@@ -63,9 +66,9 @@ export async function ensureEmitenteId(userId: string, emissor: PartyEmitenteInp
   return emissorId as string;
 }
 
-export async function ensureDestinatarioId(userId: string, dest?: PartyDestinatarioInput) : Promise<string | null> {
+export async function ensureDestinatarioId(userId: string, dest?: PartyDestinatarioInput, client?: any) : Promise<string | null> {
   if (!dest) return null;
-  const supabase = await supabaseServer();
+  const supabase = client ?? await supabaseServer();
   let destinatarioId: string | null = null;
   if (dest.documento) {
     const { data } = await supabase

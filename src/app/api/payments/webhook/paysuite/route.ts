@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { PaySuiteProvider } from '@/lib/payments/providers/PaySuiteProvider';
 import { withApiGuard } from '@/lib/api/guard';
 import { logger } from '@/lib/logger';
+import { ensureEmitenteId, ensureDestinatarioId } from '@/lib/document/party';
+import { buildDadosEspecificos, mapItensParaRpc } from '@/lib/document/buildDadosEspecificos';
 
 // Fase 4 (docs/auditoria-inicial.md): recebe confirmações assíncronas do
 // PaySuite (M-Pesa/e-Mola/Visa são tipicamente assíncronos -- o utilizador
@@ -25,21 +27,35 @@ function getProvider(): PaySuiteProvider {
 
 async function finalizeDocumentPayment(pagamento: any): Promise<void> {
   const documentPayload = pagamento.metadata?.document_payload;
-  if (!documentPayload) {
+  if (!documentPayload?.formData) {
     await logger.logError(new Error('document_payload ausente em pagamento confirmado'), 'paysuite_webhook_missing_payload', {
       pagamentoId: pagamento.id
     });
     return;
   }
 
+  const { formData, items, totais, logo, assinatura, html_content } = documentPayload;
+
+  // Resolve/cria emitente e destinatário agora (não antes de confirmar o
+  // pagamento) -- mesma lógica partilhada que os create routes usam, mas
+  // com supabaseAdmin porque o webhook não tem sessão de utilizador (ver
+  // src/lib/document/party.ts).
+  const [emitenteId, destinatarioId] = await Promise.all([
+    ensureEmitenteId(pagamento.user_id, formData.emitente, supabaseAdmin),
+    ensureDestinatarioId(pagamento.user_id, formData.destinatario, supabaseAdmin)
+  ]);
+
+  const dadosEspecificos = buildDadosEspecificos({ tipo: pagamento.tipo_documento, formData, logo, assinatura, totais });
+  const itensMapeados = mapItensParaRpc(items);
+
   const { data: documentoId, error: rpcError } = await supabaseAdmin.rpc('criar_documento_completo', {
     p_user_id: pagamento.user_id,
     p_tipo_documento: pagamento.tipo_documento,
-    p_emitente_id: documentPayload.emitente_id,
-    p_destinatario_id: documentPayload.destinatario_id,
-    p_dados_especificos: documentPayload.dados_especificos ?? {},
-    p_itens: documentPayload.itens ?? [],
-    p_html_content: documentPayload.html_content ?? null
+    p_emitente_id: emitenteId,
+    p_destinatario_id: destinatarioId,
+    p_dados_especificos: dadosEspecificos,
+    p_itens: itensMapeados,
+    p_html_content: html_content ?? null
   });
 
   if (rpcError || !documentoId) {

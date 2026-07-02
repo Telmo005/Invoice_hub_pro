@@ -6,6 +6,8 @@ import { withApiGuard } from '@/lib/api/guard';
 import { FormDataFatura, ItemFatura, TotaisFatura } from '@/types/invoice-types';
 import { validateInvoicePayload } from '@/lib/validation/documentSchemas';
 import { ensureEmitenteId, ensureDestinatarioId } from '@/lib/document/party';
+import { buildDadosEspecificos, mapItensParaRpc } from '@/lib/document/buildDadosEspecificos';
+import { hasActiveSubscription } from '@/lib/payments/hasActiveSubscription';
 
 interface ApiError {
   code: string;
@@ -42,6 +44,7 @@ const ERROR_CODES = {
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   DATABASE_ERROR: 'DATABASE_ERROR',
   DOCUMENT_ALREADY_EXISTS: 'DOCUMENT_ALREADY_EXISTS',
+  PAYMENT_REQUIRED: 'PAYMENT_REQUIRED',
   INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
 
@@ -52,6 +55,24 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
 
   try {
     const supabase = await supabaseServer();
+
+    // Fase 4 (docs/auditoria-inicial.md): criação direta só é permitida a
+    // utilizadores com assinatura mensal ativa (já pagaram na mensalidade).
+    // Sem assinatura ativa (plano pay_per_documento, o default), o único
+    // caminho para criar um documento é /api/payments/checkout -- o
+    // documento só é criado pelo webhook do PaySuite depois do pagamento
+    // ser confirmado. Antes desta verificação, esta rota podia ser chamada
+    // diretamente sem pagar nada, contornando por completo o fluxo pago.
+    if (!(await hasActiveSubscription(supabase, user.id))) {
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: ERROR_CODES.PAYMENT_REQUIRED,
+          message: 'É necessário pagamento ou assinatura ativa para criar este documento',
+          details: { checkoutEndpoint: '/api/payments/checkout' }
+        }
+      }, { status: 402 });
+    }
 
     let body: RequestBody;
     try {
@@ -179,30 +200,9 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
 
     // Método de pagamento: agora livre/informativo. Persistimos exatamente o valor informado.
     const metodoInformativo = formData.metodoPagamento || null;
-    const statusDocumento = formData.status === 'paga' ? 'paga' : 'emitida';
 
-    const dadosEspecificos = {
-      numero: formData.faturaNumero,
-      data_emissao: formData.dataFatura ?? null,
-      data_vencimento: formData.dataVencimento ?? null,
-      ordem_compra: formData.ordemCompra ?? null,
-      termos: formData.termos ?? null,
-      moeda: formData.moeda || 'MT',
-      logo_url: logo || null,
-      assinatura_base64: assinatura || null,
-      status: statusDocumento,
-      desconto: formData.desconto || 0,
-      tipo_desconto: formData.tipoDesconto || 'fixed',
-      metodo_pagamento: metodoInformativo,
-    };
-
-    const itensMapeados = (items || []).map((it) => ({
-      id_original: it.id,
-      quantidade: it.quantidade,
-      descricao: it.descricao,
-      preco_unitario: it.precoUnitario,
-      taxas: Array.isArray(it.taxas) ? it.taxas.map(t => ({ nome: t.nome, valor: t.valor, tipo: t.tipo })) : []
-    }));
+    const dadosEspecificos = buildDadosEspecificos({ tipo: 'fatura', formData, logo, assinatura });
+    const itensMapeados = mapItensParaRpc(items);
 
     await logger.log({
       action: 'api_call',
