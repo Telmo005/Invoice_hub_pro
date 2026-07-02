@@ -64,20 +64,37 @@ export async function GET(_req: Request, context: DetailContext) {
       .eq('id', (baseDoc as any).destinatario_id)
       .single();
 
-    // Itens
+    // Itens + respetivas taxas (ver A4/C4 em docs/auditoria-inicial.md: a
+    // reconstrução anterior descartava taxas_itens por completo -- `taxas: []`
+    // fixo -- e nunca refletia impostos ao reutilizar/converter um documento)
     const { data: itensRows } = await supabase
       .from('itens_documento')
-      .select('id_original, quantidade, descricao, preco_unitario')
+      .select('id, id_original, quantidade, descricao, preco_unitario')
       .eq('documento_id', documentoId);
 
-    const items: ItemFatura[] = (itensRows || []).map((it, idx) => ({
-      id: it.id_original || idx + 1,
-      quantidade: it.quantidade || 1,
-      descricao: it.descricao || 'Item',
-      precoUnitario: it.preco_unitario || 0,
-      taxas: [],
-      totalItem: (it.quantidade || 1) * (it.preco_unitario || 0)
-    }));
+    const itemIds = (itensRows || []).map((it) => it.id);
+    const { data: taxasRows } = itemIds.length
+      ? await supabase.from('taxas_itens').select('item_id, nome, valor, tipo').in('item_id', itemIds)
+      : { data: [] as { item_id: string; nome: string; valor: number; tipo: string }[] };
+
+    const items: ItemFatura[] = (itensRows || []).map((it, idx) => {
+      const taxasDoItem = (taxasRows || [])
+        .filter((t) => t.item_id === it.id)
+        .map((t) => ({ nome: t.nome, valor: t.valor, tipo: t.tipo as 'percent' | 'fixed' }));
+      const baseValue = (it.quantidade || 1) * (it.preco_unitario || 0);
+      const itemTaxas = taxasDoItem.reduce(
+        (sum, t) => sum + (t.tipo === 'percent' ? (baseValue * t.valor) / 100 : t.valor),
+        0
+      );
+      return {
+        id: it.id_original || idx + 1,
+        quantidade: it.quantidade || 1,
+        descricao: it.descricao || 'Item',
+        precoUnitario: it.preco_unitario || 0,
+        taxas: taxasDoItem,
+        totalItem: baseValue + itemTaxas
+      };
+    });
 
     // Campos específicos por tipo
     let formSpecific: Partial<FormDataFatura> = {};
@@ -180,9 +197,21 @@ export async function GET(_req: Request, context: DetailContext) {
       metodoPagamento: undefined
     };
 
-    // Totais simplificados (recalcular no wizard)
-    const subtotal = items.reduce((s, it) => s + (it.quantidade * it.precoUnitario), 0);
-    const totais = { subtotal, totalTaxas: 0, totalFinal: subtotal, taxasDetalhadas: [], desconto: formData.desconto };
+    // Totais: ler diretamente de totais_documento (fonte de verdade mantida
+    // pelos triggers da BD) em vez de recomputar ingenuamente sem impostos
+    const { data: totaisRow } = await supabase
+      .from('totais_documento')
+      .select('subtotal, total_desconto, total_taxas, total_final')
+      .eq('documento_id', documentoId)
+      .maybeSingle();
+
+    const totais = {
+      subtotal: Number(totaisRow?.subtotal ?? 0),
+      totalTaxas: Number(totaisRow?.total_taxas ?? 0),
+      totalFinal: Number(totaisRow?.total_final ?? 0),
+      taxasDetalhadas: [],
+      desconto: Number(totaisRow?.total_desconto ?? formData.desconto ?? 0)
+    };
 
     const invoiceData: InvoiceData = { tipo, formData, items, totais, logo: (baseDoc as any).logo_url || null, assinatura: null };
 
