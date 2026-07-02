@@ -164,9 +164,7 @@ const PaymentMethodImage: React.FC<{
 const PaymentMethodDropdown: React.FC<{
   paymentMethods: any[];
   selectedMethod: string | null;
-  contactNumber: string;
   onMethodSelect: (method: string) => void;
-  onContactChange: (value: string) => void;
   errorMessage?: string;
   successMessage?: string;
   isProcessing: boolean;
@@ -178,9 +176,7 @@ const PaymentMethodDropdown: React.FC<{
 }> = ({
   paymentMethods,
   selectedMethod,
-  contactNumber,
   onMethodSelect,
-  onContactChange,
   errorMessage,
   successMessage,
   isProcessing,
@@ -269,19 +265,14 @@ const PaymentMethodDropdown: React.FC<{
               </div>
 
               <div className="mt-3">
-                <label className="block text-sm text-gray-700 mb-2 font-medium">
-                  Seu número para confirmação:
-                </label>
-                <input
-                  type="tel"
-                  value={contactNumber}
-                  onChange={(e) => onContactChange(e.target.value)}
-                  placeholder="84 123 4567"
-                  maxLength={18}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-colors"
-                />
-                
-                {/* Mensagens de erro/sucesso APENAS abaixo do campo do número */}
+                <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                  Vai ser aberta uma nova aba para concluir o pagamento com segurança.
+                  {selectedMethodData.id === 'credit_card'
+                    ? ' Pagamentos por cartão podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
+                    : ' Confirme o pagamento no seu telemóvel quando for solicitado.'}
+                </p>
+
+                {/* Mensagens de erro/sucesso abaixo da explicação do fluxo */}
                 <div className="mt-2">
                   {errorMessage && (
                     <StatusMessage 
@@ -392,15 +383,12 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
   const {
     selectedMethod,
     paymentStatus,
-    contactNumber,
     errorMessage,
     successMessage,
     documentSaveResult,
-    isCreating,
     isPreviewOpen,
     isGeneratingPdf,
     setSelectedMethod,
-    setContactNumber,
     setIsPreviewOpen,
     setErrorMessage: _setErrorMessage,
     processPayment,
@@ -417,8 +405,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
   });
 
   const DocumentIcon = dynamicDocumentData.type === 'cotacao' ? FaQuoteLeft : FaFileInvoice;
-  const isProcessing = paymentStatus === 'processing' || isCreating;
-  const isPaymentDisabled = !selectedMethod || isProcessing || !contactNumber.trim() || !isDocumentValid;
+  const isProcessing = paymentStatus === 'processing';
+  const isPaymentDisabled = !selectedMethod || isProcessing || !isDocumentValid;
 
   if (paymentStatus === 'success') {
     return (
@@ -475,9 +463,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
             <PaymentMethodDropdown
               paymentMethods={paymentMethods}
               selectedMethod={selectedMethod}
-              contactNumber={contactNumber}
               onMethodSelect={setSelectedMethod}
-              onContactChange={setContactNumber}
               errorMessage={errorMessage ?? undefined}
               successMessage={successMessage ?? undefined}
               isProcessing={isProcessing}

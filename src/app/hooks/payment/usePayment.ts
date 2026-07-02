@@ -23,7 +23,6 @@ interface UsePaymentReturn {
   errorMessage: string | null;
   successMessage: string | null;
   documentSaveResult: { documentId: string; documentNumber: string } | null;
-  isCreating: boolean;
   isPreviewOpen: boolean;
   isGeneratingPdf: boolean;
   isDocumentValid: boolean;
@@ -40,18 +39,41 @@ interface UsePaymentReturn {
   dynamicDocumentData: any;
 }
 
+// Fase 4 (docs/auditoria-inicial.md): valores do "id" batem certo com o
+// campo `method` esperado pelo PaySuite (mpesa|emola|credit_card) -- ver
+// src/lib/payments/PaymentProvider.ts -- para não precisar de mapear entre
+// um id interno e o valor real da API.
 const PAYMENT_METHODS: PaymentMethod[] = [
   {
-    id: 'Mpeza',
+    id: 'mpesa',
     name: 'M-Pesa',
-    description: 'Confirmação imediata',
-    requiresContact: true,
+    description: 'Pagamento via M-Pesa',
+    requiresContact: false,
+    imagePath: '/m-pesa-seeklogo.png'
+  },
+  {
+    id: 'emola',
+    name: 'e-Mola',
+    description: 'Pagamento via e-Mola',
+    requiresContact: false,
+    imagePath: '/m-pesa-seeklogo.png'
+  },
+  {
+    id: 'credit_card',
+    name: 'Cartão (Visa/Mastercard)',
+    description: 'Pode demorar até 1-2 dias úteis a confirmar',
+    requiresContact: false,
     imagePath: '/m-pesa-seeklogo.png'
   }
 ];
 
 const LIBERATION_FEE = 10;
 const CURRENCY = 'MT';
+const POLL_INTERVAL_MS = 3000;
+// ~5 minutos de polling ativo antes de deixar o utilizador seguir em frente
+// (o pagamento continua a ser processado em segundo plano pelo webhook;
+// cartão pode legitimamente demorar 1-2 dias úteis a confirmar)
+const MAX_POLL_ATTEMPTS = 100;
 
 // Cache simples em memória para token CSRF (mesmo padrão de useCrudEmissores.ts)
 let cachedCsrfToken: string | null = null;
@@ -163,12 +185,6 @@ const generateThirdPartyReference = (): string => {
   return result;
 };
 
-const formatTransactionReference = (documentNumber: string): string => {
-  const sanitized = documentNumber.replace(/[^a-zA-Z0-9]/g, '');
-  const withPrefix = `ORDER${sanitized}`;
-  return withPrefix.slice(0, 20);
-};
-
 const formatDate = (dateString?: string): string => {
   if (!dateString) return new Date().toLocaleDateString('pt-MZ');
   return new Date(dateString).toLocaleDateString('pt-MZ', {
@@ -189,85 +205,59 @@ const getDocumentDisplayInfo = (documentType: TipoDocumento) => {
   };
 };
 
-const createDocumentDirect = async (documentData: InvoiceData): Promise<{
-  id: string;
-  numero: string;
-}> => {
-  const docType = documentData.tipo || 'fatura';
-  const endpoint = docType === 'cotacao'
-    ? '/api/document/quotation/create'
-    : (docType === 'recibo' ? '/api/document/receipt/create' : '/api/document/invoice/create');
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ documentData }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok || !data.success) {
-    throw new ApiError(
-      data.error?.code || 'UNKNOWN_ERROR',
-      data.error?.message || 'Erro desconhecido',
-      data.error?.details,
-      response.status
-    );
-  }
-
-  return data.data!;
-};
-
-const processRealPayment = async (
-  contact: string,
-  amount: number,
-  documentNumber: string,
-  thirdPartyReference: string,
-  docType: string,
-  moeda: string,
-  documentSnapshot: any
-): Promise<void> => {
-  const formattedTransactionRef = formatTransactionReference(documentNumber);
-
-  const payload = {
-    customer_msisdn: contact,
-    amount: amount,
-    transaction_reference: formattedTransactionRef,
-    third_party_reference: thirdPartyReference,
-    tipo_documento: docType.toLowerCase(),
-    moeda: moeda || 'MZN',
-    document_snapshot: documentSnapshot || {}
-  };
-
+// Fase 4 (docs/auditoria-inicial.md): inicia a cobrança via PaySuite.
+// Devolve um checkout_url para onde o utilizador é enviado para completar
+// o pagamento (M-Pesa/e-Mola/cartão) -- o documento só é criado depois do
+// webhook confirmar o pagamento, nunca aqui.
+const initiateCheckout = async (
+  tipo: TipoDocumento,
+  documentData: InvoiceData,
+  method: string,
+  htmlContent: string
+): Promise<{ payment_id: string; checkout_url: string }> => {
   const csrfToken = await fetchCsrfToken();
-  const response = await fetch('/api/mpesa', {
+  const response = await fetch('/api/payments/checkout', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-csrf-token': csrfToken
     },
     credentials: 'include',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      tipo,
+      documentData: { ...documentData, htmlContent },
+      method
+    }),
   });
 
   const data = await response.json();
 
-  if (!response.ok) {
-    const errorMessage = data.error?.message || 'Erro ao processar pagamento';
+  if (!response.ok || !data.success) {
     throw new ApiError(
       data.error?.code || 'PAYMENT_ERROR',
-      errorMessage,
+      data.error?.message || 'Erro ao iniciar pagamento',
       data.error?.details,
       response.status
     );
   }
 
-  if (!data.success) {
-    throw new ApiError(
-      'PAYMENT_FAILED',
-      data.message || 'Pagamento não foi autorizado'
-    );
+  return data.data;
+};
+
+interface PaymentStatusResult {
+  status: string;
+  documento: { id: string; numero: string } | null;
+}
+
+const pollPaymentStatusOnce = async (paymentId: string): Promise<PaymentStatusResult> => {
+  const response = await fetch(`/api/payments/status/${paymentId}`, { credentials: 'include' });
+  const data = await response.json();
+
+  if (!response.ok || !data.success) {
+    throw new ApiError('STATUS_ERROR', 'Erro ao consultar estado do pagamento');
   }
+
+  return data.data;
 };
 
 // CSRF removido do fluxo de envio de email para reduzir latência
@@ -348,14 +338,13 @@ export const usePayment = ({
   invoiceData,
   onInvoiceCreated
 }: UsePaymentProps): UsePaymentReturn => {
-  const [selectedMethod, setSelectedMethod] = useState<string | null>('Mpeza');
+  const [selectedMethod, setSelectedMethod] = useState<string | null>('mpesa');
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [contactNumber, setContactNumber] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [documentSaveResult, setDocumentSaveResult] = useState<{ documentId: string; documentNumber: string } | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [thirdPartyReference, setThirdPartyReference] = useState<string>('');
 
@@ -459,67 +448,6 @@ export const usePayment = ({
     }
   }, [invoiceData, isCotacao, dynamicDocumentData.typeDisplay]);
 
-  const processPaymentSingleAttempt = useCallback(async (
-    contact: string,
-    amount: number,
-    documentNumber: string,
-    thirdPartyRef: string,
-    docSnapshot: any
-  ): Promise<void> => {
-    await processRealPayment(
-      contact,
-      amount,
-      documentNumber,
-      thirdPartyRef,
-      documentType,
-      invoiceData?.formData?.moeda || 'MZN',
-      docSnapshot
-    );
-  }, [documentType, invoiceData?.formData?.moeda]);
-
-  const handleSaveDocument = useCallback(async (htmlContent: string): Promise<{
-    id: string;
-    numero: string;
-  }> => {
-    setIsCreating(true);
-    setErrorMessage(null);
-
-    try {
-      const documentDataWithHtml = {
-        ...invoiceData,
-        htmlContent,
-        payment_reference: thirdPartyReference
-      };
-
-      const result = await createDocumentDirect(documentDataWithHtml);
-
-      if (!result.id) {
-        throw new Error('ID do documento não foi retornado');
-      }
-
-      return result;
-    } catch (error) {
-      let errorMessage = 'Erro ao criar documento';
-
-      if (error instanceof ApiError) {
-        switch (error.code) {
-          case 'DOCUMENT_ALREADY_EXISTS':
-            errorMessage = `${dynamicDocumentData.typeDisplay} já existe! Escolha outro número.`;
-            break;
-          default:
-            errorMessage = error.message || 'Erro ao criar documento';
-        }
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-
-      setErrorMessage(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsCreating(false);
-    }
-  }, [invoiceData, dynamicDocumentData.typeDisplay, thirdPartyReference]);
-
   const processPayment = useCallback(async (renderedHtml: string): Promise<void> => {
     if (isProcessingRef.current) {
       setErrorMessage('Processamento já em andamento');
@@ -533,134 +461,119 @@ export const usePayment = ({
       return;
     }
 
-    // Validação do contacto
-    if (!contactNumber.trim()) {
-      setErrorMessage('Por favor, insira o número de contacto para MPesa');
-      return;
-    }
-
-    const cleanedContact = contactNumber.replace(/\D/g, '');
-    if (cleanedContact.length < 9) {
-      setErrorMessage('Número de telefone deve ter pelo menos 9 dígitos');
+    if (!selectedMethod) {
+      setErrorMessage('Selecione um método de pagamento');
       return;
     }
 
     // Reset do estado
     isProcessingRef.current = true;
-    // Sem controle de tentativas
     setPaymentStatus('processing');
     setErrorMessage(null);
     setSuccessMessage(null);
 
     try {
-      // ✅ 1. VALIDAÇÃO DO DOCUMENTO - VERIFICA SE JÁ EXISTE (PRIMEIRO PASSO CRÍTICO)
+      // 1. Verifica se o número do documento já existe (mesma validação de antes)
       setSuccessMessage('Validando número do documento...');
       await validateDocumentNumber();
 
-      // ✅ 2. SE CHEGOU AQUI, DOCUMENTO NÃO EXISTE - PODE CONTINUAR
-
-      // 3. Gerar referência
+      // 2. Inicia o pagamento no PaySuite -- o documento em si só é criado
+      // pelo webhook depois de o pagamento ser confirmado (ver
+      // src/app/api/payments/webhook/paysuite/route.ts).
       const currentThirdPartyReference = generateThirdPartyReference();
       setThirdPartyReference(currentThirdPartyReference);
 
-      // 4. Processar pagamento
-      setSuccessMessage('Iniciando processamento MPesa...');
-      // Snapshot do documento para validação backend
-      const fd: any = invoiceData?.formData || {};
-      const docSnapshot = {
-        tipo: documentType,
-        faturaNumero: fd.faturaNumero,
-        cotacaoNumero: fd.cotacaoNumero,
-        reciboNumero: fd.reciboNumero,
-        emitente: fd.emitente,
-        destinatario: fd.destinatario,
-        items: invoiceData?.items || [],
-        valorRecebido: fd.valorRecebido,
-        validezCotacao: fd.validezCotacao,
-        validezFatura: fd.validezFatura
+      setSuccessMessage('A abrir página de pagamento...');
+      const documentDataWithHtml = {
+        ...invoiceData,
+        payment_reference: currentThirdPartyReference
       };
 
-      await processPaymentSingleAttempt(
-        contactNumber,
-        LIBERATION_FEE,
-        dynamicDocumentData.id,
-        currentThirdPartyReference,
-        docSnapshot
+      const { payment_id, checkout_url } = await initiateCheckout(
+        documentType,
+        documentDataWithHtml,
+        selectedMethod,
+        renderedHtml
       );
 
-      // 5. Salvar documento
-      setSuccessMessage('Pagamento confirmado! Salvando documento...');
-      const saveResult = await handleSaveDocument(renderedHtml);
-
-      setDocumentSaveResult({
-        documentId: saveResult.id,
-        documentNumber: saveResult.numero
-      });
-
-      // ✅ 6. ENVIAR EMAIL APÓS SALVAR O DOCUMENTO COM SUCESSO
-      try {
-        const userEmail = user?.email;
-        if (userEmail) {
-          setSuccessMessage('Enviando documento por email...');
-
-          await sendDocumentByEmail({
-            documentId: saveResult.id,
-            documentNumber: saveResult.numero,
-            documentType: dynamicDocumentData.type as 'fatura' | 'cotacao',
-            clientName: dynamicDocumentData.client,
-            clientEmail: userEmail,
-            date: new Date().toISOString(),
-            totalValue: dynamicDocumentData.totalValue,
-            currency: dynamicDocumentData.currency
-          });
-
-          setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso! Documento enviado por email.`);
-        } else {
-          setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso!`);
-        }
-      } catch (emailError) {
-        console.error('Erro ao enviar email:', emailError);
-        setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso! (Email não enviado)`);
+      // 3. Abre o checkout do PaySuite numa nova aba (decisão do utilizador --
+      // mantém esta página com o wizard/estado visível em vez de navegar
+      // para fora da app).
+      const checkoutWindow = window.open(checkout_url, '_blank', 'noopener,noreferrer');
+      if (!checkoutWindow) {
+        setPaymentStatus('error');
+        setErrorMessage('Permita popups no navegador para concluir o pagamento.');
+        return;
       }
 
-      // 7. Sucesso final
-      setPaymentStatus('success');
+      // 4. Poll até o webhook confirmar o pagamento (ou até esgotar as
+      // tentativas -- cartão pode legitimamente demorar 1-2 dias úteis).
+      setSuccessMessage('Aguardando confirmação do pagamento...');
 
-      if (onInvoiceCreated) {
-        onInvoiceCreated(saveResult.id);
+      let resolved = false;
+      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+        const result = await pollPaymentStatusOnce(payment_id);
+
+        if (result.status === 'pago' && result.documento) {
+          resolved = true;
+          setDocumentSaveResult({
+            documentId: result.documento.id,
+            documentNumber: result.documento.numero
+          });
+
+          try {
+            const userEmail = user?.email;
+            if (userEmail) {
+              setSuccessMessage('Enviando documento por email...');
+              await sendDocumentByEmail({
+                documentId: result.documento.id,
+                documentNumber: result.documento.numero,
+                documentType: dynamicDocumentData.type as 'fatura' | 'cotacao',
+                clientName: dynamicDocumentData.client,
+                clientEmail: userEmail,
+                date: new Date().toISOString(),
+                totalValue: dynamicDocumentData.totalValue,
+                currency: dynamicDocumentData.currency
+              });
+              setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso! Documento enviado por email.`);
+            } else {
+              setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso!`);
+            }
+          } catch (emailError) {
+            console.error('Erro ao enviar email:', emailError);
+            setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso! (Email não enviado)`);
+          }
+
+          setPaymentStatus('success');
+          if (onInvoiceCreated) {
+            onInvoiceCreated(result.documento.id);
+          }
+          break;
+        }
+
+        if (result.status === 'falhado') {
+          resolved = true;
+          setPaymentStatus('error');
+          setErrorMessage('O pagamento não foi concluído ou foi recusado.');
+          break;
+        }
+      }
+
+      if (!resolved) {
+        // Ainda a processar em segundo plano (comum em cartão) -- não é um
+        // erro, o utilizador vai receber email quando o webhook confirmar.
+        setPaymentStatus('idle');
+        setSuccessMessage('O pagamento ainda está a ser processado. Vai receber um email assim que for confirmado.');
       }
 
     } catch (error) {
       setPaymentStatus('error');
 
-      if (error instanceof Error) {
-        const errorMsg = error.message.toLowerCase();
-
-        if (errorMsg.includes('já existe') || errorMsg.includes('nunca')) {
-          setErrorMessage(error.message);
-        } else if (errorMsg.includes('saldo') || errorMsg.includes('insufficient')) {
-          setErrorMessage('Saldo insuficiente no MPesa. Por favor, recarregue e tente novamente.');
-        } else if (errorMsg.includes('duplicate') || errorMsg.includes('duplicad')) {
-          setErrorMessage('Transação duplicada. Aguarde alguns instantes e tente novamente.');
-        } else if (error instanceof ApiError) {
-          // Tratamento específico baseado em códigos da API
-          switch (error.code) {
-            case 'INVALID_PHONE':
-              setErrorMessage('Número de telefone inválido. Formatos aceites: 84XXXXXXX, 084XXXXXXX ou +25884XXXXXXX.');
-              break;
-            case 'MISSING_FIELDS':
-              setErrorMessage('Campos obrigatórios em falta no pagamento. Verifique os dados e tente novamente.');
-              break;
-            default:
-              if (errorMsg.includes('invalid') || errorMsg.includes('inválido')) {
-                setErrorMessage('Dados inválidos recebidos. Verifique número e valor.');
-              } else {
-                setErrorMessage(error.message);
-              }
-          }
-        } else {
-          setErrorMessage(error.message);
-        }
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message || 'Erro ao processar pagamento');
+      } else if (error instanceof Error) {
+        setErrorMessage(error.message);
       } else {
         setErrorMessage('Erro inesperado ao processar pagamento');
       }
@@ -668,12 +581,14 @@ export const usePayment = ({
       isProcessingRef.current = false;
     }
   }, [
-    contactNumber,
-    dynamicDocumentData,
-    handleSaveDocument,
-    onInvoiceCreated,
+    isDocumentValid,
+    documentValidationErrors,
+    selectedMethod,
     validateDocumentNumber,
-    processPaymentSingleAttempt,
+    invoiceData,
+    documentType,
+    dynamicDocumentData,
+    onInvoiceCreated,
     user?.email
   ]);
 
@@ -722,7 +637,6 @@ export const usePayment = ({
     errorMessage,
     successMessage,
     documentSaveResult,
-    isCreating,
     isPreviewOpen,
     isGeneratingPdf,
     setSelectedMethod,
