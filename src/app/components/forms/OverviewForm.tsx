@@ -19,7 +19,8 @@ import {
   FiMinus,
   FiPlus,
   FiDownload,
-  FiExternalLink
+  FiExternalLink,
+  FiRefreshCw
 } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Roboto } from 'next/font/google';
@@ -234,6 +235,39 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   const [zoom, setZoom] = useState<number>(1);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [isReusing, setIsReusing] = useState<boolean>(false);
+  const [isConverting, setIsConverting] = useState<boolean>(false);
+
+  // Converte cotação->fatura ou fatura->recibo sem reintroduzir dados:
+  // busca os dados completos do documento de origem, referencia-o via
+  // documentoReferencia, e reaproveita o mesmo mecanismo de pré-preenchimento
+  // (sessionStorage 'clonedInvoiceData') já usado por "Reutilizar dados".
+  const handleConvert = useCallback(async () => {
+    if (!documentData || (documentData.tipo !== 'cotacao' && documentData.tipo !== 'fatura')) return;
+    const targetUrl = documentData.tipo === 'cotacao' ? '/invoices/new' : '/receipts/new';
+    setIsConverting(true);
+    try {
+      const resp = await fetch(`/api/document/detail/${documentData.id}`);
+      if (!resp.ok) throw new Error('Falha ao obter dados do documento');
+      const json = await resp.json();
+      if (json?.success && json.data?.invoiceData) {
+        const source = json.data.invoiceData;
+        const converted = {
+          ...source,
+          formData: {
+            ...source.formData,
+            documentoReferencia: documentData.numero,
+            ...(documentData.tipo === 'fatura' ? { valorRecebido: source.totais?.totalFinal || 0 } : {})
+          }
+        };
+        sessionStorage.setItem('clonedInvoiceData', JSON.stringify(converted));
+        window.location.href = targetUrl;
+        return; // mantém overlay até navegação
+      }
+    } catch (_e) {
+      // ignora; permite tentar novamente
+    }
+    setIsConverting(false);
+  }, [documentData]);
 
   const handleZoomIn = () => setZoom((z) => Math.min(2, Math.round((z + 0.1) * 10) / 10));
   const handleZoomOut = () => setZoom((z) => Math.max(0.3, Math.round((z - 0.1) * 10) / 10));
@@ -361,6 +395,27 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                   <>
                     <FiExternalLink className="h-4 w-4" />
                     <span className="hidden md:inline">Reutilizar</span>
+                  </>
+                )}
+              </button>
+            )}
+            {/* Converter para o próximo tipo de documento (cotação->fatura, fatura->recibo) */}
+            {documentData && (documentData.tipo === 'cotacao' || documentData.tipo === 'fatura') && (
+              <button
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3 rounded-md font-medium text-sm transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                title={documentData.tipo === 'cotacao' ? 'Converter para Fatura' : 'Converter para Recibo'}
+                disabled={isConverting}
+                onClick={handleConvert}
+              >
+                {isConverting ? (
+                  <>
+                    <FaSpinner className="animate-spin h-4 w-4" />
+                    <span className="hidden md:inline">A preparar...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiRefreshCw className="h-4 w-4" />
+                    <span className="hidden md:inline">{documentData.tipo === 'cotacao' ? 'Converter p/ Fatura' : 'Converter p/ Recibo'}</span>
                   </>
                 )}
               </button>
