@@ -22,8 +22,8 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
   onHtmlRendered = () => {}
 }) => {
   // Cor de destaque personalizada (título, cabeçalho da tabela, bordas) --
-  // só suportada no "template-1" por agora (ver Fase 3 em
-  // docs/auditoria-inicial.md e src/lib/document/applyAccentColor.ts)
+  // todos os templates seguem o contrato de tema (ver
+  // docs/templates-theming.md e src/lib/document/applyAccentColor.ts)
   const [corDestaque, setCorDestaque] = useState<string | null>(null);
 
   const {
@@ -46,7 +46,10 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
     corDestaque
   });
 
-  const suportaCorPersonalizada = selectedTemplateId === 'template-1';
+  // Todos os templates atuais seguem o contrato de tema (ver
+  // docs/templates-theming.md); applyAccentColor() ignora silenciosamente
+  // qualquer templateId que ainda não o siga.
+  const suportaCorPersonalizada = true;
 
   const {
     templatesContainerRef,

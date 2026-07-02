@@ -7,6 +7,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fatura Simplificada</title>
     <style>
+        /* Contrato de tema (ver docs/templates-theming.md): --accent-color e
+           --accent-contrast controlam a cor de destaque (título, cabeçalho
+           da tabela, bordas). O valor aqui é o default -- só muda se um
+           <style> injetado depois deste sobrepuser a variável. */
+        :root {
+            --accent-color: #2c3e50;
+            --accent-contrast: #ffffff;
+        }
+
         /* Reset e base */
         .invoice-template * {
             border: 0;
@@ -68,8 +77,8 @@
 
         /* Cabeçalho dark apenas no H1 */
         .invoice-container header h1 {
-            background: #2c3e50;
-            color: #fff;
+            background: var(--accent-color, #2c3e50);
+            color: var(--accent-contrast, #fff);
             margin: 0 0 0.6em;
             padding: 0.6em 0;
             font-size: 1.4em;
@@ -84,7 +93,7 @@
             font-style: normal;
             line-height: 1.4;
             margin: 0;
-            color: #34495e;
+            color: var(--accent-color, #34495e);
         }
 
         .invoice-container header address p {
@@ -107,7 +116,7 @@
 
         .invoice-container article h1 {
             font-size: 1.2em;
-            color: #2c3e50;
+            color: var(--accent-color, #2c3e50);
             margin-bottom: 0.5em;
             letter-spacing: 0.1em;
         }
@@ -115,7 +124,7 @@
         .invoice-container article address {
             font-size: 110%;
             font-weight: bold;
-            color: #34495e;
+            color: var(--accent-color, #34495e);
             margin-bottom: 0.8em;
         }
 
@@ -157,8 +166,8 @@
         .invoice-container table.inventory th {
             font-weight: bold;
             text-align: center;
-            background: #34495e;
-            color: white;
+            background: var(--accent-color, #34495e);
+            color: var(--accent-contrast, white);
         }
 
         .invoice-container table.inventory td:nth-child(1) {
@@ -207,7 +216,7 @@
 
         .invoice-container table.balance tr:last-child td {
             font-weight: bold;
-            color: #2c3e50;
+            color: var(--accent-color, #2c3e50);
             font-size: 110%;
         }
 
@@ -217,7 +226,7 @@
             border-width: 0 0 1px;
             margin: 0 0 0.6em;
             font-size: 1.1em;
-            color: #2c3e50;
+            color: var(--accent-color, #2c3e50);
             padding-bottom: 0.3em;
             border-bottom: 1px solid #bbb;
         }

@@ -7,6 +7,15 @@
   <meta name="description" content="Fatura Comercial - Documento fiscal oficial">
   <title>Fatura Comercial</title>
   <style>
+    /* Contrato de tema (ver docs/templates-theming.md): --accent-color
+       controla a cor de destaque. Este template é deliberadamente neutro
+       (cinzas, sem cor de marca própria), por isso só o título usa a
+       variável -- aplicar a mesmos tabela/cartões mudaria o estilo "claro"
+       pretendido do template, não é só uma troca de valor. */
+    :root {
+      --accent-color: #333;
+    }
+
     /* Reset para garantir centralização */
     * {
       margin: 0;
@@ -78,6 +87,7 @@
     .t3-isolated .invoice-title {
       font-size: 20px !important;
       font-weight: bold !important;
+      color: var(--accent-color, #333) !important;
     }
 
     .t3-isolated .invoice-meta {
