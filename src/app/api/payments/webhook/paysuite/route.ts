@@ -99,7 +99,11 @@ async function renewSubscription(pagamento: any): Promise<void> {
 
 export const POST = withApiGuard(async (request: NextRequest) => {
   const rawBody = await request.text();
-  const signature = request.headers.get('x-webhook-signature');
+  // A documentação do PaySuite refere "X-Webhook-Signature", mas o cabeçalho
+  // real enviado em produção é "X-Signature" (confirmado via log de
+  // diagnóstico 2026-07-03 -- todos os webhooks reais estavam a ser
+  // rejeitados por procurarmos o nome errado).
+  const signature = request.headers.get('x-signature') || request.headers.get('x-webhook-signature');
 
   let provider: PaySuiteProvider;
   try {
@@ -110,21 +114,6 @@ export const POST = withApiGuard(async (request: NextRequest) => {
   }
 
   if (!provider.verifyWebhookSignature(rawBody, signature)) {
-    // Diagnóstico temporário (2026-07-03): toda a assinatura chegou como
-    // ausente em produção -- todos os webhooks reais do PaySuite estão a
-    // ser rejeitados, os pagamentos nunca confirmam. Regista todos os
-    // headers recebidos (aguardado, não a fila normal) para percebermos se
-    // o PaySuite usa outro nome de header, ou se algo (redirect http->https
-    // no callback_url?) está a fazê-lo perder-se pelo caminho.
-    const allHeaders: Record<string, string> = {};
-    request.headers.forEach((value, key) => { allHeaders[key] = value; });
-    await logger.logAwaited({
-      action: 'security_event',
-      level: 'error',
-      message: 'Diagnóstico: headers recebidos no webhook PaySuite sem assinatura válida',
-      details: { headers: allHeaders, bodyPreview: rawBody.slice(0, 300) }
-    });
-
     await logger.logSecurityEvent('paysuite_webhook_invalid_signature', 'high', {
       hasSignature: !!signature
     });
