@@ -100,7 +100,9 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       subscriptionId = created.id;
     }
 
-    const reference = `IHP-SUB-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // PaySuite exige que "reference" só tenha letras e números -- ver a
+    // mesma nota em src/app/api/payments/checkout/route.ts.
+    const reference = `IHPSUB${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
 
     let provider: PaySuiteProvider;
     try {

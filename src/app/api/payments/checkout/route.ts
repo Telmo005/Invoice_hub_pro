@@ -94,7 +94,10 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
     const htmlContent = (body.documentData as any).htmlContent;
     const numero = getDocumentNumero(body.tipo, formData);
     const amount = PLANS.pay_per_documento.valor;
-    const reference = `IHP-${body.tipo.slice(0, 3).toUpperCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // PaySuite exige que "reference" só tenha letras e números (confirmado
+    // via resposta 422 em produção 2026-07-03: "The Reference field must
+    // only contain letters and numbers.") -- sem traços nem underscores.
+    const reference = `IHP${body.tipo.slice(0, 3).toUpperCase()}${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
 
     let provider: PaySuiteProvider;
     try {
