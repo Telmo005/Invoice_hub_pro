@@ -16,11 +16,10 @@ import {
   FaFilePdf,
   FaMobileAlt,
   FaWallet,
-  FaCreditCard,
   FaExternalLinkAlt,
   FaCommentDots
 } from 'react-icons/fa';
-import type { IconType } from 'react-icons';
+import { SiVisa, SiMastercard } from 'react-icons/si';
 import { usePayment } from '@/app/hooks/payment/usePayment';
 
 const roboto = Roboto({
@@ -143,17 +142,23 @@ const SuccessScreen: React.FC<{
     );
   };
 
-// Visual de cada método -- não usa imagens de marca (não temos assets
-// licenciados de M-Pesa/e-Mola/Visa), em vez disso um ícone com cor própria
-// por método para serem imediatamente distinguíveis à vista, sobre um
-// "avatar" branco flutuante (sombra suave) inspirado na referência que o
-// utilizador enviou. A seleção usa sempre azul (independente do método) --
-// mantém uma única linguagem de "selecionado" consistente em vez de a cor
-// do cartão mudar consoante o método, o que lia mal como estado de seleção.
-const METHOD_VISUALS: Record<string, { Icon: IconType; iconColor: string }> = {
-  mpesa: { Icon: FaMobileAlt, iconColor: 'text-red-500' },
-  emola: { Icon: FaWallet, iconColor: 'text-teal-500' },
-  credit_card: { Icon: FaCreditCard, iconColor: 'text-indigo-500' }
+// Visual de cada método. Para o cartão usamos os ícones reais da Visa/
+// Mastercard (react-icons/si -- Simple Icons, uso padrão em checkouts para
+// indicar redes aceites). Não há um ícone de marca disponível para M-Pesa
+// nem e-Mola nesta biblioteca (nem temos assets licenciados delas), por
+// isso usamos um ícone genérico com a cor aproximada de cada marca em vez
+// de reproduzir um logótipo que não é o correto.
+const METHOD_VISUALS: Record<string, { renderIcon: () => React.ReactNode }> = {
+  mpesa: { renderIcon: () => <FaMobileAlt className="text-xl text-red-500" /> },
+  emola: { renderIcon: () => <FaWallet className="text-xl text-teal-500" /> },
+  credit_card: {
+    renderIcon: () => (
+      <div className="flex items-center gap-1">
+        <SiVisa className="text-lg" color="#1A1F71" />
+        <SiMastercard className="text-lg" color="#EB001B" />
+      </div>
+    )
+  }
 };
 
 const DEFAULT_VISUAL = METHOD_VISUALS.credit_card;
@@ -191,37 +196,36 @@ const PaymentMethodSelector: React.FC<{
           Escolha como prefere pagar
         </h5>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        <div className="space-y-3 mb-5">
           {paymentMethods.map((method) => {
             const visual = METHOD_VISUALS[method.id] ?? DEFAULT_VISUAL;
             const isSelected = selectedMethod === method.id;
-            const Icon = visual.Icon;
 
             return (
               <button
                 key={method.id}
                 type="button"
                 onClick={() => onMethodSelect(method.id)}
-                className={`relative flex flex-col items-center justify-center text-center gap-2 min-h-[152px] rounded-2xl p-4 transition-all duration-200 hover:-translate-y-0.5 ${
+                className={`w-full flex items-center gap-4 text-left rounded-2xl p-4 transition-all duration-200 ${
                   isSelected
                     ? 'bg-blue-50 border-2 border-blue-400 shadow-md shadow-blue-100'
                     : 'bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200'
                 }`}
               >
-                <div className="relative">
-                  <div className="w-14 h-14 rounded-full bg-white shadow-md shadow-black/5 flex items-center justify-center">
-                    <Icon className={`text-xl ${visual.iconColor}`} />
-                  </div>
-                  {isSelected && (
-                    <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center ring-2 ring-white shadow-sm">
-                      <FaCheck className="text-[10px]" />
-                    </span>
-                  )}
+                <div className="w-14 h-14 rounded-full bg-white shadow-md shadow-black/5 flex items-center justify-center flex-shrink-0">
+                  {visual.renderIcon()}
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm text-gray-800">{method.name}</div>
                   <div className="text-xs text-gray-500 mt-0.5 leading-snug">{method.description}</div>
                 </div>
+                <span
+                  className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                    isSelected ? 'bg-blue-500 text-white' : 'bg-transparent border-2 border-gray-200'
+                  }`}
+                >
+                  {isSelected && <FaCheck className="text-[11px]" />}
+                </span>
               </button>
             );
           })}
