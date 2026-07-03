@@ -7,7 +7,7 @@ import {
   FaSpinner,
   FaEnvelope,
   FaEye,
-  FaLock,
+  FaShieldAlt,
   FaArrowRight,
   FaFileInvoice,
   FaExclamationTriangle,
@@ -17,7 +17,8 @@ import {
   FaMobileAlt,
   FaWallet,
   FaCreditCard,
-  FaExternalLinkAlt
+  FaExternalLinkAlt,
+  FaCommentDots
 } from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import { usePayment } from '@/app/hooks/payment/usePayment';
@@ -143,42 +144,16 @@ const SuccessScreen: React.FC<{
   };
 
 // Visual de cada método -- não usa imagens de marca (não temos assets
-// licenciados de M-Pesa/e-Mola/Visa), em vez disso um ícone + cor própria
-// por método para serem imediatamente distinguíveis à vista. As classes têm
-// de estar escritas por extenso (não construídas com template strings) para
-// o Tailwind JIT as conseguir detetar.
-const METHOD_VISUALS: Record<string, {
-  Icon: IconType;
-  iconWrap: string;
-  border: string;
-  glow: string;
-  badge: string;
-  button: string;
-}> = {
-  mpesa: {
-    Icon: FaMobileAlt,
-    iconWrap: 'bg-red-50 text-red-600',
-    border: 'border-red-400',
-    glow: 'shadow-red-200/70',
-    badge: 'bg-red-500',
-    button: 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-red-500/25'
-  },
-  emola: {
-    Icon: FaWallet,
-    iconWrap: 'bg-teal-50 text-teal-600',
-    border: 'border-teal-400',
-    glow: 'shadow-teal-200/70',
-    badge: 'bg-teal-500',
-    button: 'bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 shadow-teal-500/25'
-  },
-  credit_card: {
-    Icon: FaCreditCard,
-    iconWrap: 'bg-indigo-50 text-indigo-600',
-    border: 'border-indigo-400',
-    glow: 'shadow-indigo-200/70',
-    badge: 'bg-indigo-500',
-    button: 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 shadow-indigo-500/25'
-  }
+// licenciados de M-Pesa/e-Mola/Visa), em vez disso um ícone com cor própria
+// por método para serem imediatamente distinguíveis à vista, sobre um
+// "avatar" branco flutuante (sombra suave) inspirado na referência que o
+// utilizador enviou. A seleção usa sempre azul (independente do método) --
+// mantém uma única linguagem de "selecionado" consistente em vez de a cor
+// do cartão mudar consoante o método, o que lia mal como estado de seleção.
+const METHOD_VISUALS: Record<string, { Icon: IconType; iconColor: string }> = {
+  mpesa: { Icon: FaMobileAlt, iconColor: 'text-red-500' },
+  emola: { Icon: FaWallet, iconColor: 'text-teal-500' },
+  credit_card: { Icon: FaCreditCard, iconColor: 'text-indigo-500' }
 };
 
 const DEFAULT_VISUAL = METHOD_VISUALS.credit_card;
@@ -209,14 +184,12 @@ const PaymentMethodSelector: React.FC<{
   documentValidationErrors
 }) => {
     const selectedMethodData = paymentMethods.find(method => method.id === selectedMethod);
-    const selectedVisual = selectedMethod ? (METHOD_VISUALS[selectedMethod] ?? DEFAULT_VISUAL) : null;
 
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <h5 className="font-semibold text-gray-800 text-lg">
-          Método de Pagamento
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <h5 className="font-semibold text-gray-800 text-base mb-4">
+          Escolha como prefere pagar
         </h5>
-        <p className="text-sm text-gray-500 mb-4">Escolha como prefere pagar</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
           {paymentMethods.map((method) => {
@@ -229,19 +202,21 @@ const PaymentMethodSelector: React.FC<{
                 key={method.id}
                 type="button"
                 onClick={() => onMethodSelect(method.id)}
-                className={`relative flex flex-col items-center justify-center text-center gap-1.5 min-h-[148px] rounded-xl border bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 ${
+                className={`relative flex flex-col items-center justify-center text-center gap-2 min-h-[152px] rounded-2xl p-4 transition-all duration-200 hover:-translate-y-0.5 ${
                   isSelected
-                    ? `border-2 ${visual.border} shadow-lg ${visual.glow}`
-                    : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                    ? 'bg-blue-50 border-2 border-blue-400 shadow-md shadow-blue-100'
+                    : 'bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200'
                 }`}
               >
-                {isSelected && (
-                  <span className={`absolute -top-2 -right-2 w-5 h-5 rounded-full ${visual.badge} text-white flex items-center justify-center ring-2 ring-white shadow-sm`}>
-                    <FaCheck className="text-[10px]" />
-                  </span>
-                )}
-                <div className={`w-11 h-11 rounded-full flex items-center justify-center ${visual.iconWrap}`}>
-                  <Icon className="text-lg" />
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-full bg-white shadow-md shadow-black/5 flex items-center justify-center">
+                    <Icon className={`text-xl ${visual.iconColor}`} />
+                  </div>
+                  {isSelected && (
+                    <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center ring-2 ring-white shadow-sm">
+                      <FaCheck className="text-[10px]" />
+                    </span>
+                  )}
                 </div>
                 <div>
                   <div className="font-semibold text-sm text-gray-800">{method.name}</div>
@@ -252,11 +227,11 @@ const PaymentMethodSelector: React.FC<{
           })}
         </div>
 
-        {selectedMethodData && selectedVisual && (
+        {selectedMethodData && (
           <div className="space-y-4">
-            <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-              <FaExternalLinkAlt className="text-slate-400 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-slate-600">
+            <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+              <FaExternalLinkAlt className="text-blue-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-blue-700">
                 Vai abrir uma nova aba para concluir o pagamento com segurança.
                 {selectedMethodData.id === 'credit_card'
                   ? ' Pagamentos com cartão Visa ou Mastercard podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
@@ -286,7 +261,7 @@ const PaymentMethodSelector: React.FC<{
             <button
               onClick={onProcessPayment}
               disabled={isPaymentDisabled}
-              className={`w-full text-white py-3.5 px-4 rounded-xl font-semibold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 text-base transition-all duration-200 shadow-lg hover:-translate-y-0.5 ${selectedVisual.button}`}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 px-4 rounded-xl font-semibold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 text-base transition-all duration-200 shadow-lg shadow-green-500/25 hover:-translate-y-0.5"
             >
               {isProcessing ? (
                 <>
@@ -381,7 +356,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
     onInvoiceCreated
   });
 
-  const DocumentIcon = dynamicDocumentData.type === 'cotacao' ? FaQuoteLeft : FaFileInvoice;
   const isProcessing = paymentStatus === 'processing';
   const isPaymentDisabled = !selectedMethod || isProcessing || !isDocumentValid;
 
@@ -400,39 +374,34 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
   return (
     <div className={`${roboto.variable} font-sans`}>
       <div className="max-w-4xl mx-auto p-4">
-        <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div>
-                <h4 className="text-lg font-semibold mb-2">Liberar {dynamicDocumentData.typeDisplay}</h4>
-                <p className="text-sm text-blue-600">
-                  Pague a taxa de serviço para gerar sua {dynamicDocumentData.typeDisplayLower}
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="mb-6 p-6 bg-blue-50 rounded-2xl">
+          <h4 className="text-2xl font-bold text-gray-900 mb-1">Método de Pagamento</h4>
+          <p className="text-sm text-blue-600 font-medium">
+            Escolha como prefere pagar e conclua a sua {dynamicDocumentData.typeDisplayLower}.
+          </p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1">
-            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-              <h5 className="font-semibold text-gray-800 text-lg mb-3">
-                Resumo da {dynamicDocumentData.typeDisplay}
-              </h5>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Número:</span>
-                  <span className="font-medium">{dynamicDocumentData.id}</span>
+            <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Documento</div>
+                  <div className="font-semibold text-gray-800">{dynamicDocumentData.id}</div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Cliente:</span>
-                  <span className="font-medium text-right max-w-[200px] truncate">
-                    {dynamicDocumentData.client}
-                  </span>
+                <div>
+                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Cliente</div>
+                  <div className="font-semibold text-gray-800 truncate">{dynamicDocumentData.client}</div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Quantidade de itens:</span>
-                  <span className="font-medium">{dynamicDocumentData.totalItems}</span>
+              </div>
+              <div className="flex items-end justify-between pt-4 border-t border-gray-100">
+                <div>
+                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Quantidade de itens</div>
+                  <div className="font-semibold text-gray-800">{dynamicDocumentData.totalItems}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Total a pagar</div>
+                  <div className="text-2xl font-bold text-green-600">{dynamicDocumentData.amount}</div>
                 </div>
               </div>
             </div>
@@ -452,70 +421,62 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
             />
           </div>
 
-          <div className="lg:w-80">
-            <div className="bg-white rounded-lg border border-gray-200 p-4 sticky top-4">
-              <h5 className="font-semibold text-gray-800 text-lg mb-3">Resumo do Pagamento</h5>
-
-              <div className="space-y-4 mb-5 text-sm">
-                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <span className="text-gray-700 font-medium">Taxa de serviço:</span>
-                  <span className="font-bold text-blue-600 text-lg">{dynamicDocumentData.amount}</span>
-                </div>
-
-                <div className="text-center text-gray-600 text-sm font-medium pt-2">
-                  <DocumentIcon className="inline mr-2 mb-1" />
-                  Você receberá:
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center">
-                    <FaCheck className="text-green-500 mr-2 text-xs" />
-                    <span>Documento personalizado</span>
-                  </div>
-                  <div className="flex items-center">
-                    <FaCheck className="text-green-500 mr-2 text-xs" />
-                    <span>Download em PDF</span>
-                  </div>
-                  <div className="flex items-center">
-                    <FaCheck className="text-green-500 mr-2 text-xs" />
-                    <span>Armazenamento seguro</span>
-                  </div>
-                  <div className="flex items-center">
-                    <FaCheck className="text-green-500 mr-2 text-xs" />
-                    <span>Envio por email*</span>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 text-center">
-                  *Se tiver email configurado na conta
-                </p>
+          <div className="lg:w-80 space-y-4">
+            <div className="bg-white rounded-2xl shadow-sm p-5 sticky top-4">
+              <div className="flex items-center gap-2 text-gray-800 font-semibold mb-4">
+                <FaCommentDots className="text-gray-400" />
+                <span>Você receberá</span>
               </div>
 
-              <div className="flex space-x-2 mb-4">
+              <div className="space-y-2.5 text-sm mb-4">
+                <div className="flex items-center">
+                  <FaCheck className="text-green-500 mr-2 text-xs" />
+                  <span>Documento personalizado</span>
+                </div>
+                <div className="flex items-center">
+                  <FaCheck className="text-green-500 mr-2 text-xs" />
+                  <span>Download em PDF</span>
+                </div>
+                <div className="flex items-center">
+                  <FaCheck className="text-green-500 mr-2 text-xs" />
+                  <span>Armazenamento seguro</span>
+                </div>
+                <div className="flex items-center">
+                  <FaCheck className="text-green-500 mr-2 text-xs" />
+                  <span>Envio por email*</span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400">
+                *Se tiver email configurado na conta.
+              </p>
+
+              <div className="flex gap-2 mt-5 pt-4 border-t border-gray-100">
                 <button
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-3 rounded-md font-medium flex items-center justify-center text-sm transition-colors"
+                  className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 py-2 px-3 rounded-lg font-medium flex items-center justify-center text-sm transition-colors"
                   onClick={() => setIsPreviewOpen(true)}
                 >
                   <FaEye className="mr-2" />
                   Pré-visualizar
                 </button>
                 <button
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-3 rounded-md font-medium flex items-center justify-center text-sm transition-colors"
+                  className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 py-2 px-3 rounded-lg font-medium flex items-center justify-center text-sm transition-colors"
                   onClick={() => handleEmailSend()}
                 >
                   <FaEnvelope className="mr-2" />
                   Dúvidas?
                 </button>
               </div>
+            </div>
 
-              {/* Informações de segurança movidas para abaixo dos botões */}
-              <div className="pt-3 border-t border-gray-200 text-center">
-                <div className="flex items-center justify-center text-gray-600 mb-2 text-sm">
-                  <FaLock className="mr-2" />
-                  <span className="font-medium">Pagamento Seguro</span>
-                </div>
-                <p className="text-gray-500 text-xs mb-3">
-                  Seus dados estão protegidos e criptografados
-                </p>
+            <div className="bg-white rounded-2xl shadow-sm p-5">
+              <div className="flex items-center gap-2 text-gray-800 font-semibold mb-2">
+                <FaShieldAlt className="text-green-500" />
+                <span>Pagamento Seguro</span>
+              </div>
+              <p className="text-gray-500 text-sm mb-4">
+                Seus dados estão protegidos e criptografados.
+              </p>
+              <div className="pt-3 border-t border-gray-100">
                 <a
                   href="mailto:digitalhub.midia@gmail.com"
                   className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
