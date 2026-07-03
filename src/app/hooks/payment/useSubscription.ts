@@ -59,6 +59,17 @@ export const useSubscription = () => {
   }, [refetch]);
 
   const subscribe = useCallback(async (method: 'mpesa' | 'emola' | 'credit_card') => {
+    // Aberto já aqui, de forma síncrona em resposta ao clique -- abrir só
+    // depois de aguardar o fetch faz a maioria dos navegadores tratar como
+    // popup não solicitado e bloquear, mesmo com popups permitidos (mesmo
+    // ajuste feito em usePayment.ts). Navega para o checkout_url real assim
+    // que o tivermos.
+    const checkoutWindow = window.open('', '_blank', 'noopener,noreferrer');
+    if (!checkoutWindow) {
+      setErrorMessage('Permita popups no navegador para concluir o pagamento.');
+      return;
+    }
+
     setIsSubscribing(true);
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -78,11 +89,7 @@ export const useSubscription = () => {
       }
 
       const { payment_id, checkout_url } = data.data;
-      const checkoutWindow = window.open(checkout_url, '_blank', 'noopener,noreferrer');
-      if (!checkoutWindow) {
-        setErrorMessage('Permita popups no navegador para concluir o pagamento.');
-        return;
-      }
+      checkoutWindow.location.href = checkout_url;
 
       setSuccessMessage('Aguardando confirmação do pagamento...');
 
@@ -105,6 +112,7 @@ export const useSubscription = () => {
 
       setSuccessMessage('O pagamento ainda está a ser processado. Vai receber um email assim que for confirmado.');
     } catch (error) {
+      try { checkoutWindow.close(); } catch { /* ignore */ }
       setErrorMessage(error instanceof Error ? error.message : 'Erro inesperado ao processar assinatura');
     } finally {
       setIsSubscribing(false);

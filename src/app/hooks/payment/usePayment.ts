@@ -492,6 +492,20 @@ export const usePayment = ({
       return;
     }
 
+    // Abre a aba já aqui, de forma síncrona e em resposta direta ao clique
+    // -- se só abríssemos depois de aguardar o checkout (fetch), a maioria
+    // dos navegadores trata isso como "não foi um gesto do utilizador" e
+    // bloqueia como popup, mesmo com o utilizador a autorizar popups em
+    // geral (foi isto que causou "Permita popups..." mesmo com popups
+    // permitidos). Navega esta aba em branco assim que tivermos o
+    // checkout_url -- mesmo truque já usado em handleDownload() para o PDF.
+    const checkoutWindow = window.open('', '_blank', 'noopener,noreferrer');
+    if (!checkoutWindow) {
+      setPaymentStatus('error');
+      setErrorMessage('Permita popups no navegador para concluir o pagamento.');
+      return;
+    }
+
     // Reset do estado
     isProcessingRef.current = true;
     setPaymentStatus('processing');
@@ -522,15 +536,9 @@ export const usePayment = ({
         renderedHtml
       );
 
-      // 3. Abre o checkout do PaySuite numa nova aba (decisão do utilizador --
-      // mantém esta página com o wizard/estado visível em vez de navegar
-      // para fora da app).
-      const checkoutWindow = window.open(checkout_url, '_blank', 'noopener,noreferrer');
-      if (!checkoutWindow) {
-        setPaymentStatus('error');
-        setErrorMessage('Permita popups no navegador para concluir o pagamento.');
-        return;
-      }
+      // 3. A aba já está aberta (passo síncrono acima) -- só falta navegá-la
+      // para o checkout real do PaySuite.
+      checkoutWindow.location.href = checkout_url;
 
       // 4. Poll até o webhook confirmar o pagamento (ou até esgotar as
       // tentativas -- cartão pode legitimamente demorar 1-2 dias úteis).
@@ -595,6 +603,11 @@ export const usePayment = ({
 
     } catch (error) {
       setPaymentStatus('error');
+
+      // A aba já estava aberta (em branco) antes de sabermos se ia correr
+      // bem -- se falhou antes de a navegarmos para o checkout, não faz
+      // sentido deixá-la em branco perdida no navegador do utilizador.
+      try { checkoutWindow.close(); } catch { /* ignore */ }
 
       if (error instanceof ApiError) {
         const detailedMessage = formatValidationErrors(error.details);
