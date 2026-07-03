@@ -7,8 +7,6 @@ interface PaymentMethod {
   id: string;
   name: string;
   description: string;
-  requiresContact: boolean;
-  imagePath: string;
 }
 
 interface UsePaymentProps {
@@ -47,23 +45,17 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   {
     id: 'mpesa',
     name: 'M-Pesa',
-    description: 'Pagamento via M-Pesa',
-    requiresContact: false,
-    imagePath: '/m-pesa-seeklogo.png'
+    description: 'Confirmação instantânea'
   },
   {
     id: 'emola',
     name: 'e-Mola',
-    description: 'Pagamento via e-Mola',
-    requiresContact: false,
-    imagePath: '/m-pesa-seeklogo.png'
+    description: 'Confirmação instantânea'
   },
   {
     id: 'credit_card',
-    name: 'Cartão (Visa/Mastercard)',
-    description: 'Pode demorar até 1-2 dias úteis a confirmar',
-    requiresContact: false,
-    imagePath: '/m-pesa-seeklogo.png'
+    name: 'Cartão',
+    description: 'Visa ou Mastercard -- até 1-2 dias úteis'
   }
 ];
 

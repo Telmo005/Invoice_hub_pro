@@ -1,9 +1,7 @@
 // src/app/components/payment/PaymentScreen.tsx
 'use client';
 
-import { useState } from 'react';
 import { Roboto } from 'next/font/google';
-import Image from 'next/image';
 import {
   FaCheck,
   FaSpinner,
@@ -16,8 +14,12 @@ import {
   FaInfoCircle,
   FaQuoteLeft,
   FaFilePdf,
-  FaChevronDown
+  FaMobileAlt,
+  FaWallet,
+  FaCreditCard,
+  FaExternalLinkAlt
 } from 'react-icons/fa';
+import type { IconType } from 'react-icons';
 import { usePayment } from '@/app/hooks/payment/usePayment';
 
 const roboto = Roboto({
@@ -140,28 +142,44 @@ const SuccessScreen: React.FC<{
     );
   };
 
-const PaymentMethodImage: React.FC<{
-  methodId: string;
-  imagePath: string;
-  className?: string;
-}> = ({
-  methodId,
-  imagePath,
-  className = "w-6 h-6"
-}) => {
-    return (
-      <div className={`relative ${className}`}>
-        <Image
-          src={imagePath}
-          alt={methodId}
-          fill
-          className="object-contain"
-        />
-      </div>
-    );
-  };
+// Visual de cada método -- não usa imagens de marca (não temos assets
+// licenciados de M-Pesa/e-Mola/Visa), em vez disso um ícone + cor própria
+// por método para serem imediatamente distinguíveis à vista. As classes têm
+// de estar escritas por extenso (não construídas com template strings) para
+// o Tailwind JIT as conseguir detetar.
+const METHOD_VISUALS: Record<string, {
+  Icon: IconType;
+  iconWrap: string;
+  card: string;
+  badge: string;
+  button: string;
+}> = {
+  mpesa: {
+    Icon: FaMobileAlt,
+    iconWrap: 'bg-red-100 text-red-600',
+    card: 'border-red-500 bg-red-50/60 ring-2 ring-red-100',
+    badge: 'bg-red-500',
+    button: 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-red-500/25'
+  },
+  emola: {
+    Icon: FaWallet,
+    iconWrap: 'bg-teal-100 text-teal-600',
+    card: 'border-teal-500 bg-teal-50/60 ring-2 ring-teal-100',
+    badge: 'bg-teal-500',
+    button: 'bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 shadow-teal-500/25'
+  },
+  credit_card: {
+    Icon: FaCreditCard,
+    iconWrap: 'bg-indigo-100 text-indigo-600',
+    card: 'border-indigo-500 bg-indigo-50/60 ring-2 ring-indigo-100',
+    badge: 'bg-indigo-500',
+    button: 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 shadow-indigo-500/25'
+  }
+};
 
-const PaymentMethodDropdown: React.FC<{
+const DEFAULT_VISUAL = METHOD_VISUALS.credit_card;
+
+const PaymentMethodSelector: React.FC<{
   paymentMethods: any[];
   selectedMethod: string | null;
   onMethodSelect: (method: string) => void;
@@ -186,143 +204,96 @@ const PaymentMethodDropdown: React.FC<{
   isDocumentValid,
   documentValidationErrors
 }) => {
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const selectedMethodData = paymentMethods.find(method => method.id === selectedMethod);
-
-    const handleMethodSelect = (methodId: string) => {
-      onMethodSelect(methodId);
-      setIsDropdownOpen(false);
-    };
+    const selectedVisual = selectedMethod ? (METHOD_VISUALS[selectedMethod] ?? DEFAULT_VISUAL) : null;
 
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <h5 className="font-semibold text-gray-800 text-lg mb-3">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <h5 className="font-semibold text-gray-800 text-lg">
           Método de Pagamento
         </h5>
+        <p className="text-sm text-gray-500 mb-4">Escolha como prefere pagar</p>
 
-        <div className="relative mb-4">
-          <button
-            type="button"
-            className="w-full px-4 py-3 text-left bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent flex items-center justify-between hover:border-gray-400 transition-colors"
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          >
-            <div className="flex items-center">
-              {selectedMethodData ? (
-                <>
-                  <PaymentMethodImage
-                    methodId={selectedMethodData.id}
-                    imagePath={selectedMethodData.imagePath}
-                    className="w-6 h-6 mr-3"
-                  />
-                  <span className="font-medium">{selectedMethodData.name}</span>
-                </>
-              ) : (
-                <span className="text-gray-500">Selecione método de pagamento</span>
-              )}
-            </div>
-            <FaChevronDown className={`text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-          </button>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          {paymentMethods.map((method) => {
+            const visual = METHOD_VISUALS[method.id] ?? DEFAULT_VISUAL;
+            const isSelected = selectedMethod === method.id;
+            const Icon = visual.Icon;
 
-          {isDropdownOpen && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-              {paymentMethods.map((method) => (
-                <div
-                  key={method.id}
-                  className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center border-b border-gray-100 last:border-b-0 transition-colors"
-                  onClick={() => handleMethodSelect(method.id)}
-                >
-                  <PaymentMethodImage
-                    methodId={method.id}
-                    imagePath={method.imagePath}
-                    className="w-6 h-6 mr-3"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-800">{method.name}</div>
-                    <div className="text-sm text-gray-600">{method.description}</div>
-                  </div>
-                  {selectedMethod === method.id && (
-                    <FaCheck className="text-green-500 ml-2" />
-                  )}
+            return (
+              <button
+                key={method.id}
+                type="button"
+                onClick={() => onMethodSelect(method.id)}
+                className={`relative flex flex-col items-center text-center gap-2 rounded-xl border-2 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                  isSelected ? visual.card : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                {isSelected && (
+                  <span className={`absolute -top-2 -right-2 w-5 h-5 rounded-full ${visual.badge} text-white flex items-center justify-center shadow-sm`}>
+                    <FaCheck className="text-[10px]" />
+                  </span>
+                )}
+                <div className={`w-11 h-11 rounded-full flex items-center justify-center ${visual.iconWrap}`}>
+                  <Icon className="text-lg" />
                 </div>
-              ))}
-            </div>
-          )}
+                <div>
+                  <div className="font-semibold text-sm text-gray-800">{method.name}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{method.description}</div>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
-        {selectedMethodData && (
+        {selectedMethodData && selectedVisual && (
           <div className="space-y-4">
-            <div className="p-4 border-2 rounded-lg bg-red-50 border-red-200 transition-all">
-              <div className="flex items-center mb-3">
-                <PaymentMethodImage
-                  methodId={selectedMethodData.id}
-                  imagePath={selectedMethodData.imagePath}
-                  className="w-8 h-8 mr-3"
-                />
-                <div>
-                  <h4 className="font-semibold text-gray-800 text-base">{selectedMethodData.name}</h4>
-                  <p className="text-gray-600 text-sm">{selectedMethodData.description}</p>
-                </div>
-              </div>
-
-              <div className="mt-3">
-                <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
-                  Vai ser aberta uma nova aba para concluir o pagamento com segurança.
-                  {selectedMethodData.id === 'credit_card'
-                    ? ' Pagamentos por cartão podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
-                    : ' Confirme o pagamento no seu telemóvel quando for solicitado.'}
-                </p>
-
-                {/* Mensagens de erro/sucesso abaixo da explicação do fluxo */}
-                <div className="mt-2">
-                  {errorMessage && (
-                    <StatusMessage 
-                      type="error" 
-                      message={errorMessage}
-                    />
-                  )}
-
-                  {successMessage && !errorMessage && (
-                    <StatusMessage 
-                      type="info" 
-                      message={successMessage}
-                    />
-                  )}
-
-                  {/* Bloco de validação global do documento (aplica a fatura, cotação e recibo) */}
-                  {!isDocumentValid && (
-                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                      Preencha todos os campos obrigatórios antes do pagamento:
-                      <ul className="list-disc ml-4 mt-1 space-y-1">
-                        {documentValidationErrors.map((e: string, idx: number) => (
-                          <li key={idx}>{e}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Botão de pagamento abaixo do campo do número */}
-              <div className="mt-4">
-                <button
-                  onClick={onProcessPayment}
-                  disabled={isPaymentDisabled}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-semibold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed text-base transition-colors"
-                >
-                  {isProcessing ? (
-                    <>
-                      <FaSpinner className="animate-spin mr-2" />
-                      Processando...
-                    </>
-                  ) : (
-                    <>
-                      Pagar {dynamicDocumentData.amount}
-                      <FaArrowRight className="ml-2" />
-                    </>
-                  )}
-                </button>
-              </div>
+            <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+              <FaExternalLinkAlt className="text-slate-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-slate-600">
+                Vai abrir uma nova aba para concluir o pagamento com segurança.
+                {selectedMethodData.id === 'credit_card'
+                  ? ' Pagamentos por cartão podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
+                  : ' Confirme o pagamento no seu telemóvel quando for solicitado.'}
+              </p>
             </div>
+
+            {errorMessage && (
+              <StatusMessage type="error" message={errorMessage} />
+            )}
+
+            {successMessage && !errorMessage && (
+              <StatusMessage type="info" message={successMessage} />
+            )}
+
+            {!isDocumentValid && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                Preencha todos os campos obrigatórios antes do pagamento:
+                <ul className="list-disc ml-4 mt-1 space-y-1">
+                  {documentValidationErrors.map((e: string, idx: number) => (
+                    <li key={idx}>{e}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <button
+              onClick={onProcessPayment}
+              disabled={isPaymentDisabled}
+              className={`w-full text-white py-3.5 px-4 rounded-xl font-semibold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 text-base transition-all duration-200 shadow-lg hover:-translate-y-0.5 ${selectedVisual.button}`}
+            >
+              {isProcessing ? (
+                <>
+                  <FaSpinner className="animate-spin mr-2" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  Pagar {dynamicDocumentData.amount}
+                  <FaArrowRight className="ml-2" />
+                </>
+              )}
+            </button>
           </div>
         )}
       </div>
@@ -460,7 +431,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
               </div>
             </div>
 
-            <PaymentMethodDropdown
+            <PaymentMethodSelector
               paymentMethods={paymentMethods}
               selectedMethod={selectedMethod}
               onMethodSelect={setSelectedMethod}
