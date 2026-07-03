@@ -1,6 +1,7 @@
 // app/hooks/forms/useNewDocumentWizzardForm.ts
 import { useState, useEffect, useCallback } from 'react';
 import { FormDataFatura, ItemFatura, TotaisFatura, TaxaItem, InvoiceData, TipoDocumento } from '@/types/invoice-types';
+import { isMozambiquePais, isValidNuit } from '@/lib/validation';
 
 interface Empresa {
   id: string;
@@ -306,10 +307,25 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
   const validateField = async (name: string, value: any): Promise<string> => {
     const stringValue = typeof value === 'number' ? value.toString() : String(value || '');
     
-    if (!stringValue.trim() && (name.includes('.nomeEmpresa') || name.includes('.nomeCompleto') || name.includes('.pais') || name.includes('.cidade') || name.includes('.telefone'))) {
+    if (!stringValue.trim() && (name.includes('.nomeEmpresa') || name.includes('.nomeCompleto') || name.includes('.pais') || name.includes('.cidade') || name.includes('.telefone') || name === 'emitente.documento' || name === 'emitente.bairro')) {
       return 'Campo obrigatório';
     }
-    
+
+    // NUIT (documento do emitente) só é exigido em 9 dígitos quando o país é
+    // Moçambique -- mesma regra usada no schema do servidor (isValidNuit em
+    // @/lib/validation), agora também aqui para o utilizador ver o erro
+    // enquanto preenche, não só ao tentar pagar no final do assistente.
+    if (name === 'emitente.documento' && stringValue.trim() && isMozambiquePais(formData.emitente.pais) && !isValidNuit(stringValue)) {
+      return 'NUIT inválido: deve ter 9 dígitos';
+    }
+
+    // Email é obrigatório para emitente e destinatário no schema do servidor
+    // (trimmed().email()) -- o formato só era validado aqui quando o campo
+    // já tinha algum valor, nunca a obrigatoriedade em si.
+    if ((name === 'emitente.email' || name === 'destinatario.email') && !stringValue.trim()) {
+      return 'Campo obrigatório';
+    }
+
     if ((name === 'validezCotacao' || name === 'validezFatura') && !stringValue.trim()) return 'Campo obrigatório';
     if ((name === 'validezCotacao' || name === 'validezFatura') && stringValue) {
       const dias = parseInt(stringValue);
@@ -525,7 +541,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
 
   const validateForm = async (): Promise<boolean> => {
     const newErrors: Record<string, string> = {};
-    const allFields = ['emitente.nomeEmpresa', 'emitente.pais', 'emitente.cidade', 'emitente.telefone', 'destinatario.nomeCompleto', 'destinatario.telefone'];
+    const allFields = ['emitente.nomeEmpresa', 'emitente.pais', 'emitente.cidade', 'emitente.bairro', 'emitente.telefone', 'emitente.documento', 'emitente.email', 'destinatario.nomeCompleto', 'destinatario.telefone', 'destinatario.email'];
     if (formData.tipo === 'fatura') {
       allFields.push('validezFatura');
     } else {
@@ -545,14 +561,21 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     if (!formData.emitente.nomeEmpresa.trim()) newErrors['emitente.nomeEmpresa'] = 'Campo obrigatório';
     if (!formData.emitente.pais.trim()) newErrors['emitente.pais'] = 'Campo obrigatório';
     if (!formData.emitente.cidade.trim()) newErrors['emitente.cidade'] = 'Campo obrigatório';
+    if (!formData.emitente.bairro.trim()) newErrors['emitente.bairro'] = 'Campo obrigatório';
     if (!formData.emitente.telefone.trim()) newErrors['emitente.telefone'] = 'Campo obrigatório';
     else if (!validatePhone(formData.emitente.telefone)) newErrors['emitente.telefone'] = 'Telefone inválido';
-    if (formData.emitente.email && !validateEmail(formData.emitente.email)) newErrors['emitente.email'] = 'Email inválido';
+    if (!formData.emitente.documento.trim()) newErrors['emitente.documento'] = 'Campo obrigatório';
+    else if (isMozambiquePais(formData.emitente.pais) && !isValidNuit(formData.emitente.documento)) {
+      newErrors['emitente.documento'] = 'NUIT inválido: deve ter 9 dígitos';
+    }
+    if (!formData.emitente.email.trim()) newErrors['emitente.email'] = 'Campo obrigatório';
+    else if (!validateEmail(formData.emitente.email)) newErrors['emitente.email'] = 'Email inválido';
 
     if (!formData.destinatario.nomeCompleto.trim()) newErrors['destinatario.nomeCompleto'] = 'Campo obrigatório';
     if (!formData.destinatario.telefone.trim()) newErrors['destinatario.telefone'] = 'Campo obrigatório';
     else if (!validatePhone(formData.destinatario.telefone)) newErrors['destinatario.telefone'] = 'Telefone inválido';
-    if (formData.destinatario.email && !validateEmail(formData.destinatario.email)) newErrors['destinatario.email'] = 'Email inválido';
+    if (!formData.destinatario.email.trim()) newErrors['destinatario.email'] = 'Campo obrigatório';
+    else if (!validateEmail(formData.destinatario.email)) newErrors['destinatario.email'] = 'Email inválido';
 
     if (formData.tipo === 'fatura') {
       if (!formData.validezFatura?.trim()) newErrors.validezFatura = 'Campo obrigatório';
