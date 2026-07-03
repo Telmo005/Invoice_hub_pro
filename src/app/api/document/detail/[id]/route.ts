@@ -119,7 +119,7 @@ export async function GET(_req: Request, context: DetailContext) {
         tipoDesconto: (faturaSpec?.tipo_desconto as any) || 'fixed',
         dataFatura: baseDoc.data_emissao || new Date().toISOString(),
         dataVencimento: faturaSpec?.data_vencimento || viewDoc.data_vencimento,
-        documentoReferencia: faturaSpec?.documento_referencia || undefined
+        documentoAssociadoCustom: faturaSpec?.documento_referencia || undefined
       } as Partial<FormDataFatura>;
     } else if (tipo === 'cotacao') {
       const { data: cotacaoSpec } = await supabase
@@ -144,9 +144,9 @@ export async function GET(_req: Request, context: DetailContext) {
         reciboNumero: baseDoc.numero,
         valorRecebido: reciboSpec?.valor_recebido || 0,
         formaPagamento: reciboSpec?.forma_pagamento || 'mpesa',
-        referenciaRecebimento: reciboSpec?.referencia_recebimento || undefined,
+        referenciaPagamento: reciboSpec?.referencia_recebimento || undefined,
         motivoPagamento: reciboSpec?.motivo_pagamento || undefined,
-        documentoReferencia: reciboSpec?.documento_referencia || undefined,
+        documentoAssociadoCustom: reciboSpec?.documento_referencia || undefined,
         dataPagamento: new Date().toISOString(),
         dataFatura: baseDoc.data_emissao || new Date().toISOString(),
         dataRecebimento: baseDoc.data_emissao || new Date().toISOString(),
@@ -188,9 +188,9 @@ export async function GET(_req: Request, context: DetailContext) {
       validezFatura: (formSpecific as any).validezFatura,
       validezCotacao: (formSpecific as any).validezCotacao,
       valorRecebido: (formSpecific as any).valorRecebido,
-      referenciaRecebimento: (formSpecific as any).referenciaRecebimento,
+      referenciaPagamento: (formSpecific as any).referenciaPagamento,
       formaPagamento: (formSpecific as any).formaPagamento,
-      documentoReferencia: (formSpecific as any).documentoReferencia,
+      documentoAssociadoCustom: (formSpecific as any).documentoAssociadoCustom,
       motivoPagamento: (formSpecific as any).motivoPagamento,
       dataRecebimento: (formSpecific as any).dataRecebimento,
       dataPagamento: (formSpecific as any).dataPagamento,

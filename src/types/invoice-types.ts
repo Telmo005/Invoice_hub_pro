@@ -57,13 +57,15 @@ export interface FormDataFatura {
   // Campo específico de RECIBO
   reciboNumero?: string;
   valorRecebido?: number;
-  referenciaRecebimento?: string;
+  referenciaPagamento?: string;
   formaPagamento?: string;
   dataRecebimento?: string;
   dataVencimento?: string;
   metodoPagamento?: string;
-  // Campos adicionais para recibo
-  documentoReferencia?: string;
+  // Campos adicionais para recibo -- também usado pela conversão de
+  // cotação/fatura para referenciar o documento de origem (ver
+  // OverviewForm.tsx handleConvert)
+  documentoAssociadoCustom?: string;
   motivoPagamento?: string;
   dataPagamento?: string;
   validezFatura?: string; 

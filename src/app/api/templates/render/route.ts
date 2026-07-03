@@ -238,12 +238,19 @@ class TemplateService {
         }
 
         // Referências independentes (preenche mesmo se ainda não tiver numero de recibo)
-        if ((f as any).documentoReferencia) {
-          (commonMappings as Record<string,string>)['documento-referencia'] = (f as any).documentoReferencia;
-          (commonMappings as Record<string,string>)['documento-referencia-header'] = (f as any).documentoReferencia;
+        // -- documentoAssociadoCustom/referenciaPagamento são os nomes
+        // corretos (ver "Fatura/Cotação Associada"/"Referência do
+        // Pagamento" no formulário e o schema/BD); mantém a leitura dos
+        // nomes antigos como fallback para não quebrar nada que ainda os
+        // produza por engano.
+        const documentoAssociado = (f as any).documentoAssociadoCustom || (f as any).documentoReferencia;
+        if (documentoAssociado) {
+          (commonMappings as Record<string,string>)['documento-referencia'] = documentoAssociado;
+          (commonMappings as Record<string,string>)['documento-referencia-header'] = documentoAssociado;
         }
-        if ((f as any).referenciaRecebimento) {
-          (commonMappings as Record<string,string>)['referencia-recebimento'] = (f as any).referenciaRecebimento;
+        const referenciaPagamentoIndependente = (f as any).referenciaPagamento || (f as any).referenciaRecebimento;
+        if (referenciaPagamentoIndependente) {
+          (commonMappings as Record<string,string>)['referencia-recebimento'] = referenciaPagamentoIndependente;
         }
 
         // RECEIPT-SPECIFIC PLACEHOLDERS (detect by presence of reciboNumero)
@@ -256,9 +263,9 @@ class TemplateService {
             'data-recebimento': formatDate((f as any).dataRecebimento || f.dataFatura) || '',
             'data-pagamento': formatDate((f as any).dataPagamento || (f as any).dataRecebimento || f.dataFatura) || '',
             'forma-pagamento': (f as any).formaPagamento || f.metodoPagamento || ' ',
-            'referencia-recebimento': (f as any).referenciaPagamento  || f.ordemCompra || ' ',
-            'documento-referencia': (f as any).documentoAssociadoCustom  || ' ',
-            'documento-referencia-header': (f as any).documentoReferencia || ' ',
+            'referencia-recebimento': referenciaPagamentoIndependente || f.ordemCompra || ' ',
+            'documento-referencia': documentoAssociado || ' ',
+            'documento-referencia-header': documentoAssociado || ' ',
             'motivo-pagamento': (f as any).motivoPagamento || ' ',
             'valor-recebido': valorRecebidoNumber !== undefined ? formatCurrency(valorRecebidoNumber, moedaRecibo) : '0,00 ' + moedaRecibo
           };

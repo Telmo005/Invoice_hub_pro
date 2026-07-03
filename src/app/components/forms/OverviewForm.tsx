@@ -255,7 +255,14 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           ...source,
           formData: {
             ...source.formData,
-            documentoReferencia: documentData.numero,
+            // Nome de campo correto -- documentoReferencia era descartado
+            // silenciosamente ao gravar (schema/DB esperam
+            // documentoAssociadoCustom, ver "Fatura/Cotação Associada" no
+            // formulário). Só chega mesmo à BD quando o destino é recibo
+            // (fatura->recibo); para cotação->fatura o schema da fatura
+            // ainda não tem este campo -- fica só como preenchimento no
+            // formulário por agora.
+            documentoAssociadoCustom: documentData.numero,
             ...(documentData.tipo === 'fatura' ? { valorRecebido: source.totais?.totalFinal || 0 } : {})
           }
         };

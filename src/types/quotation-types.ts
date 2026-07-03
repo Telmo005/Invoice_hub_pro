@@ -50,7 +50,7 @@ export interface FormDataDocumento {
   // Campos específicos de RECIBO (opcionais)
   reciboNumero?: string;
   valorRecebido?: number;
-  referenciaRecebimento?: string;
+  referenciaPagamento?: string;
   formaPagamento?: string;
   dataRecebimento?: string;
   dataVencimento?: string;
