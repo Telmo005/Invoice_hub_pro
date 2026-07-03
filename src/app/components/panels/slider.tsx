@@ -1,10 +1,14 @@
-import React, { useCallback } from 'react';
-import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import React, { useCallback, useState } from 'react';
+import { FiChevronLeft, FiChevronRight, FiDroplet, FiRotateCcw } from 'react-icons/fi';
 import { InvoiceData, TipoDocumento } from '@/types/invoice-types';
 import { useTemplateManager } from '@/app/hooks/panels/useTemplateManager';
 import { useTemplateScroll } from '@/app/hooks/panels/useTemplateScroll';
 import { TemplateCard } from '@/app/components/panels/card';
 import { PreviewPanel } from '@/app/components/panels/preview';
+
+// Presets de cor de marca comuns, para escolha rápida sem abrir o seletor
+// nativo do sistema operativo (ver Fase 3 em docs/auditoria-inicial.md).
+const ACCENT_COLOR_PRESETS = ['#2c3e50', '#1e3a8a', '#7c3aed', '#be123c', '#047857', '#000000'];
 
 interface TemplateSliderProps {
   invoiceData: InvoiceData;
@@ -21,6 +25,11 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
   onToggleFullscreen = () => {},
   onHtmlRendered = () => {}
 }) => {
+  // Cor de destaque personalizada (título, cabeçalho da tabela, bordas) --
+  // todos os templates seguem o contrato de tema (ver
+  // docs/templates-theming.md e src/lib/document/applyAccentColor.ts)
+  const [corDestaque, setCorDestaque] = useState<string | null>(null);
+
   const {
     selectedTemplateId,
     selectedTemplate,
@@ -34,11 +43,17 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
     handleZoomOut,
     isZoomInDisabled,
     isZoomOutDisabled
-  } = useTemplateManager({ 
-    invoiceData, 
-    tipo, 
-    onHtmlRendered 
+  } = useTemplateManager({
+    invoiceData,
+    tipo,
+    onHtmlRendered,
+    corDestaque
   });
+
+  // Todos os templates atuais seguem o contrato de tema (ver
+  // docs/templates-theming.md); applyAccentColor() ignora silenciosamente
+  // qualquer templateId que ainda não o siga.
+  const suportaCorPersonalizada = true;
 
   const {
     templatesContainerRef,
@@ -73,11 +88,60 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
             📄 {tipo === 'cotacao' ? 'Modelos de Cotação' : (tipo === 'recibo' ? 'Modelos de Recibo' : 'Modelos de Fatura')}
           </h5>
         </div>
-        <span className={`px-3 py-1 rounded-full text-white text-xs font-bold ${
-          tipo === 'cotacao' ? 'bg-green-500' : (tipo === 'recibo' ? 'bg-yellow-600' : 'bg-blue-500')
-        }`}>
-          {tipo === 'cotacao' ? 'COTAÇÃO' : (tipo === 'recibo' ? 'RECIBO' : 'FATURA')}
-        </span>
+        <div className="flex items-center gap-3">
+          {suportaCorPersonalizada && (
+            <div className="flex items-center gap-1.5 bg-white pl-2.5 pr-1.5 py-1.5 rounded-full border border-gray-200 shadow-sm">
+              <FiDroplet className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" title="Cor de destaque (título, tabela, bordas)" />
+              {ACCENT_COLOR_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setCorDestaque(preset)}
+                  className={`h-5 w-5 rounded-full shadow-sm ring-1 ring-inset ring-black/10 transition-transform hover:scale-110 ${
+                    corDestaque === preset ? 'ring-2 ring-offset-1 ring-gray-500' : ''
+                  }`}
+                  style={{ backgroundColor: preset }}
+                  title={`Usar cor ${preset}`}
+                  aria-label={`Usar cor de destaque ${preset}`}
+                />
+              ))}
+              <div className="relative h-5 w-5 rounded-full overflow-hidden shadow-sm ring-1 ring-inset ring-black/10 hover:scale-110 transition-transform">
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: corDestaque && !ACCENT_COLOR_PRESETS.includes(corDestaque)
+                      ? corDestaque
+                      : 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)'
+                  }}
+                />
+                <input
+                  type="color"
+                  value={corDestaque || '#2c3e50'}
+                  onChange={(e) => setCorDestaque(e.target.value)}
+                  className="absolute -inset-1 opacity-0 cursor-pointer"
+                  aria-label="Escolher outra cor de destaque"
+                  title="Escolher outra cor"
+                />
+              </div>
+              {corDestaque && (
+                <button
+                  type="button"
+                  onClick={() => setCorDestaque(null)}
+                  className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                  title="Repor cor original do template"
+                  aria-label="Repor cor original do template"
+                >
+                  <FiRotateCcw className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
+          <span className={`px-3 py-1 rounded-full text-white text-xs font-bold ${
+            tipo === 'cotacao' ? 'bg-green-500' : (tipo === 'recibo' ? 'bg-yellow-600' : 'bg-blue-500')
+          }`}>
+            {tipo === 'cotacao' ? 'COTAÇÃO' : (tipo === 'recibo' ? 'RECIBO' : 'FATURA')}
+          </span>
+        </div>
       </div>
 
       {/* Template Selection */}

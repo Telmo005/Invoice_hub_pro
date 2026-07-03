@@ -138,112 +138,72 @@ export async function GET(request: NextRequest) {
 }
 
 async function getDocumentStats(supabase: any, userId: string) {
+  const emptyStats = {
+    pendingInvoicesCount: 0,
+    pendingQuotesCount: 0,
+    totalInvoices: 0,
+    totalQuotes: 0,
+    totalReceipts: 0,
+    expiringQuotesCount: 0,
+    expiredQuotesCount: 0,
+    expiredInvoicesCount: 0,
+    pendingReceiptsCount: 0
+  };
+
   try {
-    // Totais simples por tabela
-    const [
-      { count: totalInvoices },
-      { count: totalQuotes },
-      { count: totalReceipts }
-    ] = await Promise.all([
-      supabase.from('faturas').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-      supabase.from('cotacoes').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-      supabase.from('recibos').select('*', { count: 'exact', head: true }).eq('user_id', userId)
-    ])
-
-    // Fallback para recibos antigos que não tinham user_id (conta via view unificada)
-    let receiptsCountFinal = totalReceipts || 0;
-    if (!receiptsCountFinal) {
-      const { count: viewReceiptsCount } = await supabase
-        .from('view_documentos_pagamentos')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('tipo_documento', 'recibo');
-      receiptsCountFinal = viewReceiptsCount || 0;
-    }
-
-    // Faturas pendentes: emitidas sem pagamento concluído
-    const { data: pendingInvoicesData } = await supabase
+    // Antes, isto fazia 6+ queries diretas a `faturas`/`cotacoes`/`recibos`
+    // pedindo colunas que não existem nessas tabelas (user_id, status_documento,
+    // data_vencimento vivem em documentos_base/view_documentos_pagamentos desde
+    // a normalização do schema) -- cada uma falhava silenciosamente e as stats
+    // ficavam sempre a 0. Uma única leitura da view unificada resolve tudo.
+    const { data: rows, error } = await supabase
       .from('view_documentos_pagamentos')
-      .select('id,status_documento,status_pagamento')
-      .eq('user_id', userId)
-      .eq('tipo_documento', 'fatura')
-      .in('status_documento', ['emitida'])
-      .or('status_pagamento.is.null,status_pagamento.in.(pendente,aguardando)');
+      .select('tipo_documento, status_documento, data_vencimento, status_pagamento')
+      .eq('user_id', userId);
 
-    const pendingInvoicesCount = (pendingInvoicesData || []).filter((d: { status_documento?: string }) => d.status_documento === 'emitida').length;
+    if (error || !rows) return emptyStats;
 
-    // Cotações pendentes: emitidas (ainda não convertidas) 
-    const { data: pendingQuotesData } = await supabase
-      .from('cotacoes')
-      .select('id,status_documento,data_vencimento')
-      .eq('user_id', userId)
-      .eq('status_documento', 'emitida');
+    const faturas = rows.filter((r: any) => r.tipo_documento === 'fatura');
+    const cotacoes = rows.filter((r: any) => r.tipo_documento === 'cotacao');
+    const recibos = rows.filter((r: any) => r.tipo_documento === 'recibo');
 
-    const pendingQuotesCount = (pendingQuotesData || []).length;
-
-    // Cotações a expirar em <= 7 dias
     const now = new Date();
     const in7 = new Date();
     in7.setDate(now.getDate() + 7);
-    const { data: expiringQuotesData } = await supabase
-      .from('cotacoes')
-      .select('id,status_documento,data_vencimento')
-      .eq('user_id', userId)
-      .eq('status_documento', 'emitida')
-      .gte('data_vencimento', now.toISOString())
-      .lte('data_vencimento', in7.toISOString());
 
-    const expiringQuotesCount = (expiringQuotesData || []).length;
-
-    // Cotações expiradas (status = expirada OU emitida com data_vencimento < hoje)
-    const { data: rawExpiredQuotes } = await supabase
-      .from('cotacoes')
-      .select('id,status_documento,data_vencimento')
-      .eq('user_id', userId)
-      .in('status_documento', ['expirada', 'emitida']);
-    const expiredQuotesCount = (rawExpiredQuotes || []).filter((q: any) => {
-      if (q.status_documento === 'expirada') return true;
-      if (q.status_documento === 'emitida' && q.data_vencimento) {
-        try { return new Date(q.data_vencimento) < now; } catch { return false; }
+    const isExpired = (r: { status_documento?: string; data_vencimento?: string }) => {
+      if (r.status_documento === 'expirada') return true;
+      if (r.status_documento === 'emitida' && r.data_vencimento) {
+        try { return new Date(r.data_vencimento) < now; } catch { return false; }
       }
       return false;
-    }).length;
+    };
 
-    // Faturas expiradas (status = expirada OU emitida com data_vencimento < hoje)
-    const { data: rawExpiredInvoices } = await supabase
-      .from('faturas')
-      .select('id,status_documento,data_vencimento')
-      .eq('user_id', userId)
-      .in('status_documento', ['expirada', 'emitida']);
-    const expiredInvoicesCount = (rawExpiredInvoices || []).filter((f: any) => {
-      if (f.status_documento === 'expirada') return true;
-      if (f.status_documento === 'emitida' && f.data_vencimento) {
-        try { return new Date(f.data_vencimento) < now; } catch { return false; }
-      }
-      return false;
+    const pendingInvoicesCount = faturas.filter((f: any) =>
+      f.status_documento === 'emitida' && (!f.status_pagamento || ['pendente', 'aguardando'].includes(f.status_pagamento))
+    ).length;
+
+    const pendingQuotesCount = cotacoes.filter((c: any) => c.status_documento === 'emitida').length;
+
+    const expiringQuotesCount = cotacoes.filter((c: any) => {
+      if (c.status_documento !== 'emitida' || !c.data_vencimento) return false;
+      const d = new Date(c.data_vencimento);
+      return d >= now && d <= in7;
     }).length;
 
     return {
       pendingInvoicesCount,
       pendingQuotesCount,
-      totalInvoices: totalInvoices || 0,
-      totalQuotes: totalQuotes || 0,
-      totalReceipts: receiptsCountFinal,
+      totalInvoices: faturas.length,
+      totalQuotes: cotacoes.length,
+      totalReceipts: recibos.length,
       expiringQuotesCount,
-      expiredQuotesCount,
-      expiredInvoicesCount,
+      expiredQuotesCount: cotacoes.filter(isExpired).length,
+      expiredInvoicesCount: faturas.filter(isExpired).length,
       pendingReceiptsCount: 0 // Recibos representam pagamentos concluídos na maioria dos casos
     };
   } catch {
-    return {
-      pendingInvoicesCount: 0,
-      pendingQuotesCount: 0,
-      totalInvoices: 0,
-      totalQuotes: 0,
-      totalReceipts: 0,
-      expiringQuotesCount: 0,
-      pendingReceiptsCount: 0
-    };
+    return emptyStats;
   }
 }
 

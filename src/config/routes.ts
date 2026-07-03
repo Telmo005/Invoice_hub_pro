@@ -8,6 +8,7 @@ export const ROUTES = {
   ABOUT: '/about',
   CONTACT: '/contact',
   DASHBOARD: '/dashboard',
+  PRICING: '/pricing',
 
   // Rotas privadas (requerem autenticação)
   PROFILE: '/pages/PROFILE',
@@ -18,6 +19,7 @@ export const ROUTES = {
   INVOICES_NEW: '/pages/invoices/new',
   QUOTATIONS_NEW: '/pages/quotations/new',
   RECEIPTS_NEW: '/pages/receipts/new',
+  SUBSCRIPTION: '/pages/subscription',
 
   // Rotas da API
   API: {
@@ -35,6 +37,7 @@ export const ROUTES = {
     ROUTES.ABOUT,
     ROUTES.CONTACT,
     ROUTES.DASHBOARD,
+    ROUTES.PRICING,
   ],
 
   getPrivateRoutes: () => [
@@ -46,6 +49,7 @@ export const ROUTES = {
     ROUTES.INVOICES_NEW,
     ROUTES.QUOTATIONS_NEW,
     ROUTES.QUOTES_INVOICES,
+    ROUTES.SUBSCRIPTION,
     '/invoices/new',
     '/quotations/new',
     '/receipts/new',

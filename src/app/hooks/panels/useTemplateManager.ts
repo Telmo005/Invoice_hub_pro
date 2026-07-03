@@ -4,11 +4,13 @@ import { InvoiceData, TipoDocumento } from '@/types/invoice-types';
 import { TemplateService, DocumentType } from '@/services/templateService';
 import { useDebounce } from '@/app/hooks/panels/useDebounce';
 import { useThrottle } from '@/app/hooks/panels/useThrottle';
+import { applyAccentColor } from '@/lib/document/applyAccentColor';
 
 interface UseTemplateManagerProps {
   invoiceData: InvoiceData;
   tipo: TipoDocumento; // 'fatura' ou 'cotacao' - NOVO PROP
   onHtmlRendered?: (html: string) => void;
+  corDestaque?: string | null; // cor de destaque personalizada (ver Fase 3)
   options?: {
     debounceMs?: number;
     useCache?: boolean;
@@ -48,11 +50,12 @@ const mapTipoToDocumentType = (tipo: TipoDocumento): DocumentType => {
   return 'invoice';
 };
 
-export const useTemplateManager = ({ 
-  invoiceData, 
+export const useTemplateManager = ({
+  invoiceData,
   tipo, // ← NOVO PARÂMETRO
-  onHtmlRendered, 
-  options = {} 
+  onHtmlRendered,
+  corDestaque,
+  options = {}
 }: UseTemplateManagerProps) => {
   const {
     debounceMs = DEFAULT_OPTIONS.debounceMs,
@@ -185,14 +188,22 @@ export const useTemplateManager = ({
       // Clear retry count on success
       retryCountRef.current.delete(cacheKey);
 
+      // Aplica a cor de destaque personalizada (se suportada pelo template)
+      // ao HTML final, para que fique refletida tanto na pré-visualização
+      // como no htmlContent guardado (ver Fase 3 em docs/auditoria-inicial.md)
+      const htmlComCor = result.html
+        ? applyAccentColor(result.html, templateId, corDestaque)
+        : result.html;
+
       safeSetRenderState(prev => ({
         ...prev,
         ...result,
+        html: htmlComCor,
         isLoading: false
       }));
 
-      if (result.html && !result.error && isMountedRef.current) {
-        onHtmlRendered?.(result.html);
+      if (htmlComCor && !result.error && isMountedRef.current) {
+        onHtmlRendered?.(htmlComCor);
       }
 
     } catch (error: unknown) {
@@ -241,13 +252,14 @@ export const useTemplateManager = ({
       }
     }
   }, [
-    templateService, 
-    useCache, 
-    onHtmlRendered, 
-    maxRetries, 
-    timeoutMs, 
+    templateService,
+    useCache,
+    onHtmlRendered,
+    maxRetries,
+    timeoutMs,
     safeSetRenderState,
-    documentType 
+    documentType,
+    corDestaque
   ]);
 
   // Effect para renderização automática com dados debounced

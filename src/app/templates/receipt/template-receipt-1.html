@@ -7,6 +7,15 @@
   <title>Recibo</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    /* Contrato de tema (ver docs/templates-theming.md): --accent-color e
+       --accent-contrast controlam a cor de destaque (logo, cabeçalho da
+       tabela, total, bordas). O verde (#166534/#dcfce7/#f0fdf4) é um
+       indicador semântico de "pago", não faz parte da cor de marca. */
+    :root {
+      --accent-color: #1e3a8a;
+      --accent-contrast: #ffffff;
+    }
+
     /* === CONFIGURAÇÕES CRÍTICAS DE IMPRESSÃO === */
     @page {
       size: A4 portrait;
@@ -115,7 +124,7 @@
     .rcb-logo {
       font-size: 22px;
       font-weight: 700;
-      color: #1e3a8a;
+      color: var(--accent-color, #1e3a8a);
       margin-bottom: 4px;
     }
 
@@ -126,8 +135,8 @@
     }
 
     .rcb-info {
-      background: #1e3a8a;
-      color: white;
+      background: var(--accent-color, #1e3a8a);
+      color: var(--accent-contrast, white);
       padding: 12px 16px;
       border-radius: 8px;
       min-width: 200px;
@@ -209,8 +218,8 @@
     }
 
     table.rcb-items thead th {
-      background: #1e3a8a;
-      color: #fff;
+      background: var(--accent-color, #1e3a8a);
+      color: var(--accent-contrast, #fff);
       padding: 8px 6px;
       font-weight: 600;
       text-transform: uppercase;
@@ -258,8 +267,8 @@
     }
 
     .rcb-totals .rcb-total-final {
-      background: #1e3a8a;
-      color: #fff;
+      background: var(--accent-color, #1e3a8a);
+      color: var(--accent-contrast, #fff);
       font-weight: 600;
     }
 
@@ -275,7 +284,7 @@
       margin: 0 0 8px;
       font-size: 12px;
       font-weight: 600;
-      color: #1e3a8a;
+      color: var(--accent-color, #1e3a8a);
       text-transform: uppercase;
     }
 

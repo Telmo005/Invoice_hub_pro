@@ -7,6 +7,15 @@
   <meta name="description" content="Cotação Comercial - Documento comercial oficial">
   <title>Cotação Comercial</title>
   <style>
+    /* Contrato de tema (ver docs/templates-theming.md): --accent-color
+       controla a cor de destaque. Este template é deliberadamente neutro
+       (cinzas, sem cor de marca própria), por isso só o título usa a
+       variável -- aplicar a mesmos tabela/cartões mudaria o estilo "claro"
+       pretendido do template, não é só uma troca de valor. */
+    :root {
+      --accent-color: #333;
+    }
+
     /* Reset global para impressão */
     html, body {
       width: 100% !important;
@@ -74,6 +83,7 @@
     .t3-isolated .invoice-title {
       font-size: 20px !important;
       font-weight: bold !important;
+      color: var(--accent-color, #333) !important;
     }
 
     .t3-isolated .invoice-meta {

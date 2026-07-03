@@ -5,6 +5,9 @@ import { logger } from '@/lib/logger';
 import { withApiGuard } from '@/lib/api/guard';
 import { ItemFatura, TotaisFatura, Emitente, Destinatario } from '@/types/invoice-types';
 import { validateReceiptPayload } from '@/lib/validation/documentSchemas';
+import { ensureEmitenteId, ensureDestinatarioId } from '@/lib/document/party';
+import { buildDadosEspecificos, mapItensParaRpc } from '@/lib/document/buildDadosEspecificos';
+import { hasActiveSubscription } from '@/lib/payments/hasActiveSubscription';
 
 interface ApiError { code: string; message: string; details?: unknown }
 interface ApiResponse<T = unknown> { success: boolean; data?: T; error?: ApiError }
@@ -40,6 +43,7 @@ const ERROR_CODES = {
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   DATABASE_ERROR: 'DATABASE_ERROR',
   DOCUMENT_ALREADY_EXISTS: 'DOCUMENT_ALREADY_EXISTS',
+  PAYMENT_REQUIRED: 'PAYMENT_REQUIRED',
   INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
 
@@ -50,6 +54,20 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
 
   try {
     const supabase = await supabaseServer();
+
+    // Fase 4: ver o mesmo comentário em invoice/create/route.ts -- criação
+    // direta exige assinatura mensal ativa; sem ela, o caminho é
+    // /api/payments/checkout.
+    if (!(await hasActiveSubscription(supabase, user.id))) {
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: ERROR_CODES.PAYMENT_REQUIRED,
+          message: 'É necessário pagamento ou assinatura ativa para criar este documento',
+          details: { checkoutEndpoint: '/api/payments/checkout' }
+        }
+      }, { status: 402 });
+    }
 
     let body: RequestBody;
     try {
@@ -126,152 +144,18 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       }, { status: 400 });
     }
 
-    // Preparar dados completos do recibo para o RPC (chaves esperadas pela função unificada)
-    const reciboData = {
-      // Identificadores do número (manter ambos para compatibilidade)
-      reciboNumero: formData.reciboNumero,
-      faturaNumero: formData.reciboNumero,
-      // Datas
-      dataFatura: formData.dataRecebimento, // usado como data base
-      dataRecebimento: formData.dataRecebimento,
-      dataPagamento: formData.dataPagamento || null,
-      dataVencimento: null,
-      // Valores / pagamento
-      valorRecebido: formData.valorRecebido,
-      formaPagamento: formData.formaPagamento || null,
-      // Referências
-      referenciaPagamento: formData.referenciaPagamento || null,
-      documentoAssociadoCustom: formData.documentoAssociadoCustom || null,
-      motivoPagamento: formData.motivoPagamento || null,
-      // Outros campos opcionais
-      ordemCompra: formData.ordemCompra || null,
-      termos: formData.termos || (formData.formaPagamento ? `Forma de pagamento: ${formData.formaPagamento}` : null),
-      moeda: formData.moeda || 'MT',
-      metodoPagamento: formData.formaPagamento || null,
-      logoUrl: logo || null,
-      assinaturaBase64: assinatura || null
-    };
-
     // ===== BLOCO RPC UNIFICADO PARA RECIBO =====
-    // Adaptar para nova função criar_documento_completo
-    const ensureEmissor = async () => {
-      const emissor: Emitente = formData.emitente;
-      let emissorId: string | null = null;
-      if (emissor?.documento) {
-        const { data: foundByDoc } = await supabase
-          .from('emissores')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('documento', emissor.documento)
-          .maybeSingle();
-        emissorId = foundByDoc?.id ?? null;
-      }
-      if (!emissorId && emissor?.nomeEmpresa) {
-        const { data: foundByName } = await supabase
-          .from('emissores')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('nome_empresa', emissor.nomeEmpresa)
-          .maybeSingle();
-        emissorId = foundByName?.id ?? null;
-      }
-      if (!emissorId) {
-        const { data: created } = await supabase
-          .from('emissores')
-          .insert({
-            user_id: user.id,
-            nome_empresa: emissor?.nomeEmpresa ?? 'Empresa',
-            documento: emissor?.documento ?? '',
-            pais: emissor?.pais ?? '',
-            cidade: emissor?.cidade ?? '',
-            bairro: emissor?.bairro ?? '',
-            pessoa_contato: emissor?.pessoaContato ?? null,
-            email: emissor?.email ?? '',
-            telefone: emissor?.telefone ?? ''
-          })
-          .select('id')
-          .single();
-        emissorId = created?.id ?? null;
-      }
-      return emissorId as string;
-    };
-
-    const ensureDestinatario = async () => {
-      const dest: Destinatario | undefined = formData.destinatario;
-      if (!dest) return null;
-      let destinatarioId: string | null = null;
-      if (dest?.documento) {
-        const { data: foundByDoc } = await supabase
-          .from('destinatarios')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('documento', dest.documento)
-          .maybeSingle();
-        destinatarioId = foundByDoc?.id ?? null;
-      }
-      if (!destinatarioId && dest?.nomeCompleto) {
-        const { data: foundByName } = await supabase
-          .from('destinatarios')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('nome_completo', dest.nomeCompleto)
-          .maybeSingle();
-        destinatarioId = foundByName?.id ?? null;
-      }
-      if (!destinatarioId) {
-        const { data: created } = await supabase
-          .from('destinatarios')
-          .insert({
-            user_id: user.id,
-            nome_completo: dest?.nomeCompleto ?? 'Cliente',
-            documento: dest?.documento ?? null,
-            pais: dest?.pais ?? null,
-            cidade: dest?.cidade ?? null,
-            bairro: dest?.bairro ?? null,
-            email: dest?.email ?? '',
-            telefone: dest?.telefone ?? ''
-          })
-          .select('id')
-          .single();
-        destinatarioId = created?.id ?? null;
-      }
-      return destinatarioId as string | null;
-    };
-
+    // Obter ou criar IDs de emitente e destinatário (lógica partilhada com
+    // invoice/create e quotation/create -- ver src/lib/document/party.ts)
     const [emitenteId, destinatarioId] = await Promise.all([
-      ensureEmissor(),
-      ensureDestinatario()
+      ensureEmitenteId(user.id, formData.emitente),
+      ensureDestinatarioId(user.id, formData.destinatario)
     ]);
 
     // Forma de pagamento em recibo é informativa para o usuário; não validar de forma restritiva.
 
-    const statusDocumento = formData.status === 'paga' ? 'paga' : 'emitida';
-    const dadosEspecificos = {
-      numero: formData.reciboNumero,
-      data_emissao: formData.dataRecebimento,
-      moeda: formData.moeda || 'MT',
-      termos: reciboData.termos,
-      ordem_compra: reciboData.ordemCompra,
-      tipo_recibo: 'pagamento',
-      valor_recebido: formData.valorRecebido,
-      forma_pagamento: formData.formaPagamento || null,
-      metodo_pagamento: formData.formaPagamento || null,
-      referencia_recebimento: formData.referenciaPagamento || null,
-      motivo_pagamento: formData.motivoPagamento || null,
-      documento_referencia: formData.documentoAssociadoCustom || null,
-      data_recebimento: formData.dataRecebimento,
-      local_emissao: formData.emitente?.cidade || null,
-      logo_url: logo || null,
-      status: statusDocumento
-    };
-
-    const itensMapeados = (items || []).map((it: ItemFatura) => ({
-      id_original: it.id,
-      quantidade: it.quantidade,
-      descricao: it.descricao,
-      preco_unitario: it.precoUnitario,
-      taxas: Array.isArray(it.taxas) ? it.taxas.map(t => ({ nome: t.nome, valor: t.valor, tipo: t.tipo })) : []
-    }));
+    const dadosEspecificos = buildDadosEspecificos({ tipo: 'recibo', formData, logo, assinatura });
+    const itensMapeados = mapItensParaRpc(items || []);
 
     await logger.log({
       action: 'api_call',
@@ -301,7 +185,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       await logger.log({
         action: 'error',
         level: 'error',
-        message: 'Erro na função criar_fatura_completa para recibo',
+        message: 'Erro na função criar_documento_completo para recibo',
         details: {
           user: user.id,
           numero: formData.reciboNumero || '(auto)',

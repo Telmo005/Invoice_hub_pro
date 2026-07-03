@@ -1,24 +1,24 @@
 // src/app/components/payment/PaymentScreen.tsx
 'use client';
 
-import { useState } from 'react';
 import { Roboto } from 'next/font/google';
-import Image from 'next/image';
 import {
   FaCheck,
   FaSpinner,
   FaEnvelope,
   FaEye,
-  FaLock,
+  FaShieldAlt,
   FaArrowRight,
   FaFileInvoice,
   FaExclamationTriangle,
   FaInfoCircle,
   FaQuoteLeft,
   FaFilePdf,
-  FaChevronDown
+  FaExternalLinkAlt,
+  FaCommentDots
 } from 'react-icons/fa';
 import { usePayment } from '@/app/hooks/payment/usePayment';
+import { PaymentMethodPicker } from '@/app/components/payment/PaymentMethodPicker';
 
 const roboto = Roboto({
   weight: ['300', '400', '700'],
@@ -140,33 +140,10 @@ const SuccessScreen: React.FC<{
     );
   };
 
-const PaymentMethodImage: React.FC<{
-  methodId: string;
-  imagePath: string;
-  className?: string;
-}> = ({
-  methodId,
-  imagePath,
-  className = "w-6 h-6"
-}) => {
-    return (
-      <div className={`relative ${className}`}>
-        <Image
-          src={imagePath}
-          alt={methodId}
-          fill
-          className="object-contain"
-        />
-      </div>
-    );
-  };
-
-const PaymentMethodDropdown: React.FC<{
+const PaymentMethodSelector: React.FC<{
   paymentMethods: any[];
   selectedMethod: string | null;
-  contactNumber: string;
   onMethodSelect: (method: string) => void;
-  onContactChange: (value: string) => void;
   errorMessage?: string;
   successMessage?: string;
   isProcessing: boolean;
@@ -178,9 +155,7 @@ const PaymentMethodDropdown: React.FC<{
 }> = ({
   paymentMethods,
   selectedMethod,
-  contactNumber,
   onMethodSelect,
-  onContactChange,
   errorMessage,
   successMessage,
   isProcessing,
@@ -190,148 +165,70 @@ const PaymentMethodDropdown: React.FC<{
   isDocumentValid,
   documentValidationErrors
 }) => {
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const selectedMethodData = paymentMethods.find(method => method.id === selectedMethod);
 
-    const handleMethodSelect = (methodId: string) => {
-      onMethodSelect(methodId);
-      setIsDropdownOpen(false);
-    };
-
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <h5 className="font-semibold text-gray-800 text-lg mb-3">
-          Método de Pagamento
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <h5 className="font-semibold text-gray-800 text-base mb-4">
+          Escolha como prefere pagar
         </h5>
 
-        <div className="relative mb-4">
-          <button
-            type="button"
-            className="w-full px-4 py-3 text-left bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent flex items-center justify-between hover:border-gray-400 transition-colors"
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          >
-            <div className="flex items-center">
-              {selectedMethodData ? (
-                <>
-                  <PaymentMethodImage
-                    methodId={selectedMethodData.id}
-                    imagePath={selectedMethodData.imagePath}
-                    className="w-6 h-6 mr-3"
-                  />
-                  <span className="font-medium">{selectedMethodData.name}</span>
-                </>
-              ) : (
-                <span className="text-gray-500">Selecione método de pagamento</span>
-              )}
-            </div>
-            <FaChevronDown className={`text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-          </button>
-
-          {isDropdownOpen && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-              {paymentMethods.map((method) => (
-                <div
-                  key={method.id}
-                  className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center border-b border-gray-100 last:border-b-0 transition-colors"
-                  onClick={() => handleMethodSelect(method.id)}
-                >
-                  <PaymentMethodImage
-                    methodId={method.id}
-                    imagePath={method.imagePath}
-                    className="w-6 h-6 mr-3"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-800">{method.name}</div>
-                    <div className="text-sm text-gray-600">{method.description}</div>
-                  </div>
-                  {selectedMethod === method.id && (
-                    <FaCheck className="text-green-500 ml-2" />
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="mb-5">
+          <PaymentMethodPicker
+            methods={paymentMethods}
+            selectedMethod={selectedMethod}
+            onSelect={onMethodSelect}
+          />
         </div>
 
         {selectedMethodData && (
           <div className="space-y-4">
-            <div className="p-4 border-2 rounded-lg bg-red-50 border-red-200 transition-all">
-              <div className="flex items-center mb-3">
-                <PaymentMethodImage
-                  methodId={selectedMethodData.id}
-                  imagePath={selectedMethodData.imagePath}
-                  className="w-8 h-8 mr-3"
-                />
-                <div>
-                  <h4 className="font-semibold text-gray-800 text-base">{selectedMethodData.name}</h4>
-                  <p className="text-gray-600 text-sm">{selectedMethodData.description}</p>
-                </div>
-              </div>
-
-              <div className="mt-3">
-                <label className="block text-sm text-gray-700 mb-2 font-medium">
-                  Seu número para confirmação:
-                </label>
-                <input
-                  type="tel"
-                  value={contactNumber}
-                  onChange={(e) => onContactChange(e.target.value)}
-                  placeholder="84 123 4567"
-                  maxLength={18}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-colors"
-                />
-                
-                {/* Mensagens de erro/sucesso APENAS abaixo do campo do número */}
-                <div className="mt-2">
-                  {errorMessage && (
-                    <StatusMessage 
-                      type="error" 
-                      message={errorMessage}
-                    />
-                  )}
-
-                  {successMessage && !errorMessage && (
-                    <StatusMessage 
-                      type="info" 
-                      message={successMessage}
-                    />
-                  )}
-
-                  {/* Bloco de validação global do documento (aplica a fatura, cotação e recibo) */}
-                  {!isDocumentValid && (
-                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                      Preencha todos os campos obrigatórios antes do pagamento:
-                      <ul className="list-disc ml-4 mt-1 space-y-1">
-                        {documentValidationErrors.map((e: string, idx: number) => (
-                          <li key={idx}>{e}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Botão de pagamento abaixo do campo do número */}
-              <div className="mt-4">
-                <button
-                  onClick={onProcessPayment}
-                  disabled={isPaymentDisabled}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-semibold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed text-base transition-colors"
-                >
-                  {isProcessing ? (
-                    <>
-                      <FaSpinner className="animate-spin mr-2" />
-                      Processando...
-                    </>
-                  ) : (
-                    <>
-                      Pagar {dynamicDocumentData.amount}
-                      <FaArrowRight className="ml-2" />
-                    </>
-                  )}
-                </button>
-              </div>
+            <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+              <FaExternalLinkAlt className="text-blue-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-blue-700">
+                Vai abrir uma nova aba para concluir o pagamento com segurança.
+                {selectedMethodData.id === 'credit_card'
+                  ? ' Pagamentos com cartão Visa ou Mastercard podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
+                  : ' Confirme o pagamento no seu telemóvel quando for solicitado.'}
+              </p>
             </div>
+
+            {errorMessage && (
+              <StatusMessage type="error" message={errorMessage} />
+            )}
+
+            {successMessage && !errorMessage && (
+              <StatusMessage type="info" message={successMessage} />
+            )}
+
+            {!isDocumentValid && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                Preencha todos os campos obrigatórios antes do pagamento:
+                <ul className="list-disc ml-4 mt-1 space-y-1">
+                  {documentValidationErrors.map((e: string, idx: number) => (
+                    <li key={idx}>{e}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <button
+              onClick={onProcessPayment}
+              disabled={isPaymentDisabled}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 px-4 rounded-xl font-semibold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 text-base transition-all duration-200 shadow-lg shadow-green-500/25 hover:-translate-y-0.5"
+            >
+              {isProcessing ? (
+                <>
+                  <FaSpinner className="animate-spin mr-2" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  Pagar {dynamicDocumentData.amount}
+                  <FaArrowRight className="ml-2" />
+                </>
+              )}
+            </button>
           </div>
         )}
       </div>
@@ -392,15 +289,12 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
   const {
     selectedMethod,
     paymentStatus,
-    contactNumber,
     errorMessage,
     successMessage,
     documentSaveResult,
-    isCreating,
     isPreviewOpen,
     isGeneratingPdf,
     setSelectedMethod,
-    setContactNumber,
     setIsPreviewOpen,
     setErrorMessage: _setErrorMessage,
     processPayment,
@@ -416,9 +310,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
     onInvoiceCreated
   });
 
-  const DocumentIcon = dynamicDocumentData.type === 'cotacao' ? FaQuoteLeft : FaFileInvoice;
-  const isProcessing = paymentStatus === 'processing' || isCreating;
-  const isPaymentDisabled = !selectedMethod || isProcessing || !contactNumber.trim() || !isDocumentValid;
+  const isProcessing = paymentStatus === 'processing';
+  const isPaymentDisabled = !selectedMethod || isProcessing || !isDocumentValid;
 
   if (paymentStatus === 'success') {
     return (
@@ -435,49 +328,42 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
   return (
     <div className={`${roboto.variable} font-sans`}>
       <div className="max-w-4xl mx-auto p-4">
-        <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div>
-                <h4 className="text-lg font-semibold mb-2">Liberar {dynamicDocumentData.typeDisplay}</h4>
-                <p className="text-sm text-blue-600">
-                  Pague a taxa de serviço para gerar sua {dynamicDocumentData.typeDisplayLower}
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="mb-6 p-6 bg-blue-50 rounded-2xl">
+          <h4 className="text-2xl font-bold text-gray-900 mb-1">Método de Pagamento</h4>
+          <p className="text-sm text-blue-600 font-medium">
+            Escolha como prefere pagar e conclua a sua {dynamicDocumentData.typeDisplayLower}.
+          </p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1">
-            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-              <h5 className="font-semibold text-gray-800 text-lg mb-3">
-                Resumo da {dynamicDocumentData.typeDisplay}
-              </h5>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Número:</span>
-                  <span className="font-medium">{dynamicDocumentData.id}</span>
+            <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Documento</div>
+                  <div className="font-semibold text-gray-800">{dynamicDocumentData.id}</div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Cliente:</span>
-                  <span className="font-medium text-right max-w-[200px] truncate">
-                    {dynamicDocumentData.client}
-                  </span>
+                <div>
+                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Cliente</div>
+                  <div className="font-semibold text-gray-800 truncate">{dynamicDocumentData.client}</div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Quantidade de itens:</span>
-                  <span className="font-medium">{dynamicDocumentData.totalItems}</span>
+              </div>
+              <div className="flex items-end justify-between pt-4 border-t border-gray-100">
+                <div>
+                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Quantidade de itens</div>
+                  <div className="font-semibold text-gray-800">{dynamicDocumentData.totalItems}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Total a pagar</div>
+                  <div className="text-2xl font-bold text-green-600">{dynamicDocumentData.amount}</div>
                 </div>
               </div>
             </div>
 
-            <PaymentMethodDropdown
+            <PaymentMethodSelector
               paymentMethods={paymentMethods}
               selectedMethod={selectedMethod}
-              contactNumber={contactNumber}
               onMethodSelect={setSelectedMethod}
-              onContactChange={setContactNumber}
               errorMessage={errorMessage ?? undefined}
               successMessage={successMessage ?? undefined}
               isProcessing={isProcessing}
@@ -489,70 +375,62 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
             />
           </div>
 
-          <div className="lg:w-80">
-            <div className="bg-white rounded-lg border border-gray-200 p-4 sticky top-4">
-              <h5 className="font-semibold text-gray-800 text-lg mb-3">Resumo do Pagamento</h5>
-
-              <div className="space-y-4 mb-5 text-sm">
-                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <span className="text-gray-700 font-medium">Taxa de serviço:</span>
-                  <span className="font-bold text-blue-600 text-lg">{dynamicDocumentData.amount}</span>
-                </div>
-
-                <div className="text-center text-gray-600 text-sm font-medium pt-2">
-                  <DocumentIcon className="inline mr-2 mb-1" />
-                  Você receberá:
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center">
-                    <FaCheck className="text-green-500 mr-2 text-xs" />
-                    <span>Documento personalizado</span>
-                  </div>
-                  <div className="flex items-center">
-                    <FaCheck className="text-green-500 mr-2 text-xs" />
-                    <span>Download em PDF</span>
-                  </div>
-                  <div className="flex items-center">
-                    <FaCheck className="text-green-500 mr-2 text-xs" />
-                    <span>Armazenamento seguro</span>
-                  </div>
-                  <div className="flex items-center">
-                    <FaCheck className="text-green-500 mr-2 text-xs" />
-                    <span>Envio por email*</span>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 text-center">
-                  *Se tiver email configurado na conta
-                </p>
+          <div className="lg:w-80 space-y-4">
+            <div className="bg-white rounded-2xl shadow-sm p-5 sticky top-4">
+              <div className="flex items-center gap-2 text-gray-800 font-semibold mb-4">
+                <FaCommentDots className="text-gray-400" />
+                <span>Você receberá</span>
               </div>
 
-              <div className="flex space-x-2 mb-4">
+              <div className="space-y-2.5 text-sm mb-4">
+                <div className="flex items-center">
+                  <FaCheck className="text-green-500 mr-2 text-xs" />
+                  <span>Documento personalizado</span>
+                </div>
+                <div className="flex items-center">
+                  <FaCheck className="text-green-500 mr-2 text-xs" />
+                  <span>Download em PDF</span>
+                </div>
+                <div className="flex items-center">
+                  <FaCheck className="text-green-500 mr-2 text-xs" />
+                  <span>Armazenamento seguro</span>
+                </div>
+                <div className="flex items-center">
+                  <FaCheck className="text-green-500 mr-2 text-xs" />
+                  <span>Envio por email*</span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400">
+                *Se tiver email configurado na conta.
+              </p>
+
+              <div className="flex gap-2 mt-5 pt-4 border-t border-gray-100">
                 <button
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-3 rounded-md font-medium flex items-center justify-center text-sm transition-colors"
+                  className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 py-2 px-3 rounded-lg font-medium flex items-center justify-center text-sm transition-colors"
                   onClick={() => setIsPreviewOpen(true)}
                 >
                   <FaEye className="mr-2" />
                   Pré-visualizar
                 </button>
                 <button
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-3 rounded-md font-medium flex items-center justify-center text-sm transition-colors"
+                  className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 py-2 px-3 rounded-lg font-medium flex items-center justify-center text-sm transition-colors"
                   onClick={() => handleEmailSend()}
                 >
                   <FaEnvelope className="mr-2" />
                   Dúvidas?
                 </button>
               </div>
+            </div>
 
-              {/* Informações de segurança movidas para abaixo dos botões */}
-              <div className="pt-3 border-t border-gray-200 text-center">
-                <div className="flex items-center justify-center text-gray-600 mb-2 text-sm">
-                  <FaLock className="mr-2" />
-                  <span className="font-medium">Pagamento Seguro</span>
-                </div>
-                <p className="text-gray-500 text-xs mb-3">
-                  Seus dados estão protegidos e criptografados
-                </p>
+            <div className="bg-white rounded-2xl shadow-sm p-5">
+              <div className="flex items-center gap-2 text-gray-800 font-semibold mb-2">
+                <FaShieldAlt className="text-green-500" />
+                <span>Pagamento Seguro</span>
+              </div>
+              <p className="text-gray-500 text-sm mb-4">
+                Seus dados estão protegidos e criptografados.
+              </p>
+              <div className="pt-3 border-t border-gray-100">
                 <a
                   href="mailto:digitalhub.midia@gmail.com"
                   className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
