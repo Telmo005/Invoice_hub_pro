@@ -3,7 +3,13 @@ import { isMozambiquePais, isValidNuit } from '@/lib/validation';
 
 // Helpers devolvem instâncias para permitir encadeamento (min, email, regex)
 const trimmed = () => z.string().trim();
-const optTrimmed = () => z.string().trim().optional();
+// .nullish() (não .optional()) -- campos opcionais no formulário do wizard
+// (pessoaContato, logo, assinatura, etc.) chegam como `null` quando não
+// preenchidos, não `undefined`. .optional() sozinho rejeita null com
+// "Expected string, received null", o que reprovava a validação em
+// praticamente todos os documentos reais (assinatura é sempre null --
+// não há UI para a preencher -- e logo é null sempre que não há upload).
+const optTrimmed = () => z.string().trim().nullish().transform(v => v ?? undefined);
 
 // NUIT (9 dígitos) só é exigido quando país = Moçambique (ver A5 em
 // docs/auditoria-inicial.md); emitentes/destinatários estrangeiros mantêm
@@ -112,7 +118,9 @@ export const quotationFormDataSchema = invoiceFormDataSchema.extend({
   // Prefixo real gerado pela BD é 'COT' (ver gerar_numero_documento em
   // database.sql), não 'CTC' -- corrigido (ver A4 em docs/auditoria-inicial.md)
   cotacaoNumero: trimmed().regex(/^(COT)\/\d{4}\/\d{3}$/),
-  validezCotacao: z.number().int().positive().max(365).default(15)
+  // O wizard guarda isto como string (é o valor de um <input>, usado com
+  // .trim() no formulário) -- z.coerce aceita '15' tal como 15.
+  validezCotacao: z.coerce.number().int().positive().max(365).default(15)
 }).omit({ faturaNumero: true });
 
 export const quotationCreateSchema = z.object({

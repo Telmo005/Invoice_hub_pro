@@ -143,3 +143,50 @@ describe('emitenteSchema / destinatarioSchema -- NUIT condicional', () => {
     expect(result.ok).toBe(true);
   });
 });
+
+// 2026-07-03: descoberto ao testar o checkout PaySuite em produção pela
+// primeira vez -- o wizard envia `null` (não `undefined`) para campos
+// opcionais como pessoaContato/logo/assinatura (assinatura é SEMPRE null,
+// não há UI para a preencher), mas .optional() só aceita undefined,
+// rejeitando null com "Expected string, received null". Isto reprovava a
+// validação em praticamente qualquer documento real -- checkout e,
+// potencialmente, também a criação direta (mesmo schema). Regressão.
+describe('campos opcionais aceitam null (não só undefined)', () => {
+  it('aceita logo/assinatura/pessoaContato como null', () => {
+    const result = validateInvoicePayload({
+      formData: {
+        faturaNumero: 'FTR/2026/004',
+        dataFatura: '2026-07-02',
+        dataVencimento: '2026-07-16',
+        moeda: 'MZN',
+        emitente: { ...emitenteMz, pessoaContato: null },
+        destinatario
+      },
+      items: [itemComTaxa],
+      logo: null,
+      assinatura: null
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('aceita validezCotacao como string (valor real vindo do formulário)', () => {
+    const result = validateQuotationPayload({
+      formData: {
+        cotacaoNumero: 'COT/2026/004',
+        dataFatura: '2026-07-02',
+        dataVencimento: '2026-07-16',
+        moeda: 'MZN',
+        emitente: emitenteMz,
+        destinatario,
+        validezCotacao: '15'
+      },
+      items: [itemComTaxa],
+      logo: null,
+      assinatura: null
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect((result.data.formData as any).validezCotacao).toBe(15);
+    }
+  });
+});
