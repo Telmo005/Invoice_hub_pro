@@ -69,79 +69,95 @@ export class SystemLogger {
     this.addToQueue(logData);
   }
 
-  private addToQueue(logData: LogData) {
-    const logPromise = async () => {
-      try {
-        let supabase;
-        
-        if (typeof window === 'undefined') {
-          const { supabaseServer } = await import('./supabase-server');
-          supabase = await supabaseServer();
-        } else {
-          const { default: supabaseClient } = await import('./supabase-client');
-          supabase = supabaseClient();
-        }
-        
-        const { data: { user } } = await supabase.auth.getUser();
-        const context = await this.getRequestContext();
+  // A escrita em si -- partilhada entre o modo "fila" (addToQueue, não
+  // esperado pelo chamador) e o modo "aguardado" (writeLogAwaited). Extraído
+  // porque em ambientes serverless (Vercel) a função pode ser suspensa logo
+  // a seguir à resposta ser enviada, e as promises da fila que ainda não
+  // tinham corrido ficam por escrever -- foi assim que um erro real de
+  // pagamento (falha ao chamar o PaySuite) desapareceu dos registos.
+  private async writeLogEntry(logData: LogData): Promise<void> {
+    try {
+      let supabase;
 
-        const level = logData.level || this.getDefaultLevel(logData.action);
-
-        if (process.env.NODE_ENV === 'production' && level === 'debug') {
-          return;
-        }
-
-        // Adaptar dinamicamente caso coluna request_id não exista ainda
-        const baseEntry: any = {
-          user_id: user?.id || null,
-          level,
-          action: logData.action,
-          resource_type: logData.resourceType,
-          resource_id: logData.resourceId,
-          message: logData.message.substring(0, 500),
-          details: logData.details || {},
-          ip_address: context.ipAddress,
-          user_agent: context.userAgent?.substring(0, 200) || 'unknown',
-          endpoint: context.endpoint?.substring(0, 100) || 'unknown',
-          method: context.method,
-          duration_ms: logData.durationMs,
-          created_at: new Date().toISOString()
-        };
-
-        // Tentativa de verificar metadados de tabela para request_id somente em ambiente server
-        let canUseRequestId = true;
-        try {
-          if (typeof window === 'undefined') {
-            const meta = await supabase.from('system_logs').select('request_id').limit(1);
-            if (meta.error && /request_id/.test(meta.error.message)) {
-              canUseRequestId = false;
-            }
-          }
-        } catch { canUseRequestId = false; }
-
-        if (canUseRequestId) {
-            baseEntry.request_id = context.requestId;
-        }
-
-        const insertOperation = supabase.from('system_logs').insert(baseEntry);
-        
-        const result = await Promise.race([
-          insertOperation,
-          new Promise<null>((_, reject) => 
-            setTimeout(() => reject(new Error('Log timeout')), 2000)
-          )
-        ]);
-
-        if (result && 'error' in result && result.error) {
-          console.error('Log insertion error:', result.error.message);
-        }
-
-      } catch (_error) {
-        if (_error instanceof Error && _error.message !== 'Log timeout') {
-          console.error('Critical log error:', _error);
-        }
+      if (typeof window === 'undefined') {
+        const { supabaseServer } = await import('./supabase-server');
+        supabase = await supabaseServer();
+      } else {
+        const { default: supabaseClient } = await import('./supabase-client');
+        supabase = supabaseClient();
       }
-    };
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const context = await this.getRequestContext();
+
+      const level = logData.level || this.getDefaultLevel(logData.action);
+
+      if (process.env.NODE_ENV === 'production' && level === 'debug') {
+        return;
+      }
+
+      // Adaptar dinamicamente caso coluna request_id não exista ainda
+      const baseEntry: any = {
+        user_id: user?.id || null,
+        level,
+        action: logData.action,
+        resource_type: logData.resourceType,
+        resource_id: logData.resourceId,
+        message: logData.message.substring(0, 500),
+        details: logData.details || {},
+        ip_address: context.ipAddress,
+        user_agent: context.userAgent?.substring(0, 200) || 'unknown',
+        endpoint: context.endpoint?.substring(0, 100) || 'unknown',
+        method: context.method,
+        duration_ms: logData.durationMs,
+        created_at: new Date().toISOString()
+      };
+
+      // Tentativa de verificar metadados de tabela para request_id somente em ambiente server
+      let canUseRequestId = true;
+      try {
+        if (typeof window === 'undefined') {
+          const meta = await supabase.from('system_logs').select('request_id').limit(1);
+          if (meta.error && /request_id/.test(meta.error.message)) {
+            canUseRequestId = false;
+          }
+        }
+      } catch { canUseRequestId = false; }
+
+      if (canUseRequestId) {
+          baseEntry.request_id = context.requestId;
+      }
+
+      const insertOperation = supabase.from('system_logs').insert(baseEntry);
+
+      const result = await Promise.race([
+        insertOperation,
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('Log timeout')), 2000)
+        )
+      ]);
+
+      if (result && 'error' in result && result.error) {
+        console.error('Log insertion error:', result.error.message);
+      }
+
+    } catch (_error) {
+      if (_error instanceof Error && _error.message !== 'Log timeout') {
+        console.error('Critical log error:', _error);
+      }
+    }
+  }
+
+  // Para chamadas críticas (falhas reais de pagamento) onde perder o
+  // registo é inaceitável -- espera a escrita terminar antes de devolver,
+  // ao contrário de log()/logError() que só metem na fila e podem nunca
+  // chegar a correr se a função serverless for suspensa logo a seguir.
+  async logAwaited(logData: LogData): Promise<void> {
+    await this.writeLogEntry(logData);
+  }
+
+  private addToQueue(logData: LogData) {
+    const logPromise = () => this.writeLogEntry(logData);
 
     this.logQueue.push(logPromise);
     this.processQueue();
@@ -260,6 +276,24 @@ export class SystemLogger {
 
   async logError(error: Error, context: string, details?: any) {
     this.addToQueue({
+      action: 'error',
+      level: 'error',
+      message: `Erro em ${context}: ${error.message.substring(0, 200)}`,
+      details: {
+        errorMessage: error.message,
+        errorStack: process.env.NODE_ENV === 'development' ? error.stack?.substring(0, 500) : undefined,
+        context,
+        ...details
+      }
+    });
+  }
+
+  // Versão aguardada de logError() -- ver logAwaited() acima. Usar apenas em
+  // pontos críticos (ex: falha real ao chamar um gateway de pagamento) onde
+  // é inaceitável perder o registo por a função serverless suspender antes
+  // da fila normal ter corrido.
+  async logErrorAwaited(error: Error, context: string, details?: any): Promise<void> {
+    await this.logAwaited({
       action: 'error',
       level: 'error',
       message: `Erro em ${context}: ${error.message.substring(0, 200)}`,

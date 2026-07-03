@@ -119,7 +119,10 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
         callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook/paysuite`
       });
     } catch (e) {
-      await logger.logError(e as Error, 'paysuite_checkout_charge_failed', {
+      // Aguardado (não a fila normal) -- uma falha real ao chamar o
+      // PaySuite não pode desaparecer por a função serverless suspender
+      // antes da escrita em segundo plano ter corrido.
+      await logger.logErrorAwaited(e as Error, 'paysuite_checkout_charge_failed', {
         user: user.id,
         reference,
         providerDetails: (e as { details?: unknown })?.details

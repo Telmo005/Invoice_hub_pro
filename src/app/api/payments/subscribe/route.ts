@@ -125,7 +125,9 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
         callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook/paysuite`
       });
     } catch (e) {
-      await logger.logError(e as Error, 'paysuite_subscribe_charge_failed', {
+      // Aguardado (não a fila normal) -- ver a mesma nota em
+      // src/app/api/payments/checkout/route.ts.
+      await logger.logErrorAwaited(e as Error, 'paysuite_subscribe_charge_failed', {
         user: user.id,
         reference,
         providerDetails: (e as { details?: unknown })?.details
