@@ -90,6 +90,13 @@ export const useSubscription = () => {
 
       setSuccessMessage('Se a aba de pagamento não abriu sozinha, use o botão abaixo. Aguardando confirmação do pagamento...');
 
+      // O PaySuite pode entregar um payment.failed prematuro antes do
+      // payment.success real para o mesmo pagamento -- um único "falhado"
+      // não é definitivo, só desiste se continuar assim depois de mais
+      // algumas tentativas (mesmo ajuste feito em usePayment.ts).
+      const FALHADO_GRACE_ATTEMPTS = 10;
+      let falhadoSeenAtAttempt: number | null = null;
+
       for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
         await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
         const statusRes = await fetch(`/api/payments/status/${payment_id}`, { credentials: 'include' });
@@ -103,9 +110,16 @@ export const useSubscription = () => {
           return;
         }
         if (statusData.data.status === 'falhado') {
-          setErrorMessage('O pagamento não foi concluído ou foi recusado.');
-          setCheckoutUrl(null);
-          return;
+          if (falhadoSeenAtAttempt === null) {
+            falhadoSeenAtAttempt = attempt;
+            setSuccessMessage('A confirmar o pagamento com o PaySuite...');
+            continue;
+          }
+          if (attempt - falhadoSeenAtAttempt >= FALHADO_GRACE_ATTEMPTS) {
+            setErrorMessage('O pagamento não foi concluído ou foi recusado.');
+            setCheckoutUrl(null);
+            return;
+          }
         }
       }
 

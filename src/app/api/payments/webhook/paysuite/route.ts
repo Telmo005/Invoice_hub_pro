@@ -146,15 +146,21 @@ export const POST = withApiGuard(async (request: NextRequest) => {
   }
 
   if (event.type === 'payment.success') {
-    // UPDATE condicional (só transiciona a partir do estado pendente
-    // esperado) -- garante que um webhook duplicado/reentregue não
+    // UPDATE condicional -- garante que um webhook duplicado/reentregue não
     // reprocessa a confirmação nem cria o documento duas vezes, sem
-    // precisar de uma tabela extra de eventos processados.
+    // precisar de uma tabela extra de eventos processados. Aceita a
+    // transição a partir de 'falhado' também (não só 'aguardando_documento')
+    // -- confirmado em produção (2026-07-03) que o PaySuite pode entregar um
+    // payment.failed prematuro antes do payment.success real para o mesmo
+    // pagamento (o dinheiro foi mesmo debitado, mas o nosso próprio guard
+    // estava a bloquear a atualização para 'pago' porque já tínhamos
+    // marcado 'falhado' com o evento anterior). 'pago' continua a ser o
+    // único estado terminal -- nunca é sobreposto.
     const { data: updated } = await supabaseAdmin
       .from('pagamentos')
       .update({ status: 'pago', paid_at: new Date().toISOString() })
       .eq('id', pagamento.id)
-      .eq('status', 'aguardando_documento')
+      .in('status', ['aguardando_documento', 'falhado'])
       .select()
       .maybeSingle();
 
