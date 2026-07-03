@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/formatUtils';
 import { Empresa } from '@/types/emissor-type';
 import { useListarEmissores } from '@/app/hooks/emitters/useListarEmissores';
 import { useEmpresaPadrao } from '@/app/hooks/emitters/useEmpresaPadrao';
+import { isMozambiquePais, isValidNuit } from '@/lib/validation';
 import { TipoDocumento, ItemFatura, FormDataFatura } from '@/types/invoice-types';
 
 const roboto = Roboto({ weight: ['300', '400', '700'], subsets: ['latin'], variable: '--font-roboto' });
@@ -1321,9 +1322,21 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
         validateRequired(formData.emitente.nomeEmpresa, 'emitente.nomeEmpresa');
         validateRequired(formData.emitente.pais, 'emitente.pais');
         validateRequired(formData.emitente.cidade, 'emitente.cidade');
+        validateRequired(formData.emitente.bairro, 'emitente.bairro');
         validateRequired(formData.emitente.telefone, 'emitente.telefone');
         validatePhone(formData.emitente.telefone, 'emitente.telefone');
+        validateRequired(formData.emitente.email, 'emitente.email');
         validateEmail(formData.emitente.email, 'emitente.email');
+        // NUIT (documento) -- mesma regra usada no schema do servidor
+        // (isValidNuit em @/lib/validation): só exigido em 9 dígitos quando
+        // o país é Moçambique. Antes disto só era apanhado ao tentar pagar,
+        // no fim do assistente inteiro.
+        if (validateRequired(formData.emitente.documento, 'emitente.documento')) {
+          if (isMozambiquePais(formData.emitente.pais) && !isValidNuit(formData.emitente.documento)) {
+            newErrors['emitente.documento'] = 'NUIT inválido: deve ter 9 dígitos';
+            invalidFields.push('emitente.documento');
+          }
+        }
         break;
       case 1:
         validateRequired(formData.destinatario.nomeCompleto, 'destinatario.nomeCompleto');
@@ -1331,7 +1344,15 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
         validateRequired(formData.destinatario.cidade, 'destinatario.cidade');
         validateRequired(formData.destinatario.telefone, 'destinatario.telefone');
         validatePhone(formData.destinatario.telefone, 'destinatario.telefone');
+        validateRequired(formData.destinatario.email, 'destinatario.email');
         validateEmail(formData.destinatario.email, 'destinatario.email');
+        // NUIT do destinatário: o schema do servidor só exige o formato
+        // quando o campo tem valor (documento é opcional para o
+        // destinatário), mas se for preenchido tem de ser válido.
+        if (formData.destinatario.documento?.trim() && isMozambiquePais(formData.destinatario.pais) && !isValidNuit(formData.destinatario.documento)) {
+          newErrors['destinatario.documento'] = 'NUIT inválido: deve ter 9 dígitos';
+          invalidFields.push('destinatario.documento');
+        }
         break;
       case 2:
         if (formData.tipo === 'fatura') {

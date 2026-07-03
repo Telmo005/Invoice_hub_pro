@@ -318,6 +318,11 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     if (name === 'emitente.documento' && stringValue.trim() && isMozambiquePais(formData.emitente.pais) && !isValidNuit(stringValue)) {
       return 'NUIT inválido: deve ter 9 dígitos';
     }
+    // Documento do destinatário é opcional, mas se preenchido tem de ser um
+    // NUIT válido quando o país é Moçambique (mesma regra do servidor).
+    if (name === 'destinatario.documento' && stringValue.trim() && isMozambiquePais(formData.destinatario.pais) && !isValidNuit(stringValue)) {
+      return 'NUIT inválido: deve ter 9 dígitos';
+    }
 
     // Email é obrigatório para emitente e destinatário no schema do servidor
     // (trimmed().email()) -- o formato só era validado aqui quando o campo
@@ -576,6 +581,11 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     else if (!validatePhone(formData.destinatario.telefone)) newErrors['destinatario.telefone'] = 'Telefone inválido';
     if (!formData.destinatario.email.trim()) newErrors['destinatario.email'] = 'Campo obrigatório';
     else if (!validateEmail(formData.destinatario.email)) newErrors['destinatario.email'] = 'Email inválido';
+    // Documento do destinatário é opcional, mas se preenchido tem de ser um
+    // NUIT válido quando o país é Moçambique (mesma regra do servidor).
+    if (formData.destinatario.documento?.trim() && isMozambiquePais(formData.destinatario.pais) && !isValidNuit(formData.destinatario.documento)) {
+      newErrors['destinatario.documento'] = 'NUIT inválido: deve ter 9 dígitos';
+    }
 
     if (formData.tipo === 'fatura') {
       if (!formData.validezFatura?.trim()) newErrors.validezFatura = 'Campo obrigatório';
