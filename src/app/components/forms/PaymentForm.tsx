@@ -150,28 +150,32 @@ const SuccessScreen: React.FC<{
 const METHOD_VISUALS: Record<string, {
   Icon: IconType;
   iconWrap: string;
-  card: string;
+  border: string;
+  glow: string;
   badge: string;
   button: string;
 }> = {
   mpesa: {
     Icon: FaMobileAlt,
-    iconWrap: 'bg-red-100 text-red-600',
-    card: 'border-red-500 bg-red-50/60 ring-2 ring-red-100',
+    iconWrap: 'bg-red-50 text-red-600',
+    border: 'border-red-400',
+    glow: 'shadow-red-200/70',
     badge: 'bg-red-500',
     button: 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-red-500/25'
   },
   emola: {
     Icon: FaWallet,
-    iconWrap: 'bg-teal-100 text-teal-600',
-    card: 'border-teal-500 bg-teal-50/60 ring-2 ring-teal-100',
+    iconWrap: 'bg-teal-50 text-teal-600',
+    border: 'border-teal-400',
+    glow: 'shadow-teal-200/70',
     badge: 'bg-teal-500',
     button: 'bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 shadow-teal-500/25'
   },
   credit_card: {
     Icon: FaCreditCard,
-    iconWrap: 'bg-indigo-100 text-indigo-600',
-    card: 'border-indigo-500 bg-indigo-50/60 ring-2 ring-indigo-100',
+    iconWrap: 'bg-indigo-50 text-indigo-600',
+    border: 'border-indigo-400',
+    glow: 'shadow-indigo-200/70',
     badge: 'bg-indigo-500',
     button: 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 shadow-indigo-500/25'
   }
@@ -225,12 +229,14 @@ const PaymentMethodSelector: React.FC<{
                 key={method.id}
                 type="button"
                 onClick={() => onMethodSelect(method.id)}
-                className={`relative flex flex-col items-center text-center gap-2 rounded-xl border-2 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
-                  isSelected ? visual.card : 'border-gray-200 bg-white hover:border-gray-300'
+                className={`relative flex flex-col items-center justify-center text-center gap-1.5 min-h-[148px] rounded-xl border bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 ${
+                  isSelected
+                    ? `border-2 ${visual.border} shadow-lg ${visual.glow}`
+                    : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                 }`}
               >
                 {isSelected && (
-                  <span className={`absolute -top-2 -right-2 w-5 h-5 rounded-full ${visual.badge} text-white flex items-center justify-center shadow-sm`}>
+                  <span className={`absolute -top-2 -right-2 w-5 h-5 rounded-full ${visual.badge} text-white flex items-center justify-center ring-2 ring-white shadow-sm`}>
                     <FaCheck className="text-[10px]" />
                   </span>
                 )}
@@ -239,7 +245,7 @@ const PaymentMethodSelector: React.FC<{
                 </div>
                 <div>
                   <div className="font-semibold text-sm text-gray-800">{method.name}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{method.description}</div>
+                  <div className="text-xs text-gray-500 mt-0.5 leading-snug">{method.description}</div>
                 </div>
               </button>
             );
@@ -253,7 +259,7 @@ const PaymentMethodSelector: React.FC<{
               <p className="text-sm text-slate-600">
                 Vai abrir uma nova aba para concluir o pagamento com segurança.
                 {selectedMethodData.id === 'credit_card'
-                  ? ' Pagamentos por cartão podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
+                  ? ' Pagamentos com cartão Visa ou Mastercard podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
                   : ' Confirme o pagamento no seu telemóvel quando for solicitado.'}
               </p>
             </div>

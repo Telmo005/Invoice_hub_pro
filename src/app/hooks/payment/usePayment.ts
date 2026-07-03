@@ -55,7 +55,7 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   {
     id: 'credit_card',
     name: 'Cartão',
-    description: 'Visa ou Mastercard -- até 1-2 dias úteis'
+    description: 'Até 1-2 dias úteis'
   }
 ];
 
