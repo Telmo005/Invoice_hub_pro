@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { supabaseServer } from '@/lib/supabase-server';
 import { withApiGuard } from '@/lib/api/guard';
 import { logger } from '@/lib/logger';
@@ -99,6 +100,12 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
     // only contain letters and numbers.") -- sem traços nem underscores.
     const reference = `IHP${body.tipo.slice(0, 3).toUpperCase()}${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
 
+    // Gerado antes de chamar o PaySuite (não depois de inserir o registo)
+    // para podermos incluir o payment_id no returnUrl -- a página de
+    // destino usa-o para mostrar/descarregar o documento certo em vez de
+    // redirecionar para uma página genérica da lista de documentos.
+    const pagamentoId = randomUUID();
+
     let provider: PaySuiteProvider;
     try {
       provider = getProvider();
@@ -118,7 +125,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
         reference,
         description: `Documento ${numero || body.tipo} - Invoice Hub Pro`,
         method: body.method,
-        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/pages/documents/overview?pagamento=concluido`,
+        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/pages/payments/success?payment_id=${pagamentoId}`,
         callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook/paysuite`
       });
     } catch (e) {
@@ -139,6 +146,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
     const { data: pagamento, error: insertError } = await supabase
       .from('pagamentos')
       .insert({
+        id: pagamentoId,
         user_id: user.id,
         documento_id: null,
         tipo_documento: body.tipo,

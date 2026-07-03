@@ -20,6 +20,7 @@ export const ROUTES = {
   QUOTATIONS_NEW: '/pages/quotations/new',
   RECEIPTS_NEW: '/pages/receipts/new',
   SUBSCRIPTION: '/pages/subscription',
+  PAYMENT_SUCCESS: '/pages/payments/success',
 
   // Rotas da API
   API: {
@@ -50,6 +51,7 @@ export const ROUTES = {
     ROUTES.QUOTATIONS_NEW,
     ROUTES.QUOTES_INVOICES,
     ROUTES.SUBSCRIPTION,
+    ROUTES.PAYMENT_SUCCESS,
     '/invoices/new',
     '/quotations/new',
     '/receipts/new',
