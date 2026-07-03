@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { PaySuiteProvider } from '@/lib/payments/providers/PaySuiteProvider';
 import { PLANS } from '@/lib/payments/config';
 import { PaymentMethod } from '@/lib/payments/PaymentProvider';
+import { generatePaymentReference } from '@/lib/payments/generateReference';
 
 // Fase 4 bloco 4e: inicia (ou renova) a assinatura mensal (250 MT) via
 // PaySuite. Mesma lógica de "só confirma pelo webhook" do checkout de
@@ -100,9 +101,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       subscriptionId = created.id;
     }
 
-    // PaySuite exige que "reference" só tenha letras e números -- ver a
-    // mesma nota em src/app/api/payments/checkout/route.ts.
-    const reference = `IHPSUB${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+    const reference = generatePaymentReference('SUB');
 
     let provider: PaySuiteProvider;
     try {

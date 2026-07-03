@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { PaySuiteProvider } from '@/lib/payments/providers/PaySuiteProvider';
 import { PLANS } from '@/lib/payments/config';
 import { PaymentMethod } from '@/lib/payments/PaymentProvider';
+import { generatePaymentReference } from '@/lib/payments/generateReference';
 import {
   validateInvoicePayload,
   validateQuotationPayload,
@@ -95,10 +96,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
     const htmlContent = (body.documentData as any).htmlContent;
     const numero = getDocumentNumero(body.tipo, formData);
     const amount = PLANS.pay_per_documento.valor;
-    // PaySuite exige que "reference" só tenha letras e números (confirmado
-    // via resposta 422 em produção 2026-07-03: "The Reference field must
-    // only contain letters and numbers.") -- sem traços nem underscores.
-    const reference = `IHP${body.tipo.slice(0, 3).toUpperCase()}${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+    const reference = generatePaymentReference(body.tipo.slice(0, 3));
 
     // Gerado antes de chamar o PaySuite (não depois de inserir o registo)
     // para podermos incluir o payment_id no returnUrl -- a página de

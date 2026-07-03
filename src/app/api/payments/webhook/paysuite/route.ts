@@ -5,6 +5,7 @@ import { withApiGuard } from '@/lib/api/guard';
 import { logger } from '@/lib/logger';
 import { ensureEmitenteId, ensureDestinatarioId } from '@/lib/document/party';
 import { buildDadosEspecificos, mapItensParaRpc } from '@/lib/document/buildDadosEspecificos';
+import { STATUSES_ELIGIBLE_FOR_PAGO, STATUSES_ELIGIBLE_FOR_FALHADO } from '@/lib/payments/pagamentoStateMachine';
 
 // Fase 4 (docs/auditoria-inicial.md): recebe confirmações assíncronas do
 // PaySuite (M-Pesa/e-Mola/Visa são tipicamente assíncronos -- o utilizador
@@ -160,7 +161,7 @@ export const POST = withApiGuard(async (request: NextRequest) => {
       .from('pagamentos')
       .update({ status: 'pago', paid_at: new Date().toISOString() })
       .eq('id', pagamento.id)
-      .in('status', ['aguardando_documento', 'falhado'])
+      .in('status', STATUSES_ELIGIBLE_FOR_PAGO as unknown as string[])
       .select()
       .maybeSingle();
 
@@ -179,7 +180,7 @@ export const POST = withApiGuard(async (request: NextRequest) => {
       .from('pagamentos')
       .update({ status: 'falhado' })
       .eq('id', pagamento.id)
-      .eq('status', 'aguardando_documento');
+      .in('status', STATUSES_ELIGIBLE_FOR_FALHADO as unknown as string[]);
   }
 
   return NextResponse.json({ received: true });
