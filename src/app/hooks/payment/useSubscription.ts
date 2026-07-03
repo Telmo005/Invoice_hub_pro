@@ -38,6 +38,7 @@ export const useSubscription = () => {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
     setIsLoading(true);
@@ -59,20 +60,10 @@ export const useSubscription = () => {
   }, [refetch]);
 
   const subscribe = useCallback(async (method: 'mpesa' | 'emola' | 'credit_card') => {
-    // Aberto já aqui, de forma síncrona em resposta ao clique -- abrir só
-    // depois de aguardar o fetch faz a maioria dos navegadores tratar como
-    // popup não solicitado e bloquear, mesmo com popups permitidos (mesmo
-    // ajuste feito em usePayment.ts). Navega para o checkout_url real assim
-    // que o tivermos.
-    const checkoutWindow = window.open('', '_blank', 'noopener,noreferrer');
-    if (!checkoutWindow) {
-      setErrorMessage('Permita popups no navegador para concluir o pagamento.');
-      return;
-    }
-
     setIsSubscribing(true);
     setErrorMessage(null);
     setSuccessMessage(null);
+    setCheckoutUrl(null);
 
     try {
       const csrfToken = await fetchCsrfToken();
@@ -89,9 +80,15 @@ export const useSubscription = () => {
       }
 
       const { payment_id, checkout_url } = data.data;
-      checkoutWindow.location.href = checkout_url;
 
-      setSuccessMessage('Aguardando confirmação do pagamento...');
+      // Tentativa automática -- funciona em muitos navegadores mesmo depois
+      // de um await, mas não é garantido. checkoutUrl fica sempre disponível
+      // para um botão "Abrir pagamento" (link clicado diretamente, sempre
+      // permitido) -- mesmo ajuste feito em usePayment.ts.
+      setCheckoutUrl(checkout_url);
+      try { window.open(checkout_url, '_blank', 'noopener,noreferrer'); } catch { /* ignore */ }
+
+      setSuccessMessage('Se a aba de pagamento não abriu sozinha, use o botão abaixo. Aguardando confirmação do pagamento...');
 
       for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
         await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
@@ -101,23 +98,25 @@ export const useSubscription = () => {
 
         if (statusData.data.status === 'pago') {
           setSuccessMessage('Assinatura ativada com sucesso!');
+          setCheckoutUrl(null);
           await refetch();
           return;
         }
         if (statusData.data.status === 'falhado') {
           setErrorMessage('O pagamento não foi concluído ou foi recusado.');
+          setCheckoutUrl(null);
           return;
         }
       }
 
       setSuccessMessage('O pagamento ainda está a ser processado. Vai receber um email assim que for confirmado.');
     } catch (error) {
-      try { checkoutWindow.close(); } catch { /* ignore */ }
+      setCheckoutUrl(null);
       setErrorMessage(error instanceof Error ? error.message : 'Erro inesperado ao processar assinatura');
     } finally {
       setIsSubscribing(false);
     }
   }, [refetch]);
 
-  return { subscription, isLoading, isSubscribing, errorMessage, successMessage, subscribe, refetch };
+  return { subscription, isLoading, isSubscribing, errorMessage, successMessage, checkoutUrl, subscribe, refetch };
 };

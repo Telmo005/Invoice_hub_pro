@@ -4,7 +4,7 @@ import Navbar from '@/app/components/layout/sections/Navbar';
 import { useSubscription } from '@/app/hooks/payment/useSubscription';
 import { PaymentMethodPicker } from '@/app/components/payment/PaymentMethodPicker';
 import { FiCheckCircle, FiAlertTriangle, FiInfo, FiExternalLink, FiArrowRight } from 'react-icons/fi';
-import { FaSpinner, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
+import { FaSpinner, FaCheck, FaExclamationTriangle, FaExternalLinkAlt } from 'react-icons/fa';
 import React, { useState } from 'react';
 
 const METHOD_OPTIONS = [
@@ -14,7 +14,7 @@ const METHOD_OPTIONS = [
 ];
 
 export default function SubscriptionPage() {
-  const { subscription, isLoading, isSubscribing, errorMessage, successMessage, subscribe } = useSubscription();
+  const { subscription, isLoading, isSubscribing, errorMessage, successMessage, checkoutUrl, subscribe } = useSubscription();
   const [selectedMethod, setSelectedMethod] = useState<string | null>('mpesa');
 
   const isMensal = subscription?.plano === 'mensal';
@@ -159,6 +159,18 @@ export default function SubscriptionPage() {
                       </>
                     )}
                   </button>
+
+                  {checkoutUrl && (
+                    <a
+                      href={checkoutUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50 py-3.5 px-4 rounded-xl font-semibold flex items-center justify-center text-base transition-colors"
+                    >
+                      <FaExternalLinkAlt className="mr-2" />
+                      Abrir página de pagamento
+                    </a>
+                  )}
                 </div>
               </div>
             )}

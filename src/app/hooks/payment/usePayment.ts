@@ -25,6 +25,7 @@ interface UsePaymentReturn {
   isGeneratingPdf: boolean;
   isDocumentValid: boolean;
   documentValidationErrors: string[];
+  checkoutUrl: string | null;
   setSelectedMethod: (method: string | null) => void;
   setContactNumber: (contact: string) => void;
   setIsPreviewOpen: (isOpen: boolean) => void;
@@ -373,6 +374,7 @@ export const usePayment = ({
   const [documentSaveResult, setDocumentSaveResult] = useState<{ documentId: string; documentNumber: string } | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [thirdPartyReference, setThirdPartyReference] = useState<string>('');
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const isProcessingRef = useRef(false);
   // Removido controle de tentativas automáticas: processamento agora é single-shot
@@ -492,25 +494,12 @@ export const usePayment = ({
       return;
     }
 
-    // Abre a aba já aqui, de forma síncrona e em resposta direta ao clique
-    // -- se só abríssemos depois de aguardar o checkout (fetch), a maioria
-    // dos navegadores trata isso como "não foi um gesto do utilizador" e
-    // bloqueia como popup, mesmo com o utilizador a autorizar popups em
-    // geral (foi isto que causou "Permita popups..." mesmo com popups
-    // permitidos). Navega esta aba em branco assim que tivermos o
-    // checkout_url -- mesmo truque já usado em handleDownload() para o PDF.
-    const checkoutWindow = window.open('', '_blank', 'noopener,noreferrer');
-    if (!checkoutWindow) {
-      setPaymentStatus('error');
-      setErrorMessage('Permita popups no navegador para concluir o pagamento.');
-      return;
-    }
-
     // Reset do estado
     isProcessingRef.current = true;
     setPaymentStatus('processing');
     setErrorMessage(null);
     setSuccessMessage(null);
+    setCheckoutUrl(null);
 
     try {
       // 1. Verifica se o número do documento já existe (mesma validação de antes)
@@ -536,13 +525,19 @@ export const usePayment = ({
         renderedHtml
       );
 
-      // 3. A aba já está aberta (passo síncrono acima) -- só falta navegá-la
-      // para o checkout real do PaySuite.
-      checkoutWindow.location.href = checkout_url;
+      // 3. Tentativa automática de abrir numa nova aba -- funciona em muitos
+      // navegadores mesmo depois de um await, mas não é garantido (alguns
+      // tratam qualquer atraso desde o clique como "já não é gesto do
+      // utilizador" e bloqueiam sem avisar). Por isso guardamos sempre o
+      // link também, para o ecrã mostrar um botão "Abrir pagamento" -- um
+      // clique direto num link é sempre permitido, ao contrário de
+      // window.open() chamado por script.
+      setCheckoutUrl(checkout_url);
+      try { window.open(checkout_url, '_blank', 'noopener,noreferrer'); } catch { /* ignore */ }
 
       // 4. Poll até o webhook confirmar o pagamento (ou até esgotar as
       // tentativas -- cartão pode legitimamente demorar 1-2 dias úteis).
-      setSuccessMessage('Aguardando confirmação do pagamento...');
+      setSuccessMessage('Se a aba de pagamento não abriu sozinha, use o botão abaixo. Aguardando confirmação do pagamento...');
 
       let resolved = false;
       for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
@@ -580,6 +575,7 @@ export const usePayment = ({
           }
 
           setPaymentStatus('success');
+          setCheckoutUrl(null);
           if (onInvoiceCreated) {
             onInvoiceCreated(result.documento.id);
           }
@@ -589,6 +585,7 @@ export const usePayment = ({
         if (result.status === 'falhado') {
           resolved = true;
           setPaymentStatus('error');
+          setCheckoutUrl(null);
           setErrorMessage('O pagamento não foi concluído ou foi recusado.');
           break;
         }
@@ -603,11 +600,7 @@ export const usePayment = ({
 
     } catch (error) {
       setPaymentStatus('error');
-
-      // A aba já estava aberta (em branco) antes de sabermos se ia correr
-      // bem -- se falhou antes de a navegarmos para o checkout, não faz
-      // sentido deixá-la em branco perdida no navegador do utilizador.
-      try { checkoutWindow.close(); } catch { /* ignore */ }
+      setCheckoutUrl(null);
 
       if (error instanceof ApiError) {
         const detailedMessage = formatValidationErrors(error.details);
@@ -666,6 +659,7 @@ export const usePayment = ({
     setErrorMessage(null);
     setSuccessMessage(null);
     setDocumentSaveResult(null);
+    setCheckoutUrl(null);
     isProcessingRef.current = false;
     // Sem reset de tentativas porque não há retry automático
   }, []);
@@ -690,6 +684,7 @@ export const usePayment = ({
     paymentMethods: PAYMENT_METHODS,
     dynamicDocumentData,
     isDocumentValid,
-    documentValidationErrors
+    documentValidationErrors,
+    checkoutUrl
   };
 };

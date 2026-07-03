@@ -152,6 +152,7 @@ const PaymentMethodSelector: React.FC<{
   dynamicDocumentData: any;
   isDocumentValid: boolean;
   documentValidationErrors: string[];
+  checkoutUrl: string | null;
 }> = ({
   paymentMethods,
   selectedMethod,
@@ -163,7 +164,8 @@ const PaymentMethodSelector: React.FC<{
   onProcessPayment,
   dynamicDocumentData,
   isDocumentValid,
-  documentValidationErrors
+  documentValidationErrors,
+  checkoutUrl
 }) => {
     const selectedMethodData = paymentMethods.find(method => method.id === selectedMethod);
 
@@ -229,6 +231,18 @@ const PaymentMethodSelector: React.FC<{
                 </>
               )}
             </button>
+
+            {checkoutUrl && (
+              <a
+                href={checkoutUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50 py-3.5 px-4 rounded-xl font-semibold flex items-center justify-center text-base transition-colors"
+              >
+                <FaExternalLinkAlt className="mr-2" />
+                Abrir página de pagamento
+              </a>
+            )}
           </div>
         )}
       </div>
@@ -304,7 +318,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
     paymentMethods,
     dynamicDocumentData,
     isDocumentValid,
-    documentValidationErrors
+    documentValidationErrors,
+    checkoutUrl
   } = usePayment({
     invoiceData,
     onInvoiceCreated
@@ -372,6 +387,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
               dynamicDocumentData={dynamicDocumentData}
               isDocumentValid={isDocumentValid}
               documentValidationErrors={documentValidationErrors}
+              checkoutUrl={checkoutUrl}
             />
           </div>
 
