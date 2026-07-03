@@ -93,6 +93,40 @@ class ApiError extends Error {
   }
 }
 
+// Traduz o campo (path) de um erro de validação Zod (ex: "formData.emitente.documento")
+// para um rótulo amigável, em vez de mostrar só a mensagem genérica
+// "Dados do documento inválidos" -- o utilizador não tinha forma de saber
+// qual campo corrigir sem abrir a consola do browser.
+const FIELD_LABELS: Record<string, string> = {
+  documento: 'NUIT/Documento',
+  nomeEmpresa: 'Nome da empresa',
+  nomeCompleto: 'Nome completo',
+  pais: 'País',
+  cidade: 'Cidade',
+  bairro: 'Bairro/Endereço',
+  telefone: 'Telefone',
+  email: 'Email',
+  validezCotacao: 'Validade da cotação',
+  validezFatura: 'Validade da fatura',
+  valorRecebido: 'Valor recebido',
+  dataRecebimento: 'Data de recebimento'
+};
+
+const formatValidationErrors = (details: unknown): string | null => {
+  if (!Array.isArray(details) || details.length === 0) return null;
+
+  return details
+    .map((issue: any) => {
+      const segments = String(issue?.path || '').split('.').filter(Boolean);
+      const fieldKey = segments[segments.length - 1];
+      const label = FIELD_LABELS[fieldKey] || fieldKey || 'Campo';
+      const scope = segments.includes('emitente') ? 'Emitente' : segments.includes('destinatario') ? 'Destinatário' : null;
+      const prefix = scope ? `${scope} -- ${label}` : label;
+      return `${prefix}: ${issue?.message || 'valor inválido'}`;
+    })
+    .join('; ');
+};
+
 // ✅ FUNÇÕES PARA VERIFICAR SE DOCUMENTO JÁ EXISTE
 const checkFaturaExistsDirect = async (numero: string): Promise<boolean> => {
   try {
@@ -563,7 +597,8 @@ export const usePayment = ({
       setPaymentStatus('error');
 
       if (error instanceof ApiError) {
-        setErrorMessage(error.message || 'Erro ao processar pagamento');
+        const detailedMessage = formatValidationErrors(error.details);
+        setErrorMessage(detailedMessage || error.message || 'Erro ao processar pagamento');
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
