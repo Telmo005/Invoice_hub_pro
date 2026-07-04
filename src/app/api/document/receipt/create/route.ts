@@ -7,6 +7,7 @@ import { ItemFatura, TotaisFatura, Emitente, Destinatario } from '@/types/invoic
 import { validateReceiptPayload } from '@/lib/validation/documentSchemas';
 import { ensureEmitenteId, ensureDestinatarioId } from '@/lib/document/party';
 import { buildDadosEspecificos, mapItensParaRpc } from '@/lib/document/buildDadosEspecificos';
+import { fetchNumeroDocumento } from '@/lib/document/fetchNumeroDocumento';
 import { hasActiveSubscription } from '@/lib/payments/hasActiveSubscription';
 
 interface ApiError { code: string; message: string; details?: unknown }
@@ -279,8 +280,13 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
 
     // Não registamos pagamento em tabela pagamentos para recibo; o próprio recibo representa o pagamento.
 
+    // O número real é reservado atomicamente dentro de criar_documento_completo
+    // (ver buildDadosEspecificos.ts) -- pode divergir do previsualizado no
+    // wizard sob concorrência, por isso vamos buscar o valor definitivo.
+    const numeroFinal = (await fetchNumeroDocumento(supabase, result)) ?? formData.reciboNumero;
+
     await logger.logDocumentCreation('recibo', result, {
-      numero: formData.reciboNumero,
+      numero: numeroFinal,
       totais: totais,
       items: { length: items?.length || 0 },
       emitente: formData.emitente,
@@ -292,7 +298,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       success: true,
       data: {
         id: result,
-        numero: formData.reciboNumero,
+        numero: numeroFinal,
         referencia_recebimento: formData.referenciaPagamento || undefined,
         documento_referencia: formData.documentoAssociadoCustom || undefined,
         forma_pagamento: formData.formaPagamento || undefined,

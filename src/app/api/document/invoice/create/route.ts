@@ -7,6 +7,7 @@ import { FormDataFatura, ItemFatura, TotaisFatura } from '@/types/invoice-types'
 import { validateInvoicePayload } from '@/lib/validation/documentSchemas';
 import { ensureEmitenteId, ensureDestinatarioId } from '@/lib/document/party';
 import { buildDadosEspecificos, mapItensParaRpc } from '@/lib/document/buildDadosEspecificos';
+import { fetchNumeroDocumento } from '@/lib/document/fetchNumeroDocumento';
 import { hasActiveSubscription } from '@/lib/payments/hasActiveSubscription';
 
 interface ApiError {
@@ -314,8 +315,13 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
 
     // Não criamos registro em pagamentos porque método é apenas informativo.
 
+    // O número real é reservado atomicamente dentro de criar_documento_completo
+    // (ver buildDadosEspecificos.ts) -- pode divergir do previsualizado no
+    // wizard sob concorrência, por isso vamos buscar o valor definitivo.
+    const numeroFinal = (await fetchNumeroDocumento(supabase, result)) ?? formData.faturaNumero;
+
     await logger.logDocumentCreation('fatura', result, {
-      numero: formData.faturaNumero,
+      numero: numeroFinal,
       totais: totais,
       items: { length: items.length },
       emitente: formData.emitente,
@@ -345,7 +351,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       success: true,
       data: {
         id: result,
-        numero: formData.faturaNumero,
+        numero: numeroFinal,
         pagamento: {
           metodo: metodoInformativo || undefined
         },

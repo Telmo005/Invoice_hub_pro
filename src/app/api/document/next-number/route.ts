@@ -31,8 +31,13 @@ export async function GET(request: NextRequest) {
 
     user = authUser;
 
-    // Nova função: gerar_numero_documento(p_user_id UUID, p_tipo_documento TEXT)
-    const { data: numeroGerado, error } = await supabase.rpc('gerar_numero_documento', {
+    // Apenas pré-visualização (não reserva/incrementa nada) -- ver
+    // src/lib/document/buildDadosEspecificos.ts para o porquê de não usarmos
+    // mais gerar_numero_documento (baseada em COUNT(*), sujeita à condição de
+    // corrida C3) nem reenviarmos este valor na criação do documento. O
+    // número final e definitivo só é atribuído de forma atómica dentro de
+    // criar_documento_completo -> reservar_numero_documento.
+    const { data: numeroGerado, error } = await supabase.rpc('previsualizar_proximo_numero_documento', {
       p_user_id: user.id,
       p_tipo_documento: tipo
     });
