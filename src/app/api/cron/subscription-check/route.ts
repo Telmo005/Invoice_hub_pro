@@ -4,6 +4,7 @@ import { withApiGuard } from '@/lib/api/guard';
 import { logger } from '@/lib/logger';
 import { emailService } from '@/services/email-service';
 import { SUBSCRIPTION_GRACE_PERIOD_DAYS, SUBSCRIPTION_REMINDER_DAYS_BEFORE } from '@/lib/payments/config';
+import { isAuthorizedCronRequest } from '@/lib/cron/authorizeCron';
 
 // Fase 4 bloco 4e: tarefa diária (Vercel Cron, ver vercel.json) que substitui
 // a cobrança recorrente que o PaySuite não suporta -- em vez de tentar
@@ -14,18 +15,6 @@ import { SUBSCRIPTION_GRACE_PERIOD_DAYS, SUBSCRIPTION_REMINDER_DAYS_BEFORE } fro
 // mesmo sem este cron correr -- esta tarefa serve para o estado em BD
 // refletir a realidade (dashboards/admin) e para disparar os emails.
 //
-// Autenticação: Vercel injeta automaticamente um header
-// `Authorization: Bearer $CRON_SECRET` nos pedidos que ele próprio dispara
-// quando essa env var está definida -- mesmo princípio do webhook do
-// PaySuite (segredo partilhado), mas aqui é o Vercel a chamar-nos, não um
-// gateway externo.
-function isAuthorized(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = request.headers.get('authorization');
-  return header === `Bearer ${secret}`;
-}
-
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -104,7 +93,7 @@ async function blockOverdue(): Promise<number> {
 }
 
 export const GET = withApiGuard(async (request: NextRequest) => {
-  if (!isAuthorized(request)) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

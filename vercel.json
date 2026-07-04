@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/subscription-check",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/error-alert",
+      "schedule": "30 6 * * *"
     }
   ]
 }

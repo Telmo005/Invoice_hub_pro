@@ -184,6 +184,22 @@ export class EmailService {
     }
   }
 
+  async sendErrorDigest(email: string, subject: string, html: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await this.transporter.sendMail({
+        from: `"Invoice Hub Pro" <${process.env.GMAIL_USER}>`,
+        to: email,
+        subject,
+        html
+      });
+      return { success: true, message: 'Digest de erros enviado' };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao enviar digest';
+      console.error('❌ Erro ao enviar digest de erros:', errorMessage);
+      return { success: false, message: errorMessage };
+    }
+  }
+
   private createEmailTemplate(
     documentData: EmailDocumentData, 
     typeDisplay: string, 
