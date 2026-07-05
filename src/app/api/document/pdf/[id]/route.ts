@@ -167,12 +167,17 @@ export const GET = withApiGuard(async (request: NextRequest) => {
     status: statusDoc
   }, request.headers.get('x-nonce') ?? '');
 
-  const filePrefix = tipoDocumento === 'cotacao' ? 'cotacao' : (tipoDocumento === 'recibo' ? 'recibo' : 'fatura');
-
+  // Não há geração real de PDF binário no servidor -- este HTML conta com o
+  // <script> de auto-print acima para abrir a caixa de impressão do browser
+  // (o utilizador escolhe "Guardar como PDF"). Antes, esta rota anunciava
+  // 'Content-Disposition: attachment; filename="...pdf"' com um
+  // Content-Type de text/html -- o browser gravava um ficheiro chamado
+  // "...pdf" cujos bytes eram HTML, que qualquer leitor de PDF rejeita como
+  // corrompido. Servir inline (sem attachment) deixa o browser mostrar a
+  // página e disparar o print normalmente, tal como document/view/[id].
   return new NextResponse(pdfHtml, {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${filePrefix}-${numero}.pdf"`,
       'Cache-Control': 'public, max-age=3600',
     },
   });

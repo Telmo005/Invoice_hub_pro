@@ -125,7 +125,7 @@ const SuccessScreen: React.FC<{
               ) : (
                 <FaFilePdf className="mr-2" />
               )}
-              {isGeneratingPdf ? 'Gerando PDF...' : 'Baixar PDF'}
+              {isGeneratingPdf ? 'A preparar...' : 'Imprimir / Guardar PDF'}
             </button>
           </div>
 

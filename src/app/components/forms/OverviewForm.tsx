@@ -354,14 +354,14 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-md font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               onClick={() => onDownload(documentData?.numero)}
               disabled={isGeneratingPdf || !documentHtml}
-              title="Download PDF"
+              title="Imprimir / Guardar como PDF"
             >
               {isGeneratingPdf ? (
                 <FaSpinner className="animate-spin h-4 w-4" />
               ) : (
                 <FiDownload className="h-4 w-4" />
               )}
-              <span className="hidden md:inline">{isGeneratingPdf ? 'Gerando PDF...' : 'Download'}</span>
+              <span className="hidden md:inline">{isGeneratingPdf ? 'A preparar...' : 'Imprimir / PDF'}</span>
             </button>
             {/* Reutilizar dados */}
             {documentData && (
