@@ -3,7 +3,7 @@
 import Navbar from '@/app/components/layout/sections/Navbar';
 import { useSubscription } from '@/app/hooks/payment/useSubscription';
 import { PaymentMethodPicker } from '@/app/components/payment/PaymentMethodPicker';
-import { FiCheckCircle, FiAlertTriangle, FiInfo, FiExternalLink, FiArrowRight, FiCheck } from 'react-icons/fi';
+import { FiCheckCircle, FiAlertTriangle, FiInfo, FiExternalLink, FiArrowRight } from 'react-icons/fi';
 import { FaSpinner, FaCheck, FaExclamationTriangle, FaExternalLinkAlt } from 'react-icons/fa';
 import React, { useState } from 'react';
 
@@ -105,18 +105,6 @@ export default function SubscriptionPage() {
                       </div>
                     </div>
                   </div>
-
-                  <ul className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-                    <li className="flex items-start gap-2 text-sm text-gray-600">
-                      <FiCheck className="text-green-500 mt-0.5 flex-shrink-0" /> Faturas, cotações e recibos sem custo por documento
-                    </li>
-                    <li className="flex items-start gap-2 text-sm text-gray-600">
-                      <FiCheck className="text-green-500 mt-0.5 flex-shrink-0" /> Sem fidelização -- cancela quando quiser, deixando de renovar
-                    </li>
-                    <li className="flex items-start gap-2 text-sm text-gray-600">
-                      <FiCheck className="text-green-500 mt-0.5 flex-shrink-0" /> Renovação manual por email, nunca cobramos o cartão automaticamente
-                    </li>
-                  </ul>
 
                   {!isMensal && subscription?.precos.pay_per_documento && (
                     <p className="mt-3 text-xs text-gray-400">
