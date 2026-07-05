@@ -24,6 +24,7 @@ interface Empresa {
     padrao: boolean
     nome: string
     nuip: string
+    documento_tipo?: string
     pais: string
     cidade: string
     endereco: string
@@ -61,6 +62,7 @@ export function useCrudEmissores(): UseCrudEmissoresReturn {
                 body: JSON.stringify({
                     nome_empresa: empresaData.nome,
                     documento: empresaData.nuip,
+                    documento_tipo: empresaData.documento_tipo,
                     pais: empresaData.pais,
                     cidade: empresaData.cidade,
                     bairro: empresaData.endereco,
@@ -100,6 +102,7 @@ export function useCrudEmissores(): UseCrudEmissoresReturn {
                 body: JSON.stringify({
                     nome_empresa: empresaData.nome,
                     documento: empresaData.nuip,
+                    documento_tipo: empresaData.documento_tipo,
                     pais: empresaData.pais,
                     cidade: empresaData.cidade,
                     bairro: empresaData.endereco,

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Roboto } from 'next/font/google';
-import { isMozambiquePais, isValidNuit } from '@/lib/validation';
+import { isValidDocumentoFiscal, DOCUMENTO_FISCAL_TIPOS } from '@/lib/validation';
 import { 
   FaEye, 
   FaPlus, 
@@ -272,6 +272,7 @@ const Screen = () => {
   const [newEmpresa, setNewEmpresa] = useState<Omit<Empresa, 'id' | 'padrao'>>({
     nome: '',
     nuip: '',
+    documento_tipo: 'NUIT',
     pais: '',
     cidade: '',
     endereco: '',
@@ -333,7 +334,7 @@ const Screen = () => {
 
     if (!newEmpresa.nome.trim()) errors.nome = 'Nome da entidade é obrigatório';
     if (!newEmpresa.nuip.trim()) errors.nuip = 'Documento é obrigatório';
-    else if (isMozambiquePais(newEmpresa.pais) && !isValidNuit(newEmpresa.nuip)) {
+    else if (!isValidDocumentoFiscal(newEmpresa.documento_tipo, newEmpresa.nuip, newEmpresa.pais)) {
       errors.nuip = 'NUIT inválido: deve ter 9 dígitos';
     }
     if (!newEmpresa.pais.trim()) errors.pais = 'País é obrigatório';
@@ -364,6 +365,7 @@ const Screen = () => {
       setNewEmpresa({
         nome: '',
         nuip: '',
+        documento_tipo: 'NUIT',
         pais: '',
         cidade: '',
         endereco: '',
@@ -398,6 +400,7 @@ const Screen = () => {
       setNewEmpresa({
         nome: '',
         nuip: '',
+        documento_tipo: 'NUIT',
         pais: '',
         cidade: '',
         endereco: '',
@@ -477,6 +480,7 @@ const Screen = () => {
     setNewEmpresa({
       nome: '',
       nuip: '',
+      documento_tipo: 'NUIT',
       pais: '',
       cidade: '',
       endereco: '',
@@ -493,6 +497,7 @@ const Screen = () => {
     setNewEmpresa({
       nome: empresa.nome,
       nuip: empresa.nuip,
+      documento_tipo: empresa.documento_tipo || 'NUIT',
       pais: empresa.pais,
       cidade: empresa.cidade,
       endereco: empresa.endereco,
@@ -766,7 +771,7 @@ const Screen = () => {
 
                 {/* Informações em coluna */}
                 <div className="flex flex-col gap-3 text-sm text-gray-700">
-                  <Info icon={<FaIdCard />} label="Documento" value={selectedEmpresa.nuip} />
+                  <Info icon={<FaIdCard />} label={selectedEmpresa.documento_tipo || 'Documento'} value={selectedEmpresa.nuip} />
                   <Info icon={<FaGlobe />} label="País" value={selectedEmpresa.pais} />
                   <Info icon={<FaCity />} label="Cidade" value={selectedEmpresa.cidade} />
                   <Info icon={<FaMapMarkerAlt />} label="Endereço" value={selectedEmpresa.endereco} />
@@ -1064,7 +1069,7 @@ const Screen = () => {
 
                   <div className="space-y-4 text-sm">
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600 font-bold">Documento:</span>
+                      <span className="text-gray-600 font-bold">{selectedEmpresa.documento_tipo || 'Documento'}:</span>
                       <span className="font-medium text-gray-800">{selectedEmpresa.nuip}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
@@ -1114,22 +1119,37 @@ const Screen = () => {
                       placeholder="Digite o nome da entidade"
                       required
                       maxLength={70}
-                      halfWidth
                       disabled={isProcessing}
                     />
+                  </div>
+                  <div className="flex flex-wrap -mx-2">
+                    <div className="w-full md:w-1/3 px-2 mb-3">
+                      <label htmlFor="documento_tipo" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento</label>
+                      <select
+                        id="documento_tipo"
+                        className="w-full p-2 border rounded text-sm border-gray-300"
+                        value={newEmpresa.documento_tipo || 'NUIT'}
+                        onChange={handleInputChange('documento_tipo') as any}
+                        disabled={isProcessing}
+                      >
+                        {DOCUMENTO_FISCAL_TIPOS.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
+                      </select>
+                    </div>
                     <FormField
                       id="nuip"
-                      label="Documento *"
+                      label="Número do Documento *"
                       type="text"
                       value={newEmpresa.nuip}
                       onChange={handleInputChange('nuip')}
                       error={formErrors.nuip}
-                      placeholder="Ex: NUIT - 1234567890"
+                      placeholder="123456789"
                       required
                       maxLength={20}
                       halfWidth
                       disabled={isProcessing}
                     />
+                  </div>
+                  <div className="flex flex-wrap -mx-2">
                     <FormField
                       id="pais"
                       label="País *"

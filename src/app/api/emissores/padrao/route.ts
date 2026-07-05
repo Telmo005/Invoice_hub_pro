@@ -41,6 +41,7 @@ export async function GET(_request: NextRequest) {
       id: emissorPadrao.id,
       nome: emissorPadrao.nome_empresa,
       nuip: emissorPadrao.documento,
+      documento_tipo: emissorPadrao.documento_tipo,
       pais: emissorPadrao.pais,
       cidade: emissorPadrao.cidade,
       endereco: emissorPadrao.bairro,

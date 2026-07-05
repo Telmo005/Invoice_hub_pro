@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isMozambiquePais, isValidNuit } from '@/lib/validation';
+import { DOCUMENTO_FISCAL_TIPOS, isValidDocumentoFiscal } from '@/lib/validation';
 
 // Helpers devolvem instâncias para permitir encadeamento (min, email, regex)
 const trimmed = () => z.string().trim();
@@ -11,14 +11,16 @@ const trimmed = () => z.string().trim();
 // não há UI para a preencher -- e logo é null sempre que não há upload).
 const optTrimmed = () => z.string().trim().nullish().transform(v => v ?? undefined);
 
-// NUIT (9 dígitos) só é exigido quando país = Moçambique (ver A5 em
-// docs/auditoria-inicial.md); emitentes/destinatários estrangeiros mantêm
-// apenas a verificação de "não vazio" já feita pelo .min(1). Recebe uma
-// função em vez de um schema genérico para não perder o tipo de saída
-// completo (um genérico com constraint estreita faz o TS colapsar o output
-// do superRefine para a própria constraint).
-function checkNuit(val: { documento?: string; pais?: string }, ctx: z.RefinementCtx) {
-  if (isMozambiquePais(val.pais) && val.documento && !isValidNuit(val.documento)) {
+// Documento fiscal genérico (2026-07-05, ver docs/auditoria-inicial.md): a
+// app não fica mais limitada ao NUIT moçambicano -- o utilizador escolhe o
+// tipo (NUIT/NIF/VAT/TIN/CPF/Outro). Só o NUIT tem uma regra de formato real
+// (9 dígitos, e só quando o país é Moçambique -- ver isValidDocumentoFiscal
+// em @/lib/validation); os restantes mantêm apenas "não vazio" (.min(1)).
+// Recebe uma função em vez de um schema genérico para não perder o tipo de
+// saída completo (um genérico com constraint estreita faz o TS colapsar o
+// output do superRefine para a própria constraint).
+function checkDocumentoFiscal(val: { documento?: string; documentoTipo?: string; pais?: string }, ctx: z.RefinementCtx) {
+  if (val.documento && !isValidDocumentoFiscal(val.documentoTipo ?? 'NUIT', val.documento, val.pais)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['documento'],
@@ -30,6 +32,7 @@ function checkNuit(val: { documento?: string; pais?: string }, ctx: z.Refinement
 const emitenteBaseSchema = z.object({
   nomeEmpresa: trimmed().min(2),
   documento: trimmed().min(1),
+  documentoTipo: z.enum(DOCUMENTO_FISCAL_TIPOS).default('NUIT'),
   pais: trimmed().min(1),
   cidade: trimmed().min(1),
   bairro: trimmed().min(1),
@@ -41,6 +44,7 @@ const emitenteBaseSchema = z.object({
 const destinatarioBaseSchema = z.object({
   nomeCompleto: trimmed().min(2),
   documento: optTrimmed(),
+  documentoTipo: z.enum(DOCUMENTO_FISCAL_TIPOS).default('NUIT'),
   pais: optTrimmed(),
   cidade: optTrimmed(),
   bairro: optTrimmed(),
@@ -48,11 +52,12 @@ const destinatarioBaseSchema = z.object({
   telefone: trimmed().min(3)
 });
 
-export const emitenteSchema = emitenteBaseSchema.superRefine(checkNuit);
-export const destinatarioSchema = destinatarioBaseSchema.superRefine(checkNuit);
+export const emitenteSchema = emitenteBaseSchema.superRefine(checkDocumentoFiscal);
+export const destinatarioSchema = destinatarioBaseSchema.superRefine(checkDocumentoFiscal);
 // Versão parcial (usada em recibos, onde o destinatário é opcional) --
-// aplica-se .partial() ao schema base antes de acrescentar a verificação de NUIT.
-const destinatarioPartialSchema = destinatarioBaseSchema.partial().superRefine(checkNuit);
+// aplica-se .partial() ao schema base antes de acrescentar a verificação do
+// documento fiscal.
+const destinatarioPartialSchema = destinatarioBaseSchema.partial().superRefine(checkDocumentoFiscal);
 
 const taxaSchema = z.object({
   nome: trimmed().min(1),

@@ -15,6 +15,10 @@ export interface RetryPagamentoResponse {
 export interface Emitente {
   nomeEmpresa: string;
   documento: string;
+  // Tipo do documento fiscal (NUIT/NIF/VAT/TIN/CPF/Outro) -- ver
+  // DOCUMENTO_FISCAL_TIPOS em @/lib/validation. Default 'NUIT' quando
+  // ausente para não quebrar dados/fluxos anteriores a este campo.
+  documentoTipo?: string;
   pais: string;
   cidade: string;
   bairro: string;
@@ -29,6 +33,7 @@ export interface Emitente {
 export interface Destinatario {
   nomeCompleto: string;
   documento?: string;
+  documentoTipo?: string;
   pais?: string;
   cidade?: string;
   bairro?: string;

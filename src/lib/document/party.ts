@@ -3,6 +3,7 @@ import { supabaseServer } from '@/lib/supabase-server';
 export interface PartyEmitenteInput {
   nomeEmpresa?: string;
   documento?: string;
+  documentoTipo?: string;
   pais?: string;
   cidade?: string;
   bairro?: string;
@@ -14,6 +15,7 @@ export interface PartyEmitenteInput {
 export interface PartyDestinatarioInput {
   nomeCompleto?: string;
   documento?: string | null;
+  documentoTipo?: string;
   pais?: string | null;
   cidade?: string | null;
   bairro?: string | null;
@@ -52,6 +54,7 @@ export async function ensureEmitenteId(userId: string, emissor: PartyEmitenteInp
         user_id: userId,
         nome_empresa: emissor.nomeEmpresa ?? 'Empresa',
         documento: emissor.documento ?? '',
+        documento_tipo: emissor.documentoTipo ?? 'Outro',
         pais: emissor.pais ?? '',
         cidade: emissor.cidade ?? '',
         bairro: emissor.bairro ?? '',
@@ -95,6 +98,7 @@ export async function ensureDestinatarioId(userId: string, dest?: PartyDestinata
         user_id: userId,
         nome_completo: dest.nomeCompleto ?? 'Cliente',
         documento: dest.documento ?? null,
+        documento_tipo: dest.documentoTipo ?? 'Outro',
         pais: dest.pais ?? null,
         cidade: dest.cidade ?? null,
         bairro: dest.bairro ?? null,

@@ -8,7 +8,7 @@ import { formatCurrency } from '@/lib/formatUtils';
 import { Empresa } from '@/types/emissor-type';
 import { useListarEmissores } from '@/app/hooks/emitters/useListarEmissores';
 import { useEmpresaPadrao } from '@/app/hooks/emitters/useEmpresaPadrao';
-import { isMozambiquePais, isValidNuit } from '@/lib/validation';
+import { isValidDocumentoFiscal, DOCUMENTO_FISCAL_TIPOS } from '@/lib/validation';
 import { TipoDocumento, ItemFatura, FormDataFatura } from '@/types/invoice-types';
 
 const roboto = Roboto({ weight: ['300', '400', '700'], subsets: ['latin'], variable: '--font-roboto' });
@@ -320,6 +320,31 @@ const FormField = memo(({
 ));
 FormField.displayName = 'FormField';
 
+// Documento fiscal genérico (2026-07-05): a app deixou de estar limitada ao
+// NUIT moçambicano -- o utilizador escolhe o tipo aqui e o número no campo
+// "Documento" ao lado (ver DOCUMENTO_FISCAL_TIPOS/isValidDocumentoFiscal em
+// @/lib/validation).
+const DocumentoTipoSelect: React.FC<{
+  id: string;
+  value: string | undefined;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  disabled?: boolean;
+}> = ({ id, value, onChange, disabled = false }) => (
+  <div className="w-full md:w-1/3 px-2 mb-3">
+    <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento</label>
+    <select
+      id={id}
+      name={id}
+      className={`w-full p-2 border rounded text-sm border-gray-300 ${disabled ? 'bg-gray-100 opacity-50 cursor-not-allowed' : ''}`}
+      value={value || 'NUIT'}
+      onChange={onChange}
+      disabled={disabled}
+    >
+      {DOCUMENTO_FISCAL_TIPOS.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
+    </select>
+  </div>
+);
+
 const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresas, selectedEmpresa, onEmpresaChange, empresasLoading, logo, setLogo }: EmitenteStepProps) => {
   const [localLoading, setLocalLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -476,8 +501,11 @@ const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresa
       {localLoading && <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center rounded-lg z-10"><div className="text-center"><FaSpinner className="animate-spin text-blue-500 text-2xl mb-2 mx-auto" /><p className="text-sm text-gray-600">Preenchendo dados da empresa...</p></div></div>}
       <div className={`space-y-3 ${localLoading ? 'opacity-50' : ''}`}>
         <div className="flex flex-wrap -mx-2">
-          <FormField id="emitente.nomeEmpresa" label="Nome/Empresa *" type="text" value={formData.emitente.nomeEmpresa} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.nomeEmpresa']} placeholder="Nome/Empresa" required halfWidth maxLength={70} disabled={localLoading} />
-          <FormField id="emitente.documento" label="Documento" type="text" value={formData.emitente.documento} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.documento']} placeholder="NUIT - 123456789" halfWidth maxLength={20} disabled={localLoading} />
+          <FormField id="emitente.nomeEmpresa" label="Nome/Empresa *" type="text" value={formData.emitente.nomeEmpresa} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.nomeEmpresa']} placeholder="Nome/Empresa" required maxLength={70} disabled={localLoading} />
+        </div>
+        <div className="flex flex-wrap -mx-2">
+          <DocumentoTipoSelect id="emitente.documentoTipo" value={formData.emitente.documentoTipo} onChange={handleChange as any} disabled={localLoading} />
+          <FormField id="emitente.documento" label="Número do Documento" type="text" value={formData.emitente.documento} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.documento']} placeholder="123456789" halfWidth maxLength={20} disabled={localLoading} />
         </div>
         <div className="flex flex-wrap -mx-2">
           <FormField id="emitente.pais" label="País *" type="text" value={formData.emitente.pais} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.pais']} placeholder="Moçambique" required halfWidth maxLength={15} disabled={localLoading} />
@@ -505,8 +533,11 @@ const DestinatarioStep = memo(({ formData, errors, handleChange, handleBlur }: D
       <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg"><div className="flex items-center justify-between"><div className="flex items-center"><div><h4 className="text-lg font-semibold mb-2">Dados do Destinatário</h4><p className="text-sm text-blue-600">{isCotacao ? 'Informe os dados do cliente que receberá a cotação.' : (isRecibo ? 'Informe os dados do destinatário ou cliente que receberá o recibo.' : 'Informe os dados do destinatário ou empresa que receberá a fatura.')}</p></div></div></div></div>
       <div className="space-y-3">
         <div className="flex flex-wrap -mx-2">
-          <FormField id="destinatario.nomeCompleto" label="Nome Completo *" type="text" value={formData.destinatario.nomeCompleto} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.nomeCompleto']} placeholder="Nome completo do destinatário" required halfWidth maxLength={70} />
-          <FormField id="destinatario.documento" label="Documento" type="text" value={formData.destinatario.documento} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.documento']} placeholder="NUIT - 123456789" halfWidth maxLength={20} />
+          <FormField id="destinatario.nomeCompleto" label="Nome Completo *" type="text" value={formData.destinatario.nomeCompleto} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.nomeCompleto']} placeholder="Nome completo do destinatário" required maxLength={70} />
+        </div>
+        <div className="flex flex-wrap -mx-2">
+          <DocumentoTipoSelect id="destinatario.documentoTipo" value={formData.destinatario.documentoTipo} onChange={handleChange as any} />
+          <FormField id="destinatario.documento" label="Número do Documento" type="text" value={formData.destinatario.documento} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.documento']} placeholder="123456789" halfWidth maxLength={20} />
         </div>
         <div className="flex flex-wrap -mx-2">
           <FormField id="destinatario.pais" label="País *" type="text" value={formData.destinatario.pais} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.pais']} placeholder="Moçambique" required halfWidth maxLength={15} />
@@ -1258,7 +1289,7 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
 
   const fillEmitterData = useCallback((empresa: Empresa) => {
     if (!empresa || !updateFormData) return;
-    const emitterData = { emitente: { nomeEmpresa: empresa.nome || '', documento: empresa.nuip || '', pais: empresa.pais || '', cidade: empresa.cidade || '', bairro: empresa.endereco || '', telefone: empresa.telefone || '', email: empresa.email || '' } };
+    const emitterData = { emitente: { nomeEmpresa: empresa.nome || '', documento: empresa.nuip || '', documentoTipo: empresa.documento_tipo || 'NUIT', pais: empresa.pais || '', cidade: empresa.cidade || '', bairro: empresa.endereco || '', telefone: empresa.telefone || '', email: empresa.email || '' } };
     updateFormData(emitterData);
   }, [updateFormData]);
 
@@ -1333,12 +1364,12 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
         validatePhone(formData.emitente.telefone, 'emitente.telefone');
         validateRequired(formData.emitente.email, 'emitente.email');
         validateEmail(formData.emitente.email, 'emitente.email');
-        // NUIT (documento) -- mesma regra usada no schema do servidor
-        // (isValidNuit em @/lib/validation): só exigido em 9 dígitos quando
-        // o país é Moçambique. Antes disto só era apanhado ao tentar pagar,
-        // no fim do assistente inteiro.
+        // Documento fiscal -- mesma regra usada no schema do servidor
+        // (isValidDocumentoFiscal em @/lib/validation): só o NUIT tem regra
+        // de formato (9 dígitos), e só quando o país é Moçambique. Antes
+        // disto só era apanhado ao tentar pagar, no fim do assistente inteiro.
         if (validateRequired(formData.emitente.documento, 'emitente.documento')) {
-          if (isMozambiquePais(formData.emitente.pais) && !isValidNuit(formData.emitente.documento)) {
+          if (!isValidDocumentoFiscal(formData.emitente.documentoTipo, formData.emitente.documento, formData.emitente.pais)) {
             newErrors['emitente.documento'] = 'NUIT inválido: deve ter 9 dígitos';
             invalidFields.push('emitente.documento');
           }
@@ -1355,7 +1386,7 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
         // NUIT do destinatário: o schema do servidor só exige o formato
         // quando o campo tem valor (documento é opcional para o
         // destinatário), mas se for preenchido tem de ser válido.
-        if (formData.destinatario.documento?.trim() && isMozambiquePais(formData.destinatario.pais) && !isValidNuit(formData.destinatario.documento)) {
+        if (formData.destinatario.documento?.trim() && !isValidDocumentoFiscal(formData.destinatario.documentoTipo, formData.destinatario.documento, formData.destinatario.pais)) {
           newErrors['destinatario.documento'] = 'NUIT inválido: deve ter 9 dígitos';
           invalidFields.push('destinatario.documento');
         }
@@ -1504,7 +1535,7 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
         credentials: 'include',
-        body: JSON.stringify({ nome_empresa: formData.emitente.nomeEmpresa, documento: formData.emitente.documento, pais: formData.emitente.pais, cidade: formData.emitente.cidade, bairro: formData.emitente.bairro, email: formData.emitente.email, telefone: formData.emitente.telefone })
+        body: JSON.stringify({ nome_empresa: formData.emitente.nomeEmpresa, documento: formData.emitente.documento, documento_tipo: formData.emitente.documentoTipo, pais: formData.emitente.pais, cidade: formData.emitente.cidade, bairro: formData.emitente.bairro, email: formData.emitente.email, telefone: formData.emitente.telefone })
       });
       if (!response.ok) throw new Error('Erro ao atualizar empresa');
       await refreshData(); limparModificacoesEmpresa(); setShowUpdateModal(false);
