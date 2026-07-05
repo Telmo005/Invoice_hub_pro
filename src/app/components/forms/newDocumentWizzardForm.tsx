@@ -72,6 +72,7 @@ interface PreviewStepProps {
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
   onHtmlRendered: (html: string) => void;
+  onRenderingChange: (isRendering: boolean) => void;
 }
 
 interface ProcessingOverlayProps {
@@ -1143,10 +1144,10 @@ const ItensStep = memo(({ formData, errors, handleChange, handleBlur, items, adi
 });
 ItensStep.displayName = 'ItensStep';
 
-const PreviewStep = memo(({ invoiceData, tipo, isFullscreen, onToggleFullscreen, onHtmlRendered }: PreviewStepProps) => (
+const PreviewStep = memo(({ invoiceData, tipo, isFullscreen, onToggleFullscreen, onHtmlRendered, onRenderingChange }: PreviewStepProps) => (
   <div className="w-full space-y-6">
     <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg"><div className="flex items-center justify-between"><div className="flex items-center"><div><h4 className="text-lg font-semibold mb-2">Pré-visualização</h4><p className="text-sm text-blue-600">Visualize como seu documento ficará com o template selecionado.</p></div></div></div></div>
-    <div><hr></hr><TemplateSlider invoiceData={invoiceData} tipo={tipo} isFullscreen={isFullscreen} onToggleFullscreen={onToggleFullscreen} onHtmlRendered={onHtmlRendered} /></div>
+    <div><hr></hr><TemplateSlider invoiceData={invoiceData} tipo={tipo} isFullscreen={isFullscreen} onToggleFullscreen={onToggleFullscreen} onHtmlRendered={onHtmlRendered} onRenderingChange={onRenderingChange} /></div>
   </div>
 ));
 PreviewStep.displayName = 'PreviewStep';
@@ -1203,6 +1204,11 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [pendingStep, setPendingStep] = useState<number | null>(null);
   const [isUpdatingEmpresa, setIsUpdatingEmpresa] = useState(false);
+  // Ver bug de cor pós-pagamento (2026-07-05): a mudança de cor no passo de
+  // pré-visualização dispara um re-render assíncrono; sem isto, avançar para
+  // o pagamento antes desse re-render terminar guardava o HTML com a cor
+  // anterior.
+  const [isTemplateRendering, setIsTemplateRendering] = useState(false);
   const loading = empresasLoading || empresaPadraoLoading;
   const error = empresasError || empresaPadraoError;
 
@@ -1426,6 +1432,15 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
     setIsNavigating(true);
     await new Promise(resolve => setTimeout(resolve, 300));
 
+    // Bloqueia o avanço do passo de Pré-visualização (índice 3) enquanto o
+    // template ainda está a re-renderizar (ex.: mudança de cor recente) --
+    // sem isto, o HTML capturado para o pagamento podia ficar com a cor
+    // anterior (ver bug reportado 2026-07-05).
+    if (currentStep === 3 && isTemplateRendering) {
+      setIsNavigating(false);
+      return;
+    }
+
     // Valida todos os steps anteriores + o atual antes de avançar
     for (let step = 0; step <= currentStep; step++) {
       const { isValid, invalidFields } = validateStep(step);
@@ -1457,7 +1472,7 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
 
     setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
     setIsNavigating(false);
-  }, [currentStep, validateStep, empresaModificacoes, selectedEmpresa, verificarModificacoesEmpresa, formData.emitente]);
+  }, [currentStep, validateStep, empresaModificacoes, selectedEmpresa, verificarModificacoesEmpresa, formData.emitente, isTemplateRendering]);
 
   const prevStep = useCallback(async () => { setIsNavigating(true); await new Promise(resolve => setTimeout(resolve, 300)); setCurrentStep(prev => Math.max(prev - 1, 0)); setIsNavigating(false); }, []);
 
@@ -1479,7 +1494,18 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
     if (!empresaModificacoes.empresaOriginal || !selectedEmpresa) return;
     setIsUpdatingEmpresa(true);
     try {
-      const response = await fetch(`/api/emissores/${selectedEmpresa.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome_empresa: formData.emitente.nomeEmpresa, documento: formData.emitente.documento, pais: formData.emitente.pais, cidade: formData.emitente.cidade, bairro: formData.emitente.bairro, email: formData.emitente.email, telefone: formData.emitente.telefone }) });
+      // Corrigido: `method: 'PUT'` -- a rota só expõe GET/PATCH/DELETE (405
+      // antes desta correção) -- e faltava o token CSRF que `PATCH` exige.
+      const csrfRes = await fetch('/api/auth/csrf', { method: 'GET', credentials: 'include' });
+      const csrfData = await csrfRes.json();
+      const csrfToken = csrfData?.csrfToken || csrfData?.token;
+      if (!csrfToken) throw new Error('Falha ao obter token CSRF');
+      const response = await fetch(`/api/emissores/${selectedEmpresa.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        credentials: 'include',
+        body: JSON.stringify({ nome_empresa: formData.emitente.nomeEmpresa, documento: formData.emitente.documento, pais: formData.emitente.pais, cidade: formData.emitente.cidade, bairro: formData.emitente.bairro, email: formData.emitente.email, telefone: formData.emitente.telefone })
+      });
       if (!response.ok) throw new Error('Erro ao atualizar empresa');
       await refreshData(); limparModificacoesEmpresa(); setShowUpdateModal(false);
       if (pendingStep !== null) { setCurrentStep(pendingStep); setPendingStep(null); }
@@ -1495,7 +1521,7 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
       0: <EmitenteStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} empresas={empresas} selectedEmpresa={selectedEmpresa} onEmpresaChange={handleEmpresaChange} empresasLoading={loading} logo={logo} setLogo={setLogo} />,
       1: <DestinatarioStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} />,
       2: <ItensStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} items={items} adicionarItem={adicionarItem} removerItem={removerItem} atualizarItem={atualizarItem} adicionarTaxa={adicionarTaxa} removerTaxa={removerTaxa} onItemBlur={handleItemBlur} isGeneratingNumber={isGeneratingNumber} generateDocumentNumber={generateDocumentNumber} />,
-      3: <PreviewStep invoiceData={prepareInvoiceData()} tipo={tipo} isFullscreen={isTemplateFullscreen} onToggleFullscreen={toggleTemplateFullscreen} onHtmlRendered={handleHtmlRendered} />,
+      3: <PreviewStep invoiceData={prepareInvoiceData()} tipo={tipo} isFullscreen={isTemplateFullscreen} onToggleFullscreen={toggleTemplateFullscreen} onHtmlRendered={handleHtmlRendered} onRenderingChange={setIsTemplateRendering} />,
       4: <Payment invoiceData={prepareDocumentData()} renderedHtml={renderedHtml} />
     };
     return stepComponents[currentStep as keyof typeof stepComponents] || null;
@@ -1550,7 +1576,7 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
           <div className="flex-1 min-w-0">
             <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6 overflow-hidden">
               {renderStepContent()}
-              <NavigationButtons currentStep={currentStep} totalSteps={STEPS.length} onPrev={prevStep} onNext={nextStep} isNavigating={isNavigating} />
+              <NavigationButtons currentStep={currentStep} totalSteps={STEPS.length} onPrev={prevStep} onNext={nextStep} isNavigating={isNavigating || (currentStep === 3 && isTemplateRendering)} />
             </div>
           </div>
         </div>

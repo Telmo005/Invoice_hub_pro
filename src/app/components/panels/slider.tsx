@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { FiChevronLeft, FiChevronRight, FiDroplet, FiRotateCcw } from 'react-icons/fi';
 import { InvoiceData, TipoDocumento } from '@/types/invoice-types';
 import { useTemplateManager } from '@/app/hooks/panels/useTemplateManager';
@@ -12,10 +12,15 @@ const ACCENT_COLOR_PRESETS = ['#2c3e50', '#1e3a8a', '#7c3aed', '#be123c', '#0478
 
 interface TemplateSliderProps {
   invoiceData: InvoiceData;
-  tipo: TipoDocumento; 
+  tipo: TipoDocumento;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
   onHtmlRendered?: (html: string) => void;
+  // Avisa o wizard sempre que o template está a (re)renderizar -- usado para
+  // bloquear o avanço para o passo de pagamento enquanto uma mudança de cor
+  // ainda não terminou de ser aplicada ao HTML (ver bug de cor pós-pagamento
+  // reportado pelo utilizador, 2026-07-05).
+  onRenderingChange?: (isRendering: boolean) => void;
 }
 
 const TemplateSlider: React.FC<TemplateSliderProps> = ({
@@ -23,7 +28,8 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
   tipo,
   isFullscreen = false,
   onToggleFullscreen = () => {},
-  onHtmlRendered = () => {}
+  onHtmlRendered = () => {},
+  onRenderingChange = () => {}
 }) => {
   // Cor de destaque personalizada (título, cabeçalho da tabela, bordas) --
   // todos os templates seguem o contrato de tema (ver
@@ -54,6 +60,14 @@ const TemplateSlider: React.FC<TemplateSliderProps> = ({
   // docs/templates-theming.md); applyAccentColor() ignora silenciosamente
   // qualquer templateId que ainda não o siga.
   const suportaCorPersonalizada = true;
+
+  // Notifica o wizard sempre que uma (re)renderização está em curso -- ex.:
+  // ao mudar de cor, o HTML colorido só fica pronto de forma assíncrona, e
+  // sem isto o utilizador podia avançar para o pagamento com o HTML antigo
+  // (bug reportado: cor errada no documento pós-pagamento, 2026-07-05).
+  useEffect(() => {
+    onRenderingChange(renderState.isLoading);
+  }, [renderState.isLoading, onRenderingChange]);
 
   const {
     templatesContainerRef,
