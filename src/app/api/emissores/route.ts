@@ -8,7 +8,7 @@ export const GET = withApiGuard(async (_req: NextRequest, { user }) => {
   const supabase = await supabaseServer()
   const { data: emissores, error } = await supabase
     .from('emissores')
-    .select('id,nome_empresa,documento,pais,cidade,bairro,telefone,email,pessoa_contato,padrao,logo_url')
+    .select('id,nome_empresa,documento,documento_tipo,pais,cidade,bairro,telefone,email,pessoa_contato,padrao,logo_url')
     .eq('user_id', user.id)
     .order('padrao', { ascending: false })
     .order('updated_at', { ascending: false })
@@ -23,6 +23,7 @@ export const GET = withApiGuard(async (_req: NextRequest, { user }) => {
       id: e.id,
       nome: e.nome_empresa,
       nuip: e.documento,
+      documento_tipo: e.documento_tipo,
       pais: e.pais,
       cidade: e.cidade,
       endereco: e.bairro,
@@ -62,6 +63,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       user_id: user.id,
       nome_empresa: data.nome_empresa,
       documento: data.documento,
+      documento_tipo: data.documento_tipo,
       pais: data.pais,
       cidade: data.cidade,
       bairro: data.bairro,
@@ -71,7 +73,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       padrao: data.padrao || false,
       logo_url: (body as any).logo_url ?? null
     })
-    .select('id,nome_empresa,documento,pais,cidade,bairro,telefone,email,pessoa_contato,padrao,logo_url')
+    .select('id,nome_empresa,documento,documento_tipo,pais,cidade,bairro,telefone,email,pessoa_contato,padrao,logo_url')
     .single()
 
   if (error) {

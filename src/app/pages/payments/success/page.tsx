@@ -129,7 +129,7 @@ function PaymentSuccessContent() {
                   rel="noopener noreferrer"
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center text-sm shadow-lg shadow-green-500/25 transition-colors"
                 >
-                  <FiDownload className="mr-2" /> Baixar PDF
+                  <FiDownload className="mr-2" /> Imprimir / Guardar PDF
                 </a>
               </div>
             </>

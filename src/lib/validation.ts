@@ -35,6 +35,29 @@ export function isValidNuit(value: unknown): boolean {
   return /^\d{9}$/.test(digitsOnly);
 }
 
+// Tipos de documento fiscal suportados (2026-07-05): a app não pode continuar
+// limitada ao NUIT moçambicano à medida que serve outros mercados -- o
+// utilizador escolhe o tipo e o número correspondente. Só o NUIT tem uma
+// regra de formato real (9 dígitos, e só quando o país é Moçambique); os
+// restantes exigem apenas "não vazio" -- construir validadores de formato
+// reais para NIF/VAT/TIN/CPF de cada país é um projeto à parte, fora deste
+// pedido.
+export const DOCUMENTO_FISCAL_TIPOS = ['NUIT', 'NIF', 'VAT', 'TIN', 'CPF', 'Outro'] as const;
+export type DocumentoFiscalTipo = typeof DOCUMENTO_FISCAL_TIPOS[number];
+
+export function isDocumentoFiscalTipo(value: unknown): value is DocumentoFiscalTipo {
+  return typeof value === 'string' && (DOCUMENTO_FISCAL_TIPOS as readonly string[]).includes(value);
+}
+
+// Validação genérica do documento fiscal: NUIT continua com a regra de 9
+// dígitos quando o país é Moçambique; qualquer outro tipo/país só exige que
+// o campo não esteja vazio.
+export function isValidDocumentoFiscal(tipo: unknown, documento: unknown, pais: unknown): boolean {
+  if (!isNonEmptyString(documento)) return false;
+  if (tipo === 'NUIT' && isMozambiquePais(pais)) return isValidNuit(documento);
+  return true;
+}
+
 export interface FieldError {
   field: string;
   message: string;
@@ -42,9 +65,10 @@ export interface FieldError {
 
 export function validateEmissor(input: any): { valid: boolean; errors: FieldError[]; data?: any } {
   const errors: FieldError[] = [];
+  const documentoTipo = isDocumentoFiscalTipo(input?.documento_tipo) ? input.documento_tipo : 'NUIT';
   if (!isNonEmptyString(input?.nome_empresa)) errors.push({ field: 'nome_empresa', message: 'Nome da empresa é obrigatório' });
   if (!isNonEmptyString(input?.documento)) errors.push({ field: 'documento', message: 'Documento é obrigatório' });
-  else if (isMozambiquePais(input?.pais) && !isValidNuit(input.documento)) {
+  else if (!isValidDocumentoFiscal(documentoTipo, input.documento, input?.pais)) {
     errors.push({ field: 'documento', message: 'NUIT inválido: deve ter 9 dígitos' });
   }
   if (!isNonEmptyString(input?.pais)) errors.push({ field: 'pais', message: 'País é obrigatório' });
@@ -62,6 +86,7 @@ export function validateEmissor(input: any): { valid: boolean; errors: FieldErro
     data: {
       nome_empresa: input.nome_empresa.trim(),
       documento: input.documento.trim(),
+      documento_tipo: documentoTipo,
       pais: input.pais.trim(),
       cidade: input.cidade.trim(),
       bairro: input.bairro.trim(),

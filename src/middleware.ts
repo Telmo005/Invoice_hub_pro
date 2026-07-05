@@ -58,7 +58,7 @@ export async function middleware(request: NextRequest) {
     'X-Frame-Options': 'DENY',
     'X-XSS-Protection': '1; mode=block',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'camera=(), microphone=(), location=()',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     'Content-Security-Policy': [
       "default-src 'self'",
       "img-src 'self' data: blob:",

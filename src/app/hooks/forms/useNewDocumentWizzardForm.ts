@@ -1,13 +1,14 @@
 // app/hooks/forms/useNewDocumentWizzardForm.ts
 import { useState, useEffect, useCallback } from 'react';
 import { FormDataFatura, ItemFatura, TotaisFatura, TaxaItem, InvoiceData, TipoDocumento } from '@/types/invoice-types';
-import { isMozambiquePais, isValidNuit } from '@/lib/validation';
+import { isValidDocumentoFiscal } from '@/lib/validation';
 
 interface Empresa {
   id: string;
   padrao: boolean;
   nome: string;
   nuip: string;
+  documento_tipo?: string;
   pais: string;
   cidade: string;
   endereco: string;
@@ -88,6 +89,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     emitente: {
       nomeEmpresa: '',
       documento: '',
+      documentoTipo: 'NUIT',
       pais: '',
       cidade: '',
       bairro: '',
@@ -97,6 +99,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     destinatario: {
       nomeCompleto: '',
       documento: '',
+      documentoTipo: 'NUIT',
       pais: '',
       cidade: '',
       bairro: '',
@@ -216,6 +219,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     const mapeamentoCampos = {
       nomeEmpresa: 'nome',
       documento: 'nuip',
+      documentoTipo: 'documento_tipo',
       pais: 'pais',
       cidade: 'cidade',
       bairro: 'endereco',
@@ -311,16 +315,15 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       return 'Campo obrigatório';
     }
 
-    // NUIT (documento do emitente) só é exigido em 9 dígitos quando o país é
-    // Moçambique -- mesma regra usada no schema do servidor (isValidNuit em
-    // @/lib/validation), agora também aqui para o utilizador ver o erro
-    // enquanto preenche, não só ao tentar pagar no final do assistente.
-    if (name === 'emitente.documento' && stringValue.trim() && isMozambiquePais(formData.emitente.pais) && !isValidNuit(stringValue)) {
+    // Documento fiscal do emitente: só o NUIT tem regra de formato (9
+    // dígitos, e só quando o país é Moçambique -- ver isValidDocumentoFiscal
+    // em @/lib/validation), mesma regra usada no schema do servidor, agora
+    // também aqui para o utilizador ver o erro enquanto preenche.
+    if (name === 'emitente.documento' && stringValue.trim() && !isValidDocumentoFiscal(formData.emitente.documentoTipo, stringValue, formData.emitente.pais)) {
       return 'NUIT inválido: deve ter 9 dígitos';
     }
-    // Documento do destinatário é opcional, mas se preenchido tem de ser um
-    // NUIT válido quando o país é Moçambique (mesma regra do servidor).
-    if (name === 'destinatario.documento' && stringValue.trim() && isMozambiquePais(formData.destinatario.pais) && !isValidNuit(stringValue)) {
+    // Documento do destinatário é opcional, mas se preenchido segue a mesma regra.
+    if (name === 'destinatario.documento' && stringValue.trim() && !isValidDocumentoFiscal(formData.destinatario.documentoTipo, stringValue, formData.destinatario.pais)) {
       return 'NUIT inválido: deve ter 9 dígitos';
     }
 
@@ -570,7 +573,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     if (!formData.emitente.telefone.trim()) newErrors['emitente.telefone'] = 'Campo obrigatório';
     else if (!validatePhone(formData.emitente.telefone)) newErrors['emitente.telefone'] = 'Telefone inválido';
     if (!formData.emitente.documento.trim()) newErrors['emitente.documento'] = 'Campo obrigatório';
-    else if (isMozambiquePais(formData.emitente.pais) && !isValidNuit(formData.emitente.documento)) {
+    else if (!isValidDocumentoFiscal(formData.emitente.documentoTipo, formData.emitente.documento, formData.emitente.pais)) {
       newErrors['emitente.documento'] = 'NUIT inválido: deve ter 9 dígitos';
     }
     if (!formData.emitente.email.trim()) newErrors['emitente.email'] = 'Campo obrigatório';
@@ -581,9 +584,8 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     else if (!validatePhone(formData.destinatario.telefone)) newErrors['destinatario.telefone'] = 'Telefone inválido';
     if (!formData.destinatario.email.trim()) newErrors['destinatario.email'] = 'Campo obrigatório';
     else if (!validateEmail(formData.destinatario.email)) newErrors['destinatario.email'] = 'Email inválido';
-    // Documento do destinatário é opcional, mas se preenchido tem de ser um
-    // NUIT válido quando o país é Moçambique (mesma regra do servidor).
-    if (formData.destinatario.documento?.trim() && isMozambiquePais(formData.destinatario.pais) && !isValidNuit(formData.destinatario.documento)) {
+    // Documento do destinatário é opcional, mas se preenchido segue a mesma regra.
+    if (formData.destinatario.documento?.trim() && !isValidDocumentoFiscal(formData.destinatario.documentoTipo, formData.destinatario.documento, formData.destinatario.pais)) {
       newErrors['destinatario.documento'] = 'NUIT inválido: deve ter 9 dígitos';
     }
 
