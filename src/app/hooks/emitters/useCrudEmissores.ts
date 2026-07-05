@@ -1,5 +1,10 @@
 import { useState, useCallback } from 'react'
 
+// Mensagem genérica "Unauthorized" (401) não diz ao utilizador o que fazer --
+// normalmente significa que a sessão expirou entretanto (middleware não
+// atualiza sessão em rotas /api/*, só em navegação de páginas privadas).
+const SESSION_EXPIRED_MESSAGE = 'A tua sessão expirou. Inicia sessão novamente para continuar.'
+
 // Cache simples em memória para token CSRF (similar a outros hooks)
 let cachedCsrfToken: string | null = null
 const fetchCsrfToken = async (): Promise<string> => {
@@ -67,6 +72,7 @@ export function useCrudEmissores(): UseCrudEmissoresReturn {
             })
 
             if (!response.ok) {
+                if (response.status === 401) throw new Error(SESSION_EXPIRED_MESSAGE)
                 const errorData = await response.json()
                 throw new Error(errorData.error || 'Erro ao adicionar empresa')
             }
@@ -105,6 +111,7 @@ export function useCrudEmissores(): UseCrudEmissoresReturn {
             })
 
             if (!response.ok) {
+                if (response.status === 401) throw new Error(SESSION_EXPIRED_MESSAGE)
                 const errorData = await response.json()
                 throw new Error(errorData.error || 'Erro ao editar empresa')
             }
@@ -127,6 +134,7 @@ export function useCrudEmissores(): UseCrudEmissoresReturn {
                 credentials: 'include'
             })
             if (!response.ok) {
+                if (response.status === 401) throw new Error(SESSION_EXPIRED_MESSAGE)
                 let msg = 'Erro ao excluir empresa'
                 try {
                     const ct = response.headers.get('content-type') || ''
