@@ -135,12 +135,17 @@ class TemplateService {
       if (data.formData?.emitente) {
         const e = data.formData.emitente;
 
+        // Monta a string do documento fiscal com o tipo (ex: "NUIT: 123456789")
+        const emitDocumentoLabel = e.documento
+          ? (e.documentoTipo ? `${e.documentoTipo}: ${e.documento}` : e.documento)
+          : ' ';
+
         const emitenteMappings = {
           'emitente-nomeEmpresa': e.nomeEmpresa || ' ',
           'emitente-endereco': [e.bairro, e.cidade, e.pais].filter(Boolean).join(', ') || ' ',
           'emitente-cidade-pais': [e.cidade, e.pais].filter(Boolean).join(' - ') || '',
           'emitente-contato': [e.telefone ? `Tel: ${e.telefone}` : ' ', e.email || ' '].filter(Boolean).join(' | ') || ' ',
-          'emitente-documento': e.documento || ' ',
+          'emitente-documento': emitDocumentoLabel,
           'emitente-email': e.email || ' ',
           'emitente-telefone': e.telefone || ' ',
           'emitente-pais': e.pais || ' ',
@@ -158,7 +163,7 @@ class TemplateService {
         renderedHtml = this.replaceElementContent(renderedHtml, 'emitente-nomeEmpresa-card', escapeHtml(e.nomeEmpresa || ' '));
         renderedHtml = this.replaceElementContent(renderedHtml, 'emitente-endereco-card', escapeHtml([e.bairro, e.cidade, e.pais].filter(Boolean).join(', ') || ' '));
         renderedHtml = this.replaceElementContent(renderedHtml, 'emitente-contato-card', escapeHtml(e.telefone || e.email || ' '));
-        renderedHtml = this.replaceElementContent(renderedHtml, 'emitente-documento-card', escapeHtml(e.documento || ' '));
+        renderedHtml = this.replaceElementContent(renderedHtml, 'emitente-documento-card', escapeHtml(emitDocumentoLabel));
       }
 
       // Injetar logo da empresa se existir
@@ -183,11 +188,16 @@ class TemplateService {
       if (data.formData?.destinatario) {
         const d = data.formData.destinatario;
 
+        // Monta a string do documento fiscal com o tipo (ex: "NUIT: 123456789")
+        const destDocumentoLabel = d.documento
+          ? (d.documentoTipo ? `${d.documentoTipo}: ${d.documento}` : d.documento)
+          : ' ';
+
         const destinatarioMappings = {
           'destinatario-nomeCompleto': d.nomeCompleto || ' ',
           'destinatario-endereco': [d.cidade, d.pais].filter(Boolean).join(' - '),
           'destinatario-contato': [d.telefone ? `Tel: ${d.telefone}` : ' ', d.email || ' '].filter(Boolean).join(' | '),
-          'destinatario-documento': d.documento || ' ',
+          'destinatario-documento': destDocumentoLabel,
           'destinatario-email': d.email || ' ',
           'destinatario-telefone': d.telefone || ' ',
           'destinatario-pais': d.pais || ' ',
