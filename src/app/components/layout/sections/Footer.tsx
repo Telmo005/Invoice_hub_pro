@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import styles from '@/styles/Footer.module.css';
+import ContactWidget from './ContactWidget';
 
 export default function Footer() {
   return (
@@ -15,6 +16,7 @@ export default function Footer() {
               <Link href="/termos-de-uso" className={styles.legalLink}>
                 Termos de Uso
               </Link>
+              <ContactWidget />
             </span>
           </p>
         </div>

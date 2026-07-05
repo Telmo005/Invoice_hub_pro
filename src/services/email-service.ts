@@ -200,6 +200,32 @@ export class EmailService {
     }
   }
 
+  async sendContactMessage(nome: string, emailRemetente: string, mensagem: string): Promise<{ success: boolean; message: string }> {
+    const destinatario = process.env.ALERT_EMAIL;
+    if (!destinatario) {
+      return { success: false, message: 'ALERT_EMAIL não configurado' };
+    }
+    try {
+      await this.transporter.sendMail({
+        from: `"Invoice Hub Pro" <${process.env.GMAIL_USER}>`,
+        to: destinatario,
+        replyTo: emailRemetente,
+        subject: `[Suporte] Nova mensagem de ${this.escapeHtml(nome)}`,
+        html: `
+          <p><strong>Nome:</strong> ${this.escapeHtml(nome)}</p>
+          <p><strong>Email:</strong> ${this.escapeHtml(emailRemetente)}</p>
+          <p><strong>Mensagem:</strong></p>
+          <p>${this.escapeHtml(mensagem).replace(/\n/g, '<br>')}</p>
+        `
+      });
+      return { success: true, message: 'Mensagem de contacto enviada' };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao enviar mensagem';
+      console.error('❌ Erro ao enviar mensagem de contacto:', errorMessage);
+      return { success: false, message: errorMessage };
+    }
+  }
+
   private createEmailTemplate(
     documentData: EmailDocumentData, 
     typeDisplay: string, 
