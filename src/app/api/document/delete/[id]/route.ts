@@ -40,10 +40,15 @@ export const DELETE = withApiGuard(async (
       }
     });
 
-    // Verificar se documento existe e é do usuário
+    // Verificar se documento existe e é do usuário -- lê da view unificada
+    // porque `user_id`/`status`/`tipo_documento` vivem em `documentos_base`
+    // (e a view resolve o tipo via join), não na tabela `faturas` (que só
+    // tem os campos específicos de fatura). Consultar `faturas` diretamente
+    // aqui era um bug pré-existente (colunas removidas na normalização do
+    // schema) que fazia este DELETE nunca encontrar o documento.
     const { data: document, error: docError } = await supabase
-      .from('faturas')
-      .select('id, user_id, status, tipo_documento, numero, data_fatura')
+      .from('view_documentos_pagamentos')
+      .select('id, user_id, status_documento, tipo_documento, numero')
       .eq('id', documentId)
       .eq('user_id', user.id)
       .single();
@@ -71,7 +76,7 @@ export const DELETE = withApiGuard(async (
     }
 
     // Validação: Só permite delete de RASCUNHOS
-    if (document.status !== 'rascunho') {
+    if (document.status_documento !== 'rascunho') {
       await logger.log({
         action: 'document_delete',
         level: 'warn',
@@ -80,7 +85,7 @@ export const DELETE = withApiGuard(async (
           user: user.id,
           documentId: documentId,
           documentNumero: document.numero,
-          documentStatus: document.status
+          documentStatus: document.status_documento
         }
       });
 
@@ -90,7 +95,7 @@ export const DELETE = withApiGuard(async (
           code: 'INVALID_OPERATION',
           message: 'Só é possível eliminar rascunhos',
           details: {
-            currentStatus: document.status,
+            currentStatus: document.status_documento,
             allowedStatus: 'rascunho'
           }
         }
@@ -98,9 +103,12 @@ export const DELETE = withApiGuard(async (
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    // Executar DELETE
+    // Executar DELETE na tabela base -- `faturas`/`cotacoes`/`recibos` não
+    // têm `user_id` (só documentos_base tem), e as sub-tabelas + itens/totais
+    // são removidas em cascata via ON DELETE CASCADE (ver migração de
+    // 20260704 que corrigiu o trigger de totais para este cenário).
     const { error: deleteError } = await supabase
-      .from('faturas')
+      .from('documentos_base')
       .delete()
       .eq('id', documentId)
       .eq('user_id', user.id);
