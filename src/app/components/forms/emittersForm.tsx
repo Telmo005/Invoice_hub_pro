@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Roboto } from 'next/font/google';
 import { isValidDocumentoFiscal, DOCUMENTO_FISCAL_TIPOS } from '@/lib/validation';
+import { CountryAutocomplete } from '@/app/components/ui/CountryAutocomplete';
 import { 
   FaEye, 
   FaPlus, 
@@ -1150,16 +1151,13 @@ const Screen = () => {
                     />
                   </div>
                   <div className="flex flex-wrap -mx-2">
-                    <FormField
+                    <CountryAutocomplete
                       id="pais"
                       label="País *"
-                      type="text"
                       value={newEmpresa.pais}
-                      onChange={handleInputChange('pais')}
+                      onChange={handleInputChange('pais') as any}
                       error={formErrors.pais}
-                      placeholder="Digite o país"
                       required
-                      maxLength={15}
                       halfWidth
                       disabled={isProcessing}
                     />

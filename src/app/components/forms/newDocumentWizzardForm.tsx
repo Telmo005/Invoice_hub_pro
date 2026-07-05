@@ -9,6 +9,7 @@ import { Empresa } from '@/types/emissor-type';
 import { useListarEmissores } from '@/app/hooks/emitters/useListarEmissores';
 import { useEmpresaPadrao } from '@/app/hooks/emitters/useEmpresaPadrao';
 import { isValidDocumentoFiscal, DOCUMENTO_FISCAL_TIPOS } from '@/lib/validation';
+import { CountryAutocomplete } from '@/app/components/ui/CountryAutocomplete';
 import { TipoDocumento, ItemFatura, FormDataFatura } from '@/types/invoice-types';
 
 const roboto = Roboto({ weight: ['300', '400', '700'], subsets: ['latin'], variable: '--font-roboto' });
@@ -508,7 +509,7 @@ const EmitenteStep = memo(({ formData, errors, handleChange, handleBlur, empresa
           <FormField id="emitente.documento" label="Número do Documento" type="text" value={formData.emitente.documento} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.documento']} placeholder="123456789" halfWidth maxLength={20} disabled={localLoading} />
         </div>
         <div className="flex flex-wrap -mx-2">
-          <FormField id="emitente.pais" label="País *" type="text" value={formData.emitente.pais} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.pais']} placeholder="Moçambique" required halfWidth maxLength={15} disabled={localLoading} />
+          <CountryAutocomplete id="emitente.pais" label="País *" value={formData.emitente.pais} onChange={handleChange as any} onBlur={handleBlur as any} error={errors['emitente.pais']} required halfWidth disabled={localLoading} />
           <FormField id="emitente.cidade" label="Cidade *" type="text" value={formData.emitente.cidade} onChange={handleChange} onBlur={handleBlur} error={errors['emitente.cidade']} placeholder="Maputo" required halfWidth maxLength={30} disabled={localLoading} />
         </div>
         <div className="flex flex-wrap -mx-2">
@@ -540,7 +541,7 @@ const DestinatarioStep = memo(({ formData, errors, handleChange, handleBlur }: D
           <FormField id="destinatario.documento" label="Número do Documento" type="text" value={formData.destinatario.documento} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.documento']} placeholder="123456789" halfWidth maxLength={20} />
         </div>
         <div className="flex flex-wrap -mx-2">
-          <FormField id="destinatario.pais" label="País *" type="text" value={formData.destinatario.pais} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.pais']} placeholder="Moçambique" required halfWidth maxLength={15} />
+          <CountryAutocomplete id="destinatario.pais" label="País *" value={formData.destinatario.pais || ''} onChange={handleChange as any} onBlur={handleBlur as any} error={errors['destinatario.pais']} required halfWidth />
           <FormField id="destinatario.cidade" label="Cidade *" type="text" value={formData.destinatario.cidade} onChange={handleChange} onBlur={handleBlur} error={errors['destinatario.cidade']} placeholder="Matola" required halfWidth maxLength={30} />
         </div>
         <div className="flex flex-wrap -mx-2">
