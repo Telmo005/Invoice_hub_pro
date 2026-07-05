@@ -42,6 +42,10 @@ interface UsePaymentReturn {
 // campo `method` esperado pelo PaySuite (mpesa|emola|credit_card) -- ver
 // src/lib/payments/PaymentProvider.ts -- para não precisar de mapear entre
 // um id interno e o valor real da API.
+// 'credit_card' temporariamente oculto (2026-07-05): a PaySuite rejeita este
+// método com HTTP 422 "The selected method is invalid" para esta conta --
+// não é um bug nosso, precisa de ser resolvido do lado da PaySuite antes de
+// voltar a expor a opção. Repor bastar reintroduzir a entrada abaixo.
 const PAYMENT_METHODS: PaymentMethod[] = [
   {
     id: 'mpesa',
@@ -52,11 +56,6 @@ const PAYMENT_METHODS: PaymentMethod[] = [
     id: 'emola',
     name: 'e-Mola',
     description: 'Confirmação instantânea'
-  },
-  {
-    id: 'credit_card',
-    name: 'Cartão',
-    description: 'Até 1-2 dias úteis'
   }
 ];
 

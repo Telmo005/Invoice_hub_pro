@@ -7,10 +7,12 @@ import { FiCheckCircle, FiAlertTriangle, FiInfo, FiExternalLink, FiArrowRight, F
 import { FaSpinner, FaCheck, FaExclamationTriangle, FaExternalLinkAlt } from 'react-icons/fa';
 import React, { useState } from 'react';
 
+// 'credit_card' temporariamente oculto (2026-07-05): PaySuite rejeita este
+// método (HTTP 422 "The selected method is invalid") para esta conta -- ver
+// mesma nota em usePayment.ts.
 const METHOD_OPTIONS = [
   { id: 'mpesa', name: 'M-Pesa', description: 'Confirmação instantânea' },
-  { id: 'emola', name: 'e-Mola', description: 'Confirmação instantânea' },
-  { id: 'credit_card', name: 'Cartão', description: 'Até 1-2 dias úteis' }
+  { id: 'emola', name: 'e-Mola', description: 'Confirmação instantânea' }
 ];
 
 export default function SubscriptionPage() {
