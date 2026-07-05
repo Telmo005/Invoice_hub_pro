@@ -128,78 +128,6 @@ const formatValidationErrors = (details: unknown): string | null => {
     .join('; ');
 };
 
-// ✅ FUNÇÕES PARA VERIFICAR SE DOCUMENTO JÁ EXISTE
-const checkFaturaExistsDirect = async (numero: string): Promise<boolean> => {
-  try {
-    const response = await fetch('/api/document/invoice/find', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ numero }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('Erro na API de busca de fatura:', data.error);
-      return false;
-    }
-
-    return data.success && data.data?.exists === true;
-  } catch (error) {
-    console.error('Erro ao verificar fatura:', error);
-    return false;
-  }
-};
-  const checkReciboExistsDirect = async (numero: string): Promise<boolean> => {
-    try {
-      const response = await fetch('/api/document/receipt/find', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ numero }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error('Erro na API de busca de recibo:', data.error);
-        return false;
-      }
-
-      return data.success && data.data?.exists === true;
-    } catch (error) {
-      console.error('Erro ao verificar recibo:', error);
-      return false;
-    }
-  };
-
-const checkCotacaoExistsDirect = async (numero: string): Promise<boolean> => {
-  try {
-    const response = await fetch('/api/document/quotation/find', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ numero }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('Erro na API de busca de cotação:', data.error);
-      return false;
-    }
-
-    return data.success && data.data?.exists === true;
-  } catch (error) {
-    console.error('Erro ao verificar cotação:', error);
-    return false;
-  }
-};
-
 const generateThirdPartyReference = (): string => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';
@@ -442,7 +370,20 @@ export const usePayment = ({
     ...documentInfo
   }), [invoiceData, thirdPartyReference, documentInfo, isCotacao]);
 
-  // ✅ VALIDAÇÃO ATUALIZADA - VERIFICA SE DOCUMENTO JÁ EXISTE
+  // Só confirma que o campo foi preenchido -- NÃO verifica mais se o número
+  // "já existe" na BD. Esse número é só uma pré-visualização (gerada uma vez
+  // quando o wizard monta, via previsualizar_proximo_numero_documento) e
+  // nunca é o número realmente atribuído: criar_documento_completo() reserva
+  // o número real de forma atómica (reservar_numero_documento) exatamente
+  // para não depender deste valor (ver C3 em docs/auditoria-inicial.md).
+  // Verificar aqui se a pré-visualização "já existe" estava a bloquear
+  // utilizadores legítimos: ao criar um 2º/3º documento na mesma sessão sem
+  // recarregar a página, a pré-visualização não se atualiza (só é gerada
+  // uma vez por montagem/tipo), por isso passava a coincidir com o número já
+  // atribuído ao documento anterior -- e este código travava a criação com
+  // "já existe", mesmo sendo um número que nunca ia ser usado de verdade.
+  // As consultas /api/document/*/find também chegaram a demorar >20s em
+  // produção, o que por si só já dava a sensação de app "travada".
   const validateDocumentNumber = useCallback(async (): Promise<boolean> => {
     const numero = isCotacao
       ? invoiceData?.formData?.cotacaoNumero
@@ -452,29 +393,8 @@ export const usePayment = ({
       throw new Error('Número do documento é obrigatório');
     }
 
-    try {
-      // Verificar se o documento já existe
-      let documentExists = false;
-      if (isCotacao) {
-        documentExists = await checkCotacaoExistsDirect(numero);
-      } else if (documentType === 'recibo') {
-        documentExists = await checkReciboExistsDirect(numero);
-      } else {
-        documentExists = await checkFaturaExistsDirect(numero);
-      }
-
-      if (documentExists) {
-        throw new Error(`${dynamicDocumentData.typeDisplay} "${numero}" já existe. Já registaste uma ${dynamicDocumentData.typeDisplay} com este código.`);
-      }
-
-      return true;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Erro ao verificar documento existente');
-    }
-  }, [invoiceData, isCotacao, dynamicDocumentData.typeDisplay]);
+    return true;
+  }, [invoiceData, isCotacao, documentType]);
 
   const processPayment = useCallback(async (renderedHtml: string): Promise<void> => {
     if (isProcessingRef.current) {
