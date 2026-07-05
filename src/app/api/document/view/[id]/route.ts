@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { withApiGuard } from '@/lib/api/guard';
 import { logger } from '@/lib/logger';
 
-const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?: string): string => {
+const getPdfTemplate = (htmlContent: string, documentData: any, nonce: string, documentNumber?: string): string => {
   const documentType = documentData?.type === 'cotacao' ? 'Cotação' : 'Fatura';
 
   return `
@@ -75,7 +75,7 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
 <body>
   ${htmlContent}
 
-  <script>
+  <script nonce="${nonce}">
     setTimeout(() => window.print(), 500);
     window.onbeforeunload = () => "PDF gerado com sucesso? Pode fechar esta janela.";
   </script>
@@ -166,8 +166,12 @@ export const GET = withApiGuard(async (request: NextRequest) => {
     date: dataFatura,
     currency: moeda,
     status: statusDoc
-  });
+  }, request.headers.get('x-nonce') ?? '');
 
+  // Nota: com cache público, um hit de CDN pode servir a mesma resposta (CSP +
+  // <script nonce> já embutidos, sempre consistentes entre si) a vários
+  // pedidos dentro da janela de cache -- reduz a imprevisibilidade do nonce
+  // entre utilizadores diferentes, mas não quebra a validação do CSP.
   return new NextResponse(pdfHtml, {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',

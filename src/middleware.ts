@@ -10,7 +10,15 @@ function isPrivatePath(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  // Nonce por pedido para o CSP (ver M2 em docs/auditoria-inicial.md): permite
+  // remover 'unsafe-inline' de script-src. Propagado como header do pedido
+  // para que Route Handlers/Server Components o possam ler e aplicar aos
+  // seus próprios <script> inline (ex.: document/view, document/pdf).
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
 
   // Auth gating para rotas privadas (defesa em profundidade -- ver A1 em
   // docs/auditoria-inicial.md: nada verificava autenticação antes disto,
@@ -28,7 +36,7 @@ export async function middleware(request: NextRequest) {
           },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-            response = NextResponse.next({ request });
+            response = NextResponse.next({ request: { headers: requestHeaders } });
             cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
           },
         },
@@ -63,7 +71,12 @@ export async function middleware(request: NextRequest) {
       "default-src 'self'",
       "img-src 'self' data: blob:",
       "font-src 'self' data:",
-      "script-src 'self' 'unsafe-inline'",
+      // Nonce + strict-dynamic em vez de 'unsafe-inline' (ver M2 em
+      // docs/auditoria-inicial.md). 'self' fica como fallback para browsers
+      // sem suporte a strict-dynamic. style-src mantém 'unsafe-inline'
+      // deliberadamente -- ver nota em docs/auditoria-inicial.md sobre os
+      // atributos style="" inline do React, que nonce não cobre.
+      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
       "style-src 'self' 'unsafe-inline'",
       "connect-src 'self' https://*.supabase.co",
       "frame-ancestors 'none'"

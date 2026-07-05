@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { withApiGuard } from '@/lib/api/guard';
 import { logger } from '@/lib/logger';
 
-const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?: string): string => {
+const getPdfTemplate = (htmlContent: string, documentData: any, nonce: string, documentNumber?: string): string => {
   const documentType = documentData?.type === 'cotacao' ? 'Cotação' : 'Fatura';
 
   return `
@@ -78,7 +78,7 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
 <body>
   ${htmlContent}
 
-  <script>
+  <script nonce="${nonce}">
     setTimeout(() => window.print(), 500);
     window.onbeforeunload = () => "PDF gerado com sucesso? Pode fechar esta janela.";
   </script>
@@ -165,7 +165,7 @@ export const GET = withApiGuard(async (request: NextRequest) => {
     client: clientName,
     currency: moeda,
     status: statusDoc
-  });
+  }, request.headers.get('x-nonce') ?? '');
 
   const filePrefix = tipoDocumento === 'cotacao' ? 'cotacao' : (tipoDocumento === 'recibo' ? 'recibo' : 'fatura');
 
