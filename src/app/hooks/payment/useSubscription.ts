@@ -62,7 +62,11 @@ export const useSubscription = () => {
   const subscribe = useCallback(async (method: 'mpesa' | 'emola' | 'credit_card') => {
     setIsSubscribing(true);
     setErrorMessage(null);
-    setSuccessMessage(null);
+    // Feedback imediato -- sem isto, o utilizador só via o botão mudar para
+    // "Processando..." e mais nada durante o tempo de resposta do CSRF +
+    // /api/payments/subscribe (que pode demorar alguns segundos por chamar
+    // a PaySuite), dando a sensação de que o clique não fez nada.
+    setSuccessMessage('A iniciar pagamento...');
     setCheckoutUrl(null);
 
     try {

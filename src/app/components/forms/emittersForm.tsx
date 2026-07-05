@@ -1124,7 +1124,7 @@ const Screen = () => {
                     />
                   </div>
                   <div className="flex flex-wrap -mx-2">
-                    <div className="w-full md:w-1/3 px-2 mb-3">
+                    <div className="w-full md:w-1/2 px-2 mb-3">
                       <label htmlFor="documento_tipo" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento</label>
                       <select
                         id="documento_tipo"
