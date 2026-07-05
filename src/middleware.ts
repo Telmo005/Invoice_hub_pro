@@ -81,7 +81,16 @@ export async function middleware(request: NextRequest) {
       "frame-ancestors 'none'"
     ].join('; '),
     'Cross-Origin-Opener-Policy': 'same-origin',
-    'Cross-Origin-Embedder-Policy': 'require-corp',
+    // Removido 'Cross-Origin-Embedder-Policy': 'require-corp' (2026-07-05):
+    // exige que QUALQUER recurso de outra origem (ex.: logótipos no Supabase
+    // Storage) traga o seu próprio header Cross-Origin-Resource-Policy a
+    // autorizar o embed -- o Supabase Storage não envia esse header, por
+    // isso o browser bloqueava a imagem por completo
+    // (net::ERR_BLOCKED_BY_RESPONSE.NotSameOriginAfterDefaultedToSameOriginByCoep).
+    // Esta app não usa nenhuma API que precise de isolamento cross-origin
+    // (SharedArrayBuffer, threads em WASM, etc.), por isso não há perda real
+    // de segurança em remover -- COOP sozinho já cobre o cenário mais comum
+    // (ataques de janela cruzada).
     'Cross-Origin-Resource-Policy': 'same-origin'
   };
 
