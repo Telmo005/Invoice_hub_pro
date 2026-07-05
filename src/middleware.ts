@@ -61,7 +61,12 @@ export async function middleware(request: NextRequest) {
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     'Content-Security-Policy': [
       "default-src 'self'",
-      "img-src 'self' data: blob:",
+      // Logótipos de emissores ficam no Supabase Storage (URL pública
+      // https://<projeto>.supabase.co/storage/...), um domínio diferente do
+      // da app -- sem isto, o CSP bloqueia-os silenciosamente (sem erro de
+      // rede, só não renderizam). Mesmo padrão de wildcard já usado em
+      // connect-src.
+      "img-src 'self' data: blob: https://*.supabase.co",
       "font-src 'self' data:",
       // 'unsafe-inline' mantido em script-src (revertido em 2026-07-05):
       // um nonce gerado por pedido no middleware quebra páginas
