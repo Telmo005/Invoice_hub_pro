@@ -201,11 +201,6 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
 </head>
 <body>
   ${htmlContent}
-  
-  <script>
-    setTimeout(() => window.print(), 500);
-    window.onbeforeunload = () => "PDF gerado com sucesso? Pode fechar esta janela.";
-  </script>
 </body>
 </html>`;
 };
@@ -844,6 +839,16 @@ export default function DocumentsPage() {
       const optimizedHtml = getPdfTemplate(documentHtml, dynamicDocumentData, documentNumber);
       pdfWindow.document.write(optimizedHtml);
       pdfWindow.document.close();
+
+      // Print acionado a partir do script do opener (já carregado, fora do
+      // CSP inline) em vez de um <script> embutido no HTML da popup -- evita
+      // depender de 'unsafe-inline'/nonce para este fluxo client-side.
+      setTimeout(() => {
+        try {
+          pdfWindow.print();
+          pdfWindow.onbeforeunload = () => 'PDF gerado com sucesso? Pode fechar esta janela.';
+        } catch { /* janela pode já ter sido fechada pelo utilizador */ }
+      }, 500);
 
       secureLog('info', 'PDF gerado com sucesso', {
         documentId: selectedDocument.id,

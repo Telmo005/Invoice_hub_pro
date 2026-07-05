@@ -353,10 +353,6 @@ const getPdfTemplate = (htmlContent: string, documentData: any, documentNumber?:
 </head>
 <body>
   ${htmlContent}
-  
-  <script>
-    setTimeout(() => window.print(), 500);
-  </script>
 </body>
 </html>`;
 };
@@ -653,6 +649,15 @@ export const usePayment = ({
       const optimizedHtml = getPdfTemplate(renderedHtml, dynamicDocumentData, documentNumber);
       pdfWindow.document.write(optimizedHtml);
       pdfWindow.document.close();
+
+      // Print acionado a partir do script do opener (já carregado, fora do
+      // CSP inline) em vez de um <script> embutido no HTML da popup -- evita
+      // depender de 'unsafe-inline'/nonce para este fluxo client-side.
+      setTimeout(() => {
+        try {
+          pdfWindow.print();
+        } catch { /* janela pode já ter sido fechada pelo utilizador */ }
+      }, 500);
 
     } catch (_error) {
       setErrorMessage('Erro ao gerar PDF');

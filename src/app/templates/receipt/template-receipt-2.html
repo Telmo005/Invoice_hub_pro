@@ -514,19 +514,5 @@
 
   <!-- Linha de corte para impressão -->
   <div class="cut-line"></div>
-
-  <script>
-    // Oculta linha de desconto se for zero ao carregar
-    document.addEventListener('DOMContentLoaded', () => {
-      const descontoEl = document.getElementById('desconto');
-      const descontoRow = document.getElementById('desconto-row');
-      if (descontoEl && descontoRow) {
-        const txt = descontoEl.textContent?.replace(/[^0-9,\.]/g, '') || '';
-        if (/^(0|0[.,]00)$/i.test(txt)) {
-          descontoRow.style.display = 'none';
-        }
-      }
-    });
-  </script>
 </body>
 </html>
