@@ -236,12 +236,16 @@ const getDocumentDisplayInfo = (documentType: TipoDocumento) => {
 // Devolve um checkout_url para onde o utilizador é enviado para completar
 // o pagamento (M-Pesa/e-Mola/cartão) -- o documento só é criado depois do
 // webhook confirmar o pagamento, nunca aqui.
+type CheckoutResult =
+  | { direct?: false; payment_id: string; checkout_url: string }
+  | { direct: true; document_id: string; numero: string | null };
+
 const initiateCheckout = async (
   tipo: TipoDocumento,
   documentData: InvoiceData,
   method: string,
   htmlContent: string
-): Promise<{ payment_id: string; checkout_url: string }> => {
+): Promise<CheckoutResult> => {
   const csrfToken = await fetchCsrfToken();
   const response = await fetch('/api/payments/checkout', {
     method: 'POST',
@@ -514,12 +518,53 @@ export const usePayment = ({
         payment_reference: currentThirdPartyReference
       };
 
-      const { payment_id, checkout_url } = await initiateCheckout(
+      const checkoutResult = await initiateCheckout(
         documentType,
         documentDataWithHtml,
         selectedMethod,
         renderedHtml
       );
+
+      // Subscrição mensal ativa: o servidor já criou o documento diretamente
+      // (sem cobrança PaySuite, ver /api/payments/checkout) -- não há
+      // checkout para abrir nem pagamento para aguardar.
+      if ('direct' in checkoutResult && checkoutResult.direct) {
+        setDocumentSaveResult({
+          documentId: checkoutResult.document_id,
+          documentNumber: checkoutResult.numero || ''
+        });
+
+        try {
+          const userEmail = user?.email;
+          if (userEmail) {
+            setSuccessMessage('Enviando documento por email...');
+            await sendDocumentByEmail({
+              documentId: checkoutResult.document_id,
+              documentNumber: checkoutResult.numero || '',
+              documentType: dynamicDocumentData.type as 'fatura' | 'cotacao',
+              clientName: dynamicDocumentData.client,
+              clientEmail: userEmail,
+              date: new Date().toISOString(),
+              totalValue: dynamicDocumentData.totalValue,
+              currency: dynamicDocumentData.currency
+            });
+            setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso! Documento enviado por email.`);
+          } else {
+            setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso!`);
+          }
+        } catch (emailError) {
+          console.error('Erro ao enviar email:', emailError);
+          setSuccessMessage(`${dynamicDocumentData.typeDisplay} criada com sucesso! (Email não enviado)`);
+        }
+
+        setPaymentStatus('success');
+        if (onInvoiceCreated) {
+          onInvoiceCreated(checkoutResult.document_id);
+        }
+        return;
+      }
+
+      const { payment_id, checkout_url } = checkoutResult;
 
       // 3. Tentativa automática de abrir numa nova aba -- funciona em muitos
       // navegadores mesmo depois de um await, mas não é garantido (alguns
