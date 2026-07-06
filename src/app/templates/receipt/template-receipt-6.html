@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Recibo Mini 58 Simples</title>
+  <style>
+    :root {
+      --roll-width: 58mm;
+      --accent-color: #1a202c;
+      --accent-contrast: #ffffff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: #ffffff;
+      font-family: 'Courier New', 'Consolas', monospace;
+      color: #000000;
+      line-height: 1.35;
+    }
+
+    .receipt-container {
+      width: var(--roll-width);
+      margin: 12px auto;
+      background: #fff;
+    }
+
+    .receipt-header {
+      text-align: center;
+      padding: 4px 4px 6px;
+      border-bottom: 1px dashed #000;
+    }
+
+    .company-name {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .company-details {
+      font-size: 7px;
+    }
+
+    .document-type {
+      text-align: center;
+      padding: 4px 0;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      border-bottom: 1px dashed #000;
+    }
+
+    .receipt-body {
+      padding: 4px;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8px;
+      margin-bottom: 2px;
+    }
+
+    .section-divider {
+      border-top: 1px dashed #000;
+      margin: 4px 0;
+    }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .items-table thead th {
+      font-size: 7px;
+      font-weight: 700;
+      text-transform: uppercase;
+      border-bottom: 1px solid #000;
+      padding: 2px 0;
+    }
+
+    #items-tbody tr { font-size: 7px; }
+    #items-tbody td { padding: 2px 0; vertical-align: top; }
+    #items-tbody td:nth-child(1) { text-align: center; width: 15%; }
+    #items-tbody td:nth-child(2) { text-align: left; width: 55%; overflow-wrap: break-word; }
+    #items-tbody td:nth-child(3) { text-align: right; width: 30%; }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8px;
+      margin-bottom: 2px;
+    }
+
+    .total-final {
+      border-top: 1px solid #000;
+      padding-top: 3px;
+      margin-top: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent-color, #1a202c);
+    }
+
+    .signature-line {
+      width: 90%;
+      height: 1px;
+      background: #000;
+      margin: 14px auto 3px;
+    }
+
+    .signature-label {
+      font-size: 7px;
+      text-align: center;
+    }
+
+    @media print {
+      body { background: white; margin: 0; padding: 0; }
+      .receipt-container { width: 58mm; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-container">
+    <div class="receipt-header">
+      <div id="emitente-logo-wrapper" style="display:none;"><img id="emitente-logo" src="" alt="Logo" style="max-height:24px; max-width:60px; object-fit:contain;" /></div>
+      <div class="company-name" id="emitente-nomeEmpresa">Empresa Exemplo</div>
+      <div class="company-details" id="emitente-documento">NUIT: 123456789</div>
+      <div class="company-details" id="emitente-contato">Tel: +258 84 000 0000</div>
+    </div>
+
+    <div class="document-type" id="documento-titulo">RECIBO</div>
+    <div id="titulo-documento" style="display:none;">RECIBO</div>
+
+    <div class="receipt-body">
+      <div class="meta-row"><span>No:</span><span id="recibo-numero">REC-001</span></div>
+      <div class="meta-row"><span>Data:</span><span id="data-recebimento">06/07/2026</span></div>
+      <div class="meta-row"><span>Cliente:</span><span id="destinatario-nomeCompleto">Cliente Exemplo</span></div>
+      <div class="meta-row"><span>Doc:</span><span id="destinatario-documento">000000000</span></div>
+
+      <div class="section-divider"></div>
+
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th style="text-align:center;">Qtd</th>
+            <th style="text-align:left;">Descricao</th>
+            <th style="text-align:right;">Total</th>
+          </tr>
+        </thead>
+        <tbody id="items-tbody" data-compact="true"></tbody>
+      </table>
+
+      <div class="section-divider"></div>
+
+      <div class="total-row"><span>Subtotal:</span><span id="subtotal">1.000,00</span></div>
+      <div class="total-row"><span>Taxas:</span><span id="taxas-total">0,00</span></div>
+      <div class="total-row total-final"><span>TOTAL:</span><span id="total-final">1.000,00</span></div>
+
+      <div class="section-divider"></div>
+
+      <div class="meta-row"><span>Forma Pgto:</span><span id="forma-pagamento">Numerario</span></div>
+      <div class="meta-row"><span>Ref:</span><span id="referencia-recebimento">-</span></div>
+      <div class="meta-row"><span>Doc.Ref:</span><span id="documento-referencia">-</span></div>
+      <div class="meta-row"><span>Data Pgto:</span><span id="data-pagamento">-</span></div>
+
+      <div class="signature-line"></div>
+      <div class="signature-label">Assinatura</div>
+    </div>
+  </div>
+</body>
+</html>

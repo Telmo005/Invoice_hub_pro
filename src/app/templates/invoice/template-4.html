@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fatura Comercial - Executivo Navy &amp; Ouro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --accent-color: #0f1f3d; --accent-contrast: #c9a227; }
+
+        * { margin: 0; padding: 0; }
+
+        html, body {
+            width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; background: white !important;
+        }
+
+        .t4-isolated {
+            all: initial;
+            display: block !important;
+            width: 210mm !important; min-width: 210mm !important; max-width: 210mm !important;
+            height: 297mm !important; min-height: 297mm !important; max-height: 297mm !important;
+            margin: 0 auto !important; padding: 0 !important;
+            background: white !important;
+            box-shadow: 0 0 8px rgba(0,0,0,0.08) !important;
+            overflow: visible !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+            page-break-inside: avoid !important;
+            font-family: 'Inter', sans-serif !important;
+            font-size: 13px !important;
+            line-height: 1.5 !important;
+            color: #2b2b2b !important;
+        }
+
+        .t4-isolated * {
+            box-sizing: border-box !important;
+        }
+
+        .t4-isolated .invoice-container {
+            width: 100% !important; height: 100% !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+            background: white !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+
+        @media print {
+            html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; background: white !important; }
+            .t4-isolated {
+                width: 210mm !important; height: 297mm !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important;
+                page-break-after: avoid !important; page-break-inside: avoid !important;
+                position: absolute !important; left: 0 !important; top: 0 !important;
+            }
+            body > *:not(.t4-isolated) { display: none !important; }
+        }
+
+        /* ======= FAIXA DE CABEÇALHO ======= */
+        .t4-isolated .header-band {
+            background: var(--accent-color, #0f1f3d) !important;
+            color: #f5f0e1 !important;
+            padding: 14mm 15mm 10mm 15mm !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: flex-end !important;
+            position: relative !important;
+        }
+
+        .t4-isolated .header-band::after {
+            content: "" !important;
+            position: absolute !important;
+            left: 0 !important; right: 0 !important; bottom: 0 !important;
+            height: 3px !important;
+            background: var(--accent-contrast, #c9a227) !important;
+        }
+
+        .t4-isolated .company-block { display: flex !important; flex-direction: column !important; gap: 3px !important; }
+
+        .t4-isolated .company-name {
+            font-family: 'Playfair Display', serif !important;
+            font-size: 22px !important;
+            font-weight: 700 !important;
+            color: #ffffff !important;
+            letter-spacing: 0.3px !important;
+        }
+
+        .t4-isolated .company-meta { font-size: 11px !important; color: #cdd4e0 !important; line-height: 1.6 !important; }
+
+        .t4-isolated .doc-title-block { text-align: right !important; }
+
+        .t4-isolated .invoice-title {
+            font-family: 'Playfair Display', serif !important;
+            font-size: 30px !important;
+            font-weight: 700 !important;
+            color: var(--accent-contrast, #c9a227) !important;
+            letter-spacing: 2px !important;
+            text-transform: uppercase !important;
+        }
+
+        .t4-isolated .doc-meta { font-size: 11.5px !important; color: #f5f0e1 !important; margin-top: 6px !important; line-height: 1.7 !important; }
+
+        .t4-isolated .body-content { padding: 10mm 15mm 12mm 15mm !important; flex: 1 !important; }
+
+        /* ======= LOGO ======= */
+        .t4-isolated #emitente-logo-wrapper { margin-bottom: 6px !important; }
+
+        /* ======= SECÇÕES CLIENTE / INFO ======= */
+        .t4-isolated .parties-section {
+            display: flex !important;
+            justify-content: space-between !important;
+            gap: 20px !important;
+            margin: 8mm 0 8mm 0 !important;
+            padding-bottom: 8mm !important;
+            border-bottom: 1px solid var(--accent-contrast, #c9a227) !important;
+        }
+
+        .t4-isolated .party-block { flex: 1 !important; }
+
+        .t4-isolated .section-title {
+            font-family: 'Playfair Display', serif !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1.5px !important;
+            color: var(--accent-color, #0f1f3d) !important;
+            margin-bottom: 6px !important;
+            padding-bottom: 4px !important;
+            border-bottom: 1px solid #d8cba0 !important;
+        }
+
+        .t4-isolated .party-block div { font-size: 12.5px !important; color: #333 !important; margin-bottom: 2px !important; }
+
+        .t4-isolated .text-right { text-align: right !important; }
+
+        /* ======= TABELA DE ITENS ======= */
+        .t4-isolated .items-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-bottom: 8mm !important;
+            font-size: 12px !important;
+        }
+
+        .t4-isolated .items-table thead th {
+            background: var(--accent-color, #0f1f3d) !important;
+            color: var(--accent-contrast, #c9a227) !important;
+            font-family: 'Playfair Display', serif !important;
+            font-weight: 700 !important;
+            text-align: left !important;
+            padding: 9px 10px !important;
+            text-transform: uppercase !important;
+            font-size: 10.5px !important;
+            letter-spacing: 0.5px !important;
+        }
+
+        .t4-isolated .items-table td {
+            padding: 9px 10px !important;
+            border-bottom: 1px solid #e4e0d2 !important;
+            color: #2b2b2b !important;
+        }
+
+        .t4-isolated .items-table tbody tr:nth-child(even) { background: #faf8f2 !important; }
+
+        /* ======= TOTAIS ======= */
+        .t4-isolated .totals-wrap {
+            display: flex !important;
+            justify-content: flex-end !important;
+            margin-bottom: 8mm !important;
+        }
+
+        .t4-isolated .totals-box { width: 62mm !important; }
+
+        .t4-isolated .total-line {
+            display: flex !important;
+            justify-content: space-between !important;
+            font-size: 12.5px !important;
+            padding: 4px 0 !important;
+            color: #333 !important;
+        }
+
+        .t4-isolated .grand-total {
+            display: flex !important;
+            justify-content: space-between !important;
+            font-family: 'Playfair Display', serif !important;
+            font-weight: 700 !important;
+            font-size: 17px !important;
+            color: var(--accent-color, #0f1f3d) !important;
+            border-top: 2px solid var(--accent-contrast, #c9a227) !important;
+            margin-top: 6px !important;
+            padding-top: 8px !important;
+        }
+
+        /* ======= RODAPÉ / PAGAMENTO ======= */
+        .t4-isolated .footer-grid {
+            display: flex !important;
+            gap: 16px !important;
+            padding-top: 8mm !important;
+            border-top: 1px solid #e4e0d2 !important;
+        }
+
+        .t4-isolated .footer-block { flex: 1 !important; }
+
+        .t4-isolated .footer-block p, .t4-isolated .footer-block div { font-size: 11.5px !important; color: #444 !important; }
+
+        .t4-isolated .validity-note {
+            display: inline-block !important;
+            margin-top: 4px !important;
+            font-size: 11px !important;
+            color: var(--accent-color, #0f1f3d) !important;
+            font-weight: 600 !important;
+            border: 1px solid var(--accent-contrast, #c9a227) !important;
+            padding: 3px 8px !important;
+            border-radius: 3px !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="t4-isolated">
+        <div class="invoice-container">
+            <header class="header-band">
+                <div class="company-block">
+                    <div id="emitente-logo-wrapper" style="display:none;">
+                        <img id="emitente-logo" src="" alt="Logo" style="max-height:60px; max-width:170px; object-fit:contain;" />
+                    </div>
+                    <div id="emitente-nomeEmpresa" class="company-name">Empresa Exemplo Lda</div>
+                    <div class="company-meta">
+                        <div id="emitente-bairro">Av. Central, 123</div>
+                        <div id="emitente-Cidade-pais">Maputo - Moçambique</div>
+                        <div id="emitente-documento">NUIT: 123456789</div>
+                        <div id="emitente-contato">Tel: +258 84 000 0000 | email@empresa.co.mz</div>
+                    </div>
+                </div>
+                <div class="doc-title-block">
+                    <div id="documento-titulo" class="invoice-title">FATURA</div>
+                    <div id="titulo-documento" style="display:none;">FATURA</div>
+                    <div class="doc-meta">
+                        <div id="fatura-numero-display">Nº: FAT-2026-001</div>
+                        <div id="data-documento-display">Data: 06/07/2026</div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="body-content">
+                <section class="parties-section">
+                    <div class="party-block">
+                        <div class="section-title">Faturado a</div>
+                        <div id="destinatario-nomeCompleto">Cliente Exemplo</div>
+                        <div id="destinatario-bairro">Rua das Flores, 45</div>
+                        <div id="destinatario-endereco">Beira - Moçambique</div>
+                        <div id="destinatario-documento">DOC: 000000000</div>
+                        <div id="destinatario-contato">Tel: (00) 0000-0000</div>
+                        <div id="destinatario-email">cliente@exemplo.com</div>
+                    </div>
+                    <div class="party-block text-right">
+                        <div class="section-title">Informações</div>
+                        <div><strong>Vencimento:</strong> <span id="data-vencimento">06/08/2026</span></div>
+                        <div><strong>Ordem de Compra:</strong> <span id="ordem-compra">OC-00458</span></div>
+                        <div><strong>Moeda:</strong> <span id="moeda-pagamento">MZN</span></div>
+                    </div>
+                </section>
+
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Qtd</th>
+                            <th>Descrição</th>
+                            <th>Preço Unitário</th>
+                            <th>Taxas</th>
+                            <th>Preço Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-tbody">
+                        <tr>
+                            <td>1</td>
+                            <td>Consultoria estratégica - sessão mensal</td>
+                            <td class="text-right">15.000,00 MT</td>
+                            <td class="text-right">0,00</td>
+                            <td class="text-right">15.000,00 MT</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>Relatório executivo personalizado</td>
+                            <td class="text-right">5.000,00 MT</td>
+                            <td class="text-right">0,00</td>
+                            <td class="text-right">10.000,00 MT</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="totals-wrap">
+                    <div class="totals-box">
+                        <div class="total-line"><span>Subtotal</span><span id="subtotal">25.000,00 MT</span></div>
+                        <div class="total-line"><span>Impostos</span><span id="taxas-total">0,00 MT</span></div>
+                        <div class="total-line"><span>Desconto</span><span id="desconto">0,00 MT</span></div>
+                        <div class="grand-total"><span>TOTAL</span><span id="total-final-balance">25.000,00 MT</span></div>
+                    </div>
+                </div>
+
+                <div class="footer-grid">
+                    <div class="footer-block">
+                        <div class="section-title">Métodos de Pagamento</div>
+                        <div id="metodo-pagamento" style="white-space:pre-line;">Transferência bancária&#10;Banco Comercial - Conta 000111222333</div>
+                    </div>
+                    <div class="footer-block text-right">
+                        <div class="section-title">Termos</div>
+                        <p id="termos-pagamento">Pagamento em 30 dias após a emissão.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

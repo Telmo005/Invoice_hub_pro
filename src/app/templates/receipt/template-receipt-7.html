@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Recibo Mini 58 Elegante</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --roll-width: 58mm;
+      --accent-color: #6b46c1;
+      --accent-contrast: #ffffff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: #f7fafc;
+      font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
+      color: #2d3748;
+      line-height: 1.35;
+    }
+
+    .receipt-container {
+      width: var(--roll-width);
+      margin: 16px auto;
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 8px -2px rgba(0,0,0,0.15);
+      border: 1px solid #e2e8f0;
+    }
+
+    .receipt-header {
+      background: var(--accent-color, #6b46c1);
+      color: var(--accent-contrast, #fff);
+      padding: 10px 8px 8px;
+      text-align: center;
+    }
+
+    #emitente-logo-wrapper {
+      margin-bottom: 4px;
+    }
+
+    #emitente-logo {
+      border-radius: 4px;
+      background: #fff;
+      padding: 2px;
+    }
+
+    .company-name {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .company-details {
+      font-size: 7px;
+      opacity: 0.9;
+    }
+
+    .document-type {
+      background: var(--accent-contrast, #fff);
+      color: var(--accent-color, #6b46c1);
+      text-align: center;
+      padding: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-radius: 6px;
+      margin: 0 8px;
+      transform: translateY(6px);
+      box-shadow: 0 2px 4px -1px rgba(0,0,0,0.15);
+    }
+
+    .receipt-body {
+      padding: 12px 8px 8px;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8px;
+      margin-bottom: 3px;
+    }
+
+    .meta-label {
+      color: #718096;
+      font-weight: 500;
+    }
+
+    .section-title {
+      font-size: 8px;
+      font-weight: 700;
+      color: var(--accent-color, #6b46c1);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin: 6px 0 4px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 2px;
+    }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .items-table thead th {
+      font-size: 7px;
+      font-weight: 700;
+      color: #718096;
+      text-transform: uppercase;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 3px 0;
+    }
+
+    #items-tbody tr { font-size: 7px; }
+    #items-tbody td { padding: 3px 0; vertical-align: top; border-bottom: 1px dashed #edf2f7; }
+    #items-tbody td:nth-child(1) { text-align: center; width: 15%; }
+    #items-tbody td:nth-child(2) { text-align: left; width: 55%; overflow-wrap: break-word; font-weight: 500; }
+    #items-tbody td:nth-child(3) { text-align: right; width: 30%; font-weight: 600; }
+
+    .totals-box {
+      background: #faf5ff;
+      border: 1px solid #e9d8fd;
+      border-radius: 6px;
+      padding: 6px 8px;
+      margin-top: 6px;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8px;
+      margin-bottom: 3px;
+    }
+
+    .total-final {
+      border-top: 1px solid #e9d8fd;
+      padding-top: 4px;
+      margin-top: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent-color, #6b46c1);
+    }
+
+    .signature-line {
+      width: 90%;
+      height: 1px;
+      background: #cbd5e0;
+      margin: 14px auto 3px;
+    }
+
+    .signature-label {
+      font-size: 7px;
+      text-align: center;
+      color: #718096;
+    }
+
+    @media print {
+      body { background: white; margin: 0; padding: 0; }
+      .receipt-container { width: 58mm; margin: 0; box-shadow: none; border: none; border-radius: 0; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-container">
+    <div class="receipt-header">
+      <div id="emitente-logo-wrapper" style="display:none;"><img id="emitente-logo" src="" alt="Logo" style="max-height:28px; max-width:70px; object-fit:contain;" /></div>
+      <div class="company-name" id="emitente-nomeEmpresa">Empresa Exemplo</div>
+      <div class="company-details" id="emitente-documento">NUIT: 123456789</div>
+      <div class="company-details" id="emitente-contato">Tel: +258 84 000 0000</div>
+    </div>
+
+    <div class="document-type" id="documento-titulo">RECIBO</div>
+    <div id="titulo-documento" style="display:none;">RECIBO</div>
+
+    <div class="receipt-body">
+      <div class="meta-row"><span class="meta-label">No:</span><span id="recibo-numero">REC-001</span></div>
+      <div class="meta-row"><span class="meta-label">Data:</span><span id="data-recebimento">06/07/2026</span></div>
+      <div class="meta-row"><span class="meta-label">Cliente:</span><span id="destinatario-nomeCompleto">Cliente Exemplo</span></div>
+      <div class="meta-row"><span class="meta-label">Doc:</span><span id="destinatario-documento">000000000</span></div>
+
+      <div class="section-title">Itens</div>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th style="text-align:center;">Qtd</th>
+            <th style="text-align:left;">Descricao</th>
+            <th style="text-align:right;">Total</th>
+          </tr>
+        </thead>
+        <tbody id="items-tbody" data-compact="true"></tbody>
+      </table>
+
+      <div class="totals-box">
+        <div class="total-row"><span>Subtotal:</span><span id="subtotal">1.000,00</span></div>
+        <div class="total-row"><span>Taxas:</span><span id="taxas-total">0,00</span></div>
+        <div class="total-row total-final"><span>TOTAL:</span><span id="total-final">1.000,00</span></div>
+      </div>
+
+      <div class="section-title">Pagamento</div>
+      <div class="meta-row"><span class="meta-label">Forma:</span><span id="forma-pagamento">Numerario</span></div>
+      <div class="meta-row"><span class="meta-label">Ref:</span><span id="referencia-recebimento">-</span></div>
+      <div class="meta-row"><span class="meta-label">Doc.Ref:</span><span id="documento-referencia">-</span></div>
+      <div class="meta-row"><span class="meta-label">Data Pgto:</span><span id="data-pagamento">-</span></div>
+
+      <div class="signature-line"></div>
+      <div class="signature-label">Assinatura do Responsavel</div>
+    </div>
+  </div>
+</body>
+</html>

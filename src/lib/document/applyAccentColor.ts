@@ -11,8 +11,28 @@ const SUPPORTED_TEMPLATE_IDS = new Set([
   'template-1',
   'template-2',
   'template-3',
+  'template-4',
+  'template-5',
+  'template-6',
+  'template-7',
+  'template-8',
+  'template-9',
+  'template-10',
+  'template-11',
+  'template-12',
+  'template-13',
   'receipt-1',
-  'receipt-2'
+  'receipt-2',
+  'receipt-3',
+  'receipt-4',
+  'receipt-5',
+  'receipt-6',
+  'receipt-7',
+  'receipt-8',
+  'receipt-9',
+  'receipt-10',
+  'receipt-11',
+  'receipt-12'
 ]);
 
 // Exceção legada: template-receipt-2 já existia com um sistema de variáveis
