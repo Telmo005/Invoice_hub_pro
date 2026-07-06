@@ -4,6 +4,7 @@ import { QuotationData } from '@/types/quotation-types';
 import { TemplateCache } from '@/lib/cache/templateCache';
 import { TemplateMetrics } from '@/lib/cache/monitoring/metrics';
 import { generateDataHash } from '@/lib/hash';
+import { templateMockup } from '@/lib/document/templateMockups';
 
 // Tipo unificado para dados de documentos
 export type DocumentData = InvoiceData | QuotationData;
@@ -87,7 +88,7 @@ export class TemplateService {
         description: 'Elegância corporativa em azul-marinho e dourado',
         thumbnail: 'bg-gradient-to-br from-slate-800 to-yellow-600',
         templateType: 'detailed',
-        imageUrl: '/invoice4.JPG',
+        imageUrl: templateMockup({ variant: 'standard-gold', accent: '#0f1f3d', contrast: '#ffffff' }),
         backendId: 'template-4',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -97,7 +98,7 @@ export class TemplateService {
         description: 'Preto e branco, sem distrações, só o essencial',
         thumbnail: 'bg-gradient-to-br from-gray-100 to-gray-300',
         templateType: 'minimal',
-        imageUrl: '/invoice5.JPG',
+        imageUrl: templateMockup({ variant: 'mono-thin', accent: '#1f2937', bg: '#ffffff' }),
         backendId: 'template-5',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -107,7 +108,7 @@ export class TemplateService {
         description: 'Layout de revista com tipografia serif refinada',
         thumbnail: 'bg-gradient-to-br from-amber-50 to-orange-100',
         templateType: 'detailed',
-        imageUrl: '/invoice6.JPG',
+        imageUrl: templateMockup({ variant: 'editorial', accent: '#8a6d3b', bg: '#faf6ee' }),
         backendId: 'template-6',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -118,7 +119,7 @@ export class TemplateService {
         premium: true,
         thumbnail: 'bg-gradient-to-br from-fuchsia-100 to-purple-200',
         templateType: 'detailed',
-        imageUrl: '/invoice7.JPG',
+        imageUrl: templateMockup({ variant: 'diagonal-header', accent: '#a21caf', contrast: '#ffffff', bg: '#faf5ff' }),
         backendId: 'template-7',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -128,7 +129,7 @@ export class TemplateService {
         description: 'Visual moderno de produto digital, com gradiente suave',
         thumbnail: 'bg-gradient-to-br from-sky-100 to-indigo-100',
         templateType: 'default',
-        imageUrl: '/invoice8.JPG',
+        imageUrl: templateMockup({ variant: 'gradient-header', accent: '#4f46e5', contrast: '#ffffff' }),
         backendId: 'template-8',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -138,7 +139,7 @@ export class TemplateService {
         description: 'Livro-razão tradicional, sóbrio e confiável',
         thumbnail: 'bg-gradient-to-br from-yellow-50 to-amber-100',
         templateType: 'detailed',
-        imageUrl: '/invoice9.JPG',
+        imageUrl: templateMockup({ variant: 'ledger-frame', accent: '#6b1f2a', bg: '#fdfbf6' }),
         backendId: 'template-9',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -149,7 +150,7 @@ export class TemplateService {
         premium: true,
         thumbnail: 'bg-gradient-to-br from-indigo-100 to-blue-200',
         templateType: 'detailed',
-        imageUrl: '/invoice10.JPG',
+        imageUrl: templateMockup({ variant: 'card-rows', accent: '#4f46e5' }),
         backendId: 'template-10',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -160,7 +161,7 @@ export class TemplateService {
         premium: true,
         thumbnail: 'bg-gradient-to-br from-neutral-800 to-yellow-700',
         templateType: 'detailed',
-        imageUrl: '/invoice11.JPG',
+        imageUrl: templateMockup({ variant: 'dark-header', accent: '#c9a227' }),
         backendId: 'template-11',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -170,7 +171,7 @@ export class TemplateService {
         description: 'Tons pastel e cantos arredondados, acolhedor',
         thumbnail: 'bg-gradient-to-br from-pink-50 to-rose-100',
         templateType: 'default',
-        imageUrl: '/invoice12.JPG',
+        imageUrl: templateMockup({ variant: 'pastel-blocks', accent: '#d6336c', bg: '#fde8ef' }),
         backendId: 'template-12',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -180,7 +181,7 @@ export class TemplateService {
         description: 'Barra lateral com identidade da marca',
         thumbnail: 'bg-gradient-to-br from-teal-100 to-cyan-200',
         templateType: 'detailed',
-        imageUrl: '/invoice13.JPG',
+        imageUrl: templateMockup({ variant: 'sidebar', accent: '#0f766e', contrast: '#ffffff' }),
         backendId: 'template-13',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -211,7 +212,7 @@ export class TemplateService {
         description: 'Talão 80mm monoespaçado, estilo caixa registadora',
         thumbnail: 'bg-gradient-to-br from-gray-100 to-gray-300',
         templateType: 'minimal',
-        imageUrl: '/receipt3.JPG',
+        imageUrl: templateMockup({ variant: 'thermal', accent: '#374151', thermalStyle: 'mono' }),
         backendId: 'template-receipt-3',
         supportedTypes: ['receipt']
       },
@@ -221,7 +222,7 @@ export class TemplateService {
         description: 'Talão 80mm arredondado em tons pastel',
         thumbnail: 'bg-gradient-to-br from-pink-50 to-teal-100',
         templateType: 'default',
-        imageUrl: '/receipt4.JPG',
+        imageUrl: templateMockup({ variant: 'thermal', accent: '#ec4899', contrast: '#ffffff', thermalStyle: 'pastel' }),
         backendId: 'template-receipt-4',
         supportedTypes: ['receipt']
       },
@@ -231,7 +232,7 @@ export class TemplateService {
         description: 'Talão 80mm denso, ideal para alto volume',
         thumbnail: 'bg-gradient-to-br from-stone-100 to-stone-300',
         templateType: 'minimal',
-        imageUrl: '/receipt5.JPG',
+        imageUrl: templateMockup({ variant: 'thermal', accent: '#57534e', thermalStyle: 'dense' }),
         backendId: 'template-receipt-5',
         supportedTypes: ['receipt']
       },
@@ -241,7 +242,7 @@ export class TemplateService {
         description: 'Talão 58mm ultra-compacto para impressoras pequenas',
         thumbnail: 'bg-gradient-to-br from-gray-50 to-gray-200',
         templateType: 'minimal',
-        imageUrl: '/receipt6.JPG',
+        imageUrl: templateMockup({ variant: 'thermal', accent: '#4b5563', thermalStyle: 'mono' }),
         backendId: 'template-receipt-6',
         supportedTypes: ['receipt']
       },
@@ -251,7 +252,7 @@ export class TemplateService {
         description: 'Talão 58mm com cabeçalho colorido',
         thumbnail: 'bg-gradient-to-br from-emerald-50 to-teal-100',
         templateType: 'default',
-        imageUrl: '/receipt7.JPG',
+        imageUrl: templateMockup({ variant: 'thermal', accent: '#059669', contrast: '#ffffff', thermalStyle: 'color' }),
         backendId: 'template-receipt-7',
         supportedTypes: ['receipt']
       },
@@ -261,7 +262,7 @@ export class TemplateService {
         description: 'Recibo A5 formal, tipo mini-fatura',
         thumbnail: 'bg-gradient-to-br from-blue-50 to-indigo-100',
         templateType: 'detailed',
-        imageUrl: '/receipt8.JPG',
+        imageUrl: templateMockup({ variant: 'wide-receipt', accent: '#1e3a8a', contrast: '#ffffff' }),
         backendId: 'template-receipt-8',
         supportedTypes: ['receipt']
       },
@@ -271,7 +272,7 @@ export class TemplateService {
         description: 'Recibo A5 com cabeçalho arredondado moderno',
         thumbnail: 'bg-gradient-to-br from-violet-100 to-purple-200',
         templateType: 'default',
-        imageUrl: '/receipt9.JPG',
+        imageUrl: templateMockup({ variant: 'wide-receipt', accent: '#7c3aed', contrast: '#ffffff' }),
         backendId: 'template-receipt-9',
         supportedTypes: ['receipt']
       },
@@ -281,7 +282,7 @@ export class TemplateService {
         description: 'Recibo A4 completo em navy e dourado',
         thumbnail: 'bg-gradient-to-br from-blue-100 to-yellow-100',
         templateType: 'detailed',
-        imageUrl: '/receipt10.JPG',
+        imageUrl: templateMockup({ variant: 'standard-gold', accent: '#1e3a5f', contrast: '#ffffff' }),
         backendId: 'template-receipt-10',
         supportedTypes: ['receipt']
       },
@@ -292,7 +293,7 @@ export class TemplateService {
         premium: true,
         thumbnail: 'bg-gradient-to-br from-amber-100 to-yellow-200',
         templateType: 'detailed',
-        imageUrl: '/receipt11.JPG',
+        imageUrl: templateMockup({ variant: 'ledger-frame', accent: '#b45309', bg: '#fffbeb' }),
         backendId: 'template-receipt-11',
         supportedTypes: ['receipt']
       },
@@ -302,7 +303,7 @@ export class TemplateService {
         description: 'Recibo A4 limpo, sem ornamentos',
         thumbnail: 'bg-gradient-to-br from-teal-50 to-emerald-100',
         templateType: 'minimal',
-        imageUrl: '/receipt12.JPG',
+        imageUrl: templateMockup({ variant: 'mono-thin', accent: '#0f766e' }),
         backendId: 'template-receipt-12',
         supportedTypes: ['receipt']
       }
