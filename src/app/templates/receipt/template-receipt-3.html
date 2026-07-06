@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Recibo Térmico Mono</title>
+  <style>
+    :root {
+      --roll-width: 80mm;
+      --font-mono: 'Courier New', 'Consolas', 'Lucida Console', monospace;
+      --accent-color: #1a1a1a;
+      --accent-contrast: #ffffff;
+      --line-color: #000000;
+      --text-color: #111111;
+      --text-light: #555555;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      background: #e8e8e8;
+      font-family: var(--font-mono);
+      color: var(--text-color);
+      line-height: 1.35;
+    }
+
+    .receipt-container {
+      width: var(--roll-width);
+      margin: 20px auto;
+      background: #ffffff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      border: 1px solid #ccc;
+    }
+
+    .receipt-header {
+      padding: 14px 10px 10px;
+      text-align: center;
+      border-bottom: 2px solid var(--accent-color, #1a1a1a);
+    }
+
+    .company-name {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .company-details {
+      font-size: 9px;
+      color: var(--text-light);
+      line-height: 1.4;
+    }
+
+    .document-type {
+      text-align: center;
+      padding: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      border-bottom: 1px dashed var(--line-color);
+    }
+
+    .receipt-body {
+      padding: 10px 10px 4px;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+      font-size: 10px;
+    }
+
+    .meta-label {
+      color: var(--text-light);
+    }
+
+    .meta-value {
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .divider-solid {
+      border-top: 1px solid var(--line-color);
+      margin: 8px 0;
+    }
+
+    .divider-dashed {
+      border-top: 1px dashed var(--line-color);
+      margin: 8px 0;
+    }
+
+    .section-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+      color: var(--text-light);
+    }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+      table-layout: fixed;
+    }
+    .items-table col:nth-child(1) { width: 15%; }
+    .items-table col:nth-child(2) { width: 55%; }
+    .items-table col:nth-child(3) { width: 30%; }
+    .items-table thead th {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--line-color);
+      padding: 4px 0;
+    }
+    #items-tbody tr { font-size: 9px; }
+    #items-tbody td { padding: 3px 0; vertical-align: top; border-bottom: 1px dotted #999; }
+    #items-tbody td:nth-child(1) { text-align: center; }
+    #items-tbody td:nth-child(2) { text-align: left; overflow-wrap: break-word; }
+    #items-tbody td:nth-child(3) { text-align: right; font-weight: 700; }
+
+    .totals-section {
+      margin-top: 8px;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      margin-bottom: 4px;
+    }
+
+    .total-final {
+      border-top: 2px solid var(--accent-color, #1a1a1a);
+      padding-top: 6px;
+      margin-top: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-color, #1a1a1a);
+      text-transform: uppercase;
+    }
+
+    .payment-info {
+      margin-top: 8px;
+      font-size: 10px;
+    }
+
+    .payment-info .meta-row {
+      font-size: 10px;
+    }
+
+    .barcode-area {
+      margin: 12px 0 6px;
+      text-align: center;
+    }
+
+    .barcode-placeholder {
+      display: inline-block;
+      width: 140px;
+      height: 34px;
+      background: repeating-linear-gradient(
+        90deg,
+        #000 0px,
+        #000 2px,
+        #fff 2px,
+        #fff 4px,
+        #000 4px,
+        #000 5px,
+        #fff 5px,
+        #fff 8px
+      );
+    }
+
+    .barcode-caption {
+      font-size: 8px;
+      letter-spacing: 3px;
+      margin-top: 3px;
+      color: var(--text-light);
+    }
+
+    .receipt-footer {
+      text-align: center;
+      padding: 10px 10px 14px;
+      font-size: 9px;
+      color: var(--text-light);
+    }
+
+    .cut-line {
+      text-align: center;
+      color: #888;
+      font-size: 10px;
+      margin: 10px 0;
+    }
+
+    .cut-line::before {
+      content: "✂ - - - - - - - - - - - - - - - - - - - - - - - - ✂";
+      letter-spacing: 1px;
+    }
+
+    @media print {
+      body {
+        background: white;
+        margin: 0;
+        padding: 0;
+      }
+      .receipt-container {
+        width: 80mm;
+        margin: 0;
+        box-shadow: none;
+        border: none;
+      }
+      .cut-line {
+        display: none;
+      }
+      .receipt-header, .total-final {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-container">
+    <div class="receipt-header">
+      <div id="emitente-logo-wrapper" style="display:none; margin-bottom:8px; text-align:center;">
+        <img id="emitente-logo" src="" alt="Logo" style="max-height:50px; max-width:120px; object-fit:contain; filter:grayscale(100%);" />
+      </div>
+      <div class="company-name" id="emitente-nomeEmpresa">MERCEARIA CENTRAL LDA</div>
+      <div class="company-details">
+        <div id="emitente-documento">NUIT: 400123456</div>
+        <div id="emitente-endereco">Rua da Rádio, nº 45, Maputo</div>
+        <div id="emitente-contato">Tel: +258 84 111 2233</div>
+      </div>
+    </div>
+
+    <div class="document-type" id="documento-titulo">RECIBO</div>
+
+    <div class="receipt-body">
+      <div class="meta-row">
+        <span class="meta-label">Nº Doc:</span>
+        <span class="meta-value" id="recibo-numero">REC/2026/000341</span>
+      </div>
+      <div class="meta-row">
+        <span class="meta-label">Data Emissão:</span>
+        <span class="meta-value" id="data-recebimento">06/07/2026 14:32</span>
+      </div>
+      <div class="meta-row">
+        <span class="meta-label">Cliente:</span>
+        <span class="meta-value" id="destinatario-nomeCompleto">Carlos Manuel Nhaca</span>
+      </div>
+      <div class="meta-row">
+        <span class="meta-label">Documento:</span>
+        <span class="meta-value" id="destinatario-documento">NUIT: 109876543</span>
+      </div>
+      <div class="meta-row">
+        <span class="meta-label">Contacto:</span>
+        <span class="meta-value" id="destinatario-contato">+258 82 555 4433</span>
+      </div>
+
+      <div class="divider-solid"></div>
+
+      <table class="items-table">
+        <colgroup><col/><col/><col/></colgroup>
+        <thead>
+          <tr>
+            <th style="text-align:center;">QTD</th>
+            <th style="text-align:left;">DESCRIÇÃO</th>
+            <th style="text-align:right;">TOTAL</th>
+          </tr>
+        </thead>
+        <tbody id="items-tbody" data-compact="true"></tbody>
+      </table>
+
+      <div class="divider-dashed"></div>
+
+      <div class="totals-section">
+        <div class="total-row">
+          <span>Subtotal:</span>
+          <span id="subtotal">1.850,00</span>
+        </div>
+        <div class="total-row">
+          <span>Taxas:</span>
+          <span id="taxas-total">0,00</span>
+        </div>
+        <div class="total-row total-final">
+          <span>TOTAL:</span>
+          <span id="total-final">1.850,00</span>
+        </div>
+      </div>
+
+      <div class="divider-dashed"></div>
+
+      <div class="payment-info">
+        <div class="section-label">Pagamento</div>
+        <div class="meta-row">
+          <span class="meta-label">Forma:</span>
+          <span class="meta-value" id="forma-pagamento">Numerário</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Referência:</span>
+          <span class="meta-value" id="referencia-recebimento">—</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Doc. Ref.:</span>
+          <span class="meta-value" id="documento-referencia">—</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Moeda:</span>
+          <span class="meta-value" id="moeda-pagamento">MZN</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Data Pgto:</span>
+          <span class="meta-value" id="data-pagamento">06/07/2026</span>
+        </div>
+      </div>
+
+      <div class="barcode-area">
+        <div class="barcode-placeholder"></div>
+        <div class="barcode-caption" id="valor-recebido">*1850.00-MZN*</div>
+      </div>
+    </div>
+
+    <div class="receipt-footer">
+      OBRIGADO PELA PREFERÊNCIA
+    </div>
+  </div>
+
+  <div class="cut-line"></div>
+</body>
+</html>

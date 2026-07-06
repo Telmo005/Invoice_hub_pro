@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotação - Boutique Pastel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --accent-color: #d6336c; --accent-contrast: #ffffff; }
+        * { margin: 0; padding: 0; }
+        html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; background: white !important; }
+
+        .t12-isolated {
+            all: initial;
+            display: block !important;
+            width: 210mm !important; min-width: 210mm !important; max-width: 210mm !important;
+            height: 297mm !important; min-height: 297mm !important; max-height: 297mm !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            background: white !important;
+            box-shadow: 0 0 8px rgba(0,0,0,0.08) !important;
+            overflow: visible !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+            page-break-inside: avoid !important;
+            font-family: 'Nunito', sans-serif !important;
+            font-size: 13px !important;
+            line-height: 1.5 !important;
+            color: #5b4a4f !important;
+        }
+
+        .t12-isolated * { box-sizing: border-box !important; }
+
+        .t12-isolated .invoice-container {
+            width: 100% !important;
+            height: 100% !important;
+            padding: 16mm !important;
+            box-sizing: border-box !important;
+            background: white !important;
+            position: relative !important;
+        }
+
+        @media print {
+            html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; background: white !important; }
+            .t12-isolated {
+                width: 210mm !important; height: 297mm !important; margin: 0 !important; padding: 0 !important;
+                box-shadow: none !important; page-break-after: avoid !important; page-break-inside: avoid !important;
+                position: absolute !important; left: 0 !important; top: 0 !important;
+            }
+            body > *:not(.t12-isolated) { display: none !important; }
+        }
+
+        /* ======= HEADER ======= */
+        .t12-isolated .invoice-header {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: flex-start !important;
+            background: #fde8ef !important;
+            border-radius: 16px !important;
+            padding: 18px 20px !important;
+            margin-bottom: 18px !important;
+        }
+
+        .t12-isolated .company-name {
+            font-family: 'Quicksand', sans-serif !important;
+            font-size: 19px !important;
+            font-weight: 700 !important;
+            color: var(--accent-color, #d6336c) !important;
+            margin-bottom: 4px !important;
+        }
+
+        .t12-isolated .company-info div { font-size: 12px !important; margin-bottom: 2px !important; color: #5b4a4f !important; }
+
+        .t12-isolated .header-right { text-align: right !important; }
+
+        .t12-isolated .documento-titulo,
+        .t12-isolated .titulo-documento {
+            font-family: 'Quicksand', sans-serif !important;
+            font-size: 30px !important;
+            font-weight: 700 !important;
+            color: var(--accent-color, #d6336c) !important;
+        }
+
+        .t12-isolated .heart-deco::before { content: "\2661  "; }
+
+        .t12-isolated .header-right div { font-size: 12px !important; margin-top: 4px !important; color: #5b4a4f !important; }
+
+        /* wavy decorative divider */
+        .t12-isolated .wavy-divider {
+            height: 10px !important;
+            margin: 4px 0 18px 0 !important;
+            background-image: radial-gradient(circle at 6px 0px, transparent 6px, var(--accent-color, #d6336c) 7px, transparent 8px) !important;
+            background-size: 16px 12px !important;
+            background-repeat: repeat-x !important;
+            opacity: 0.5 !important;
+        }
+
+        /* ======= DETAILS ======= */
+        .t12-isolated .invoice-details {
+            display: flex !important;
+            justify-content: space-between !important;
+            gap: 16px !important;
+            margin-bottom: 20px !important;
+        }
+
+        .t12-isolated .bill-to {
+            background: #fef3f7 !important;
+            border-radius: 14px !important;
+            padding: 14px 16px !important;
+            flex: 1 !important;
+        }
+
+        .t12-isolated .section-title {
+            font-family: 'Quicksand', sans-serif !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            letter-spacing: 1px !important;
+            text-transform: uppercase !important;
+            color: var(--accent-color, #d6336c) !important;
+            margin-bottom: 6px !important;
+        }
+
+        .t12-isolated .bill-to div { font-size: 12px !important; margin-bottom: 2px !important; }
+
+        .t12-isolated .text-right { text-align: right !important; }
+
+        /* ======= ITEMS TABLE ======= */
+        .t12-isolated .items-table {
+            width: 100% !important;
+            border-collapse: separate !important;
+            border-spacing: 0 6px !important;
+            margin-bottom: 18px !important;
+            font-size: 12px !important;
+        }
+
+        .t12-isolated .items-table thead th {
+            font-family: 'Quicksand', sans-serif !important;
+            font-weight: 700 !important;
+            text-align: left !important;
+            padding: 10px 12px !important;
+            background-color: var(--accent-color, #d6336c) !important;
+            color: var(--accent-contrast, #ffffff) !important;
+            font-size: 11px !important;
+        }
+
+        .t12-isolated .items-table thead th:first-child { border-radius: 10px 0 0 10px !important; }
+        .t12-isolated .items-table thead th:last-child { border-radius: 0 10px 10px 0 !important; }
+
+        .t12-isolated .items-table td {
+            padding: 10px 12px !important;
+            background: #fef7fa !important;
+        }
+
+        .t12-isolated .items-table td:first-child { border-radius: 10px 0 0 10px !important; }
+        .t12-isolated .items-table td:last-child { border-radius: 0 10px 10px 0 !important; }
+
+        /* ======= TOTALS ======= */
+        .t12-isolated .total-section {
+            width: 260px !important;
+            margin-left: auto !important;
+            margin-bottom: 20px !important;
+            background: #fde8ef !important;
+            border-radius: 14px !important;
+            padding: 14px 16px !important;
+            font-size: 12px !important;
+        }
+
+        .t12-isolated .total-line {
+            display: flex !important;
+            justify-content: space-between !important;
+            padding: 4px 0 !important;
+        }
+
+        .t12-isolated .total-label { color: #8a6b74 !important; }
+
+        .t12-isolated .grand-total {
+            font-family: 'Quicksand', sans-serif !important;
+            font-weight: 700 !important;
+            font-size: 17px !important;
+            color: var(--accent-color, #d6336c) !important;
+            border-top: 2px dashed var(--accent-color, #d6336c) !important;
+            margin-top: 6px !important;
+            padding-top: 10px !important;
+        }
+
+        /* ======= NOTES / TERMS ======= */
+        .t12-isolated aside {
+            background: #fef3f7 !important;
+            border-radius: 14px !important;
+            padding: 12px 16px !important;
+            margin-bottom: 14px !important;
+        }
+
+        .t12-isolated aside h1 {
+            font-family: 'Quicksand', sans-serif !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+            color: var(--accent-color, #d6336c) !important;
+            margin-bottom: 6px !important;
+        }
+
+        .t12-isolated .payment-terms {
+            font-size: 12px !important;
+            color: #5b4a4f !important;
+            padding: 4px 4px !important;
+        }
+
+        .t12-isolated .validity-note {
+            font-size: 12px !important;
+            color: var(--accent-color, #d6336c) !important;
+            font-weight: 700 !important;
+            margin-top: 6px !important;
+        }
+
+        .t12-isolated .footer-note {
+            text-align: center !important;
+            font-family: 'Quicksand', sans-serif !important;
+            font-size: 11px !important;
+            color: var(--accent-color, #d6336c) !important;
+            margin-top: 10px !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="t12-isolated">
+        <div class="invoice-container">
+            <div class="invoice-header">
+                <div class="company-info">
+                    <div id="emitente-logo-wrapper" style="display:none; margin-bottom:8px;">
+                        <img id="emitente-logo" src="" alt="Logo" style="max-height:60px; max-width:150px; object-fit:contain;" />
+                    </div>
+                    <div id="emitente-nomeEmpresa" class="company-name">Ateliê Doce Flor Lda</div>
+                    <div id="emitente-bairro">Av. Central, 123</div>
+                    <div id="emitente-Cidade-pais">Maputo - Moçambique</div>
+                    <div id="emitente-documento">NUIT: 123456789</div>
+                    <div id="emitente-contato">Tel: +258 84 000 0000</div>
+                    <div id="emitente-email">contato@doceflor.co.mz</div>
+                </div>
+                <div class="header-right">
+                    <div class="documento-titulo titulo-documento heart-deco">COTAÇÃO</div>
+                    <div id="cotacao-numero-display">Nº: COT-2026-001</div>
+                    <div id="data-documento-display">Data: 06/07/2026</div>
+                </div>
+            </div>
+
+            <div class="wavy-divider"></div>
+
+            <div class="invoice-details">
+                <div class="bill-to">
+                    <div class="section-title">Para</div>
+                    <div id="destinatario-nomeCompleto">Cliente Exemplo</div>
+                    <div id="destinatario-bairro">Rua das Flores, 45</div>
+                    <div id="destinatario-endereco">Beira - Moçambique</div>
+                    <div id="destinatario-documento">DOC: 000000000</div>
+                    <div id="destinatario-contato">Tel: (00) 0000-0000</div>
+                </div>
+                <div class="bill-to">
+                    <div class="section-title">Detalhes</div>
+                    <div><strong>Válida até:</strong> <span id="data-vencimento">06/08/2026</span></div>
+                    <div>Ordem de Compra: <span id="ordem-compra">OC-2026-0456</span></div>
+                    <div>Moeda: <span id="moeda-pagamento">MZN</span></div>
+                    <div class="validity-note">&#9733; Validade da proposta: <span id="validez-cotacao">30 dias</span></div>
+                </div>
+            </div>
+
+            <table class="items-table">
+                <thead>
+                    <tr><th>Qtd</th><th>Descrição</th><th class="text-right">Preço Unitário</th><th class="text-right">Taxas</th><th class="text-right">Preço Total</th></tr>
+                </thead>
+                <tbody id="items-tbody">
+                    <tr><td>1</td><td>Caixa de doces artesanais decorada</td><td class="text-right">1.000,00 MT</td><td class="text-right">0,00</td><td class="text-right">1.000,00 MT</td></tr>
+                </tbody>
+            </table>
+
+            <div class="total-section">
+                <div class="total-line"><span class="total-label">Subtotal</span><span id="subtotal">1.000,00 MT</span></div>
+                <div class="total-line"><span class="total-label">Impostos</span><span id="taxas-total">0,00 MT</span></div>
+                <div class="total-line"><span class="total-label">Desconto</span><span id="desconto">0,00 MT</span></div>
+                <div class="total-line grand-total"><span>Total</span><span id="total-final-balance">1.000,00 MT</span></div>
+            </div>
+
+            <aside>
+                <h1>Métodos de Pagamento</h1>
+                <div id="metodo-pagamento" style="white-space:pre-line;">Transferência bancária ou Mpesa</div>
+            </aside>
+
+            <div class="payment-terms">
+                <strong id="termos-pagamento">Proposta sujeita a confirmação de disponibilidade. Obrigada pela preferência!</strong>
+            </div>
+
+            <div class="footer-note">&#10022; Feito à mão, com carinho &#10022;</div>
+        </div>
+    </div>
+</body>
+</html>

@@ -80,8 +80,110 @@ export class TemplateService {
         imageUrl: '/invoice3.JPG',
         backendId: 'template-3',
         supportedTypes: ['invoice', 'quotation']
-      }
-      ,
+      },
+      {
+        id: 'template-4',
+        name: 'Executivo Navy & Ouro',
+        description: 'Elegância corporativa em azul-marinho e dourado',
+        thumbnail: 'bg-gradient-to-br from-slate-800 to-yellow-600',
+        templateType: 'detailed',
+        imageUrl: '/invoice4.JPG',
+        backendId: 'template-4',
+        supportedTypes: ['invoice', 'quotation']
+      },
+      {
+        id: 'template-5',
+        name: 'Minimalista Mono',
+        description: 'Preto e branco, sem distrações, só o essencial',
+        thumbnail: 'bg-gradient-to-br from-gray-100 to-gray-300',
+        templateType: 'minimal',
+        imageUrl: '/invoice5.JPG',
+        backendId: 'template-5',
+        supportedTypes: ['invoice', 'quotation']
+      },
+      {
+        id: 'template-6',
+        name: 'Editorial Serif',
+        description: 'Layout de revista com tipografia serif refinada',
+        thumbnail: 'bg-gradient-to-br from-amber-50 to-orange-100',
+        templateType: 'detailed',
+        imageUrl: '/invoice6.JPG',
+        backendId: 'template-6',
+        supportedTypes: ['invoice', 'quotation']
+      },
+      {
+        id: 'template-7',
+        name: 'Geométrico Bold',
+        description: 'Formas geométricas e cores de alto contraste',
+        premium: true,
+        thumbnail: 'bg-gradient-to-br from-fuchsia-100 to-purple-200',
+        templateType: 'detailed',
+        imageUrl: '/invoice7.JPG',
+        backendId: 'template-7',
+        supportedTypes: ['invoice', 'quotation']
+      },
+      {
+        id: 'template-8',
+        name: 'Gradiente Suave',
+        description: 'Visual moderno de produto digital, com gradiente suave',
+        thumbnail: 'bg-gradient-to-br from-sky-100 to-indigo-100',
+        templateType: 'default',
+        imageUrl: '/invoice8.JPG',
+        backendId: 'template-8',
+        supportedTypes: ['invoice', 'quotation']
+      },
+      {
+        id: 'template-9',
+        name: 'Clássico Ledger',
+        description: 'Livro-razão tradicional, sóbrio e confiável',
+        thumbnail: 'bg-gradient-to-br from-yellow-50 to-amber-100',
+        templateType: 'detailed',
+        imageUrl: '/invoice9.JPG',
+        backendId: 'template-9',
+        supportedTypes: ['invoice', 'quotation']
+      },
+      {
+        id: 'template-10',
+        name: 'Tech Card Itemizado',
+        description: 'Itens em cartões, visual de produto tecnológico',
+        premium: true,
+        thumbnail: 'bg-gradient-to-br from-indigo-100 to-blue-200',
+        templateType: 'detailed',
+        imageUrl: '/invoice10.JPG',
+        backendId: 'template-10',
+        supportedTypes: ['invoice', 'quotation']
+      },
+      {
+        id: 'template-11',
+        name: 'Luxo Dark & Dourado',
+        description: 'Cabeçalho escuro com dourado, sensação premium',
+        premium: true,
+        thumbnail: 'bg-gradient-to-br from-neutral-800 to-yellow-700',
+        templateType: 'detailed',
+        imageUrl: '/invoice11.JPG',
+        backendId: 'template-11',
+        supportedTypes: ['invoice', 'quotation']
+      },
+      {
+        id: 'template-12',
+        name: 'Boutique Pastel',
+        description: 'Tons pastel e cantos arredondados, acolhedor',
+        thumbnail: 'bg-gradient-to-br from-pink-50 to-rose-100',
+        templateType: 'default',
+        imageUrl: '/invoice12.JPG',
+        backendId: 'template-12',
+        supportedTypes: ['invoice', 'quotation']
+      },
+      {
+        id: 'template-13',
+        name: 'Corporativo Sidebar',
+        description: 'Barra lateral com identidade da marca',
+        thumbnail: 'bg-gradient-to-br from-teal-100 to-cyan-200',
+        templateType: 'detailed',
+        imageUrl: '/invoice13.JPG',
+        backendId: 'template-13',
+        supportedTypes: ['invoice', 'quotation']
+      },
       // Recibos - novos templates locais
       {
         id: 'receipt-1',
@@ -101,6 +203,107 @@ export class TemplateService {
         templateType: 'detailed',
         imageUrl: '/receipt2.JPG',
         backendId: 'template-receipt-2',
+        supportedTypes: ['receipt']
+      },
+      {
+        id: 'receipt-3',
+        name: 'Térmico Moderno Mono',
+        description: 'Talão 80mm monoespaçado, estilo caixa registadora',
+        thumbnail: 'bg-gradient-to-br from-gray-100 to-gray-300',
+        templateType: 'minimal',
+        imageUrl: '/receipt3.JPG',
+        backendId: 'template-receipt-3',
+        supportedTypes: ['receipt']
+      },
+      {
+        id: 'receipt-4',
+        name: 'Térmico Boutique',
+        description: 'Talão 80mm arredondado em tons pastel',
+        thumbnail: 'bg-gradient-to-br from-pink-50 to-teal-100',
+        templateType: 'default',
+        imageUrl: '/receipt4.JPG',
+        backendId: 'template-receipt-4',
+        supportedTypes: ['receipt']
+      },
+      {
+        id: 'receipt-5',
+        name: 'Térmico Ledger Compacto',
+        description: 'Talão 80mm denso, ideal para alto volume',
+        thumbnail: 'bg-gradient-to-br from-stone-100 to-stone-300',
+        templateType: 'minimal',
+        imageUrl: '/receipt5.JPG',
+        backendId: 'template-receipt-5',
+        supportedTypes: ['receipt']
+      },
+      {
+        id: 'receipt-6',
+        name: 'Mini 58 Simples',
+        description: 'Talão 58mm ultra-compacto para impressoras pequenas',
+        thumbnail: 'bg-gradient-to-br from-gray-50 to-gray-200',
+        templateType: 'minimal',
+        imageUrl: '/receipt6.JPG',
+        backendId: 'template-receipt-6',
+        supportedTypes: ['receipt']
+      },
+      {
+        id: 'receipt-7',
+        name: 'Mini 58 Elegante',
+        description: 'Talão 58mm com cabeçalho colorido',
+        thumbnail: 'bg-gradient-to-br from-emerald-50 to-teal-100',
+        templateType: 'default',
+        imageUrl: '/receipt7.JPG',
+        backendId: 'template-receipt-7',
+        supportedTypes: ['receipt']
+      },
+      {
+        id: 'receipt-8',
+        name: 'Meia-Folha Profissional',
+        description: 'Recibo A5 formal, tipo mini-fatura',
+        thumbnail: 'bg-gradient-to-br from-blue-50 to-indigo-100',
+        templateType: 'detailed',
+        imageUrl: '/receipt8.JPG',
+        backendId: 'template-receipt-8',
+        supportedTypes: ['receipt']
+      },
+      {
+        id: 'receipt-9',
+        name: 'Meia-Folha Moderno',
+        description: 'Recibo A5 com cabeçalho arredondado moderno',
+        thumbnail: 'bg-gradient-to-br from-violet-100 to-purple-200',
+        templateType: 'default',
+        imageUrl: '/receipt9.JPG',
+        backendId: 'template-receipt-9',
+        supportedTypes: ['receipt']
+      },
+      {
+        id: 'receipt-10',
+        name: 'Recibo A4 Corporativo',
+        description: 'Recibo A4 completo em navy e dourado',
+        thumbnail: 'bg-gradient-to-br from-blue-100 to-yellow-100',
+        templateType: 'detailed',
+        imageUrl: '/receipt10.JPG',
+        backendId: 'template-receipt-10',
+        supportedTypes: ['receipt']
+      },
+      {
+        id: 'receipt-11',
+        name: 'Recibo A4 Premium com Assinatura',
+        description: 'Moldura premium com selo e dupla assinatura',
+        premium: true,
+        thumbnail: 'bg-gradient-to-br from-amber-100 to-yellow-200',
+        templateType: 'detailed',
+        imageUrl: '/receipt11.JPG',
+        backendId: 'template-receipt-11',
+        supportedTypes: ['receipt']
+      },
+      {
+        id: 'receipt-12',
+        name: 'Recibo A4 Minimalista',
+        description: 'Recibo A4 limpo, sem ornamentos',
+        thumbnail: 'bg-gradient-to-br from-teal-50 to-emerald-100',
+        templateType: 'minimal',
+        imageUrl: '/receipt12.JPG',
+        backendId: 'template-receipt-12',
         supportedTypes: ['receipt']
       }
     ];

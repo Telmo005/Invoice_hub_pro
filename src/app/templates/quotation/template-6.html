@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotação Comercial - Editorial Serif</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Source+Serif+4:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --accent-color: #7a2e2e; --accent-contrast: #ffffff; }
+        * { margin: 0; padding: 0; }
+        html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; background: white !important; }
+
+        .t6-isolated {
+            all: initial;
+            display: block !important;
+            width: 210mm !important; min-width: 210mm !important; max-width: 210mm !important;
+            height: 297mm !important; min-height: 297mm !important; max-height: 297mm !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            background: #faf6ef !important;
+            box-shadow: 0 0 8px rgba(0,0,0,0.08) !important;
+            overflow: visible !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+            page-break-inside: avoid !important;
+            font-family: 'Source Serif 4', Georgia, serif !important;
+            font-size: 13px !important;
+            line-height: 1.5 !important;
+            color: #23201c !important;
+        }
+
+        .t6-isolated * { box-sizing: border-box !important; }
+
+        .t6-isolated .invoice-container {
+            width: 100% !important;
+            height: 100% !important;
+            padding: 18mm 16mm !important;
+            box-sizing: border-box !important;
+            background: #faf6ef !important;
+            position: relative !important;
+        }
+
+        @media print {
+            html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; background: white !important; }
+            .t6-isolated {
+                width: 210mm !important; height: 297mm !important; margin: 0 !important; padding: 0 !important;
+                box-shadow: none !important; page-break-after: avoid !important; page-break-inside: avoid !important;
+                position: absolute !important; left: 0 !important; top: 0 !important;
+            }
+            body > *:not(.t6-isolated) { display: none !important; }
+        }
+
+        /* ======= MASTHEAD ======= */
+        .t6-isolated .masthead {
+            text-align: center !important;
+            border-bottom: 1px solid #23201c !important;
+            padding-bottom: 10px !important;
+            margin-bottom: 6px !important;
+        }
+
+        .t6-isolated .kicker {
+            font-family: 'Source Serif 4', serif !important;
+            font-size: 9px !important;
+            letter-spacing: 3px !important;
+            text-transform: uppercase !important;
+            color: var(--accent-color, #7a2e2e) !important;
+            margin-bottom: 6px !important;
+        }
+
+        .t6-isolated .documento-titulo,
+        .t6-isolated .titulo-documento {
+            font-family: 'Playfair Display', serif !important;
+            font-size: 42px !important;
+            font-weight: 700 !important;
+            letter-spacing: 1px !important;
+            color: #23201c !important;
+            line-height: 1.1 !important;
+        }
+
+        .t6-isolated .byline {
+            font-style: italic !important;
+            font-size: 11px !important;
+            color: #6b6558 !important;
+            margin-top: 6px !important;
+            letter-spacing: 0.5px !important;
+        }
+
+        .t6-isolated .masthead-rule {
+            display: flex !important;
+            justify-content: space-between !important;
+            font-size: 9px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1.5px !important;
+            color: var(--accent-color, #7a2e2e) !important;
+            margin-top: 8px !important;
+            border-top: 1px solid var(--accent-color, #7a2e2e) !important;
+            padding-top: 4px !important;
+        }
+
+        .t6-isolated .validez-strip {
+            text-align: center !important;
+            font-size: 10px !important;
+            letter-spacing: 1px !important;
+            text-transform: uppercase !important;
+            color: var(--accent-color, #7a2e2e) !important;
+            background: #f0e6da !important;
+            border: 1px solid var(--accent-color, #7a2e2e) !important;
+            border-radius: 2px !important;
+            padding: 5px !important;
+            margin-top: 10px !important;
+            font-family: 'Source Serif 4', serif !important;
+        }
+
+        /* ======= HEADER GRID (empresa / cliente / meta) ======= */
+        .t6-isolated .editorial-columns {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr 0.8fr !important;
+            gap: 18px !important;
+            margin-top: 20px !important;
+            margin-bottom: 22px !important;
+            padding-bottom: 16px !important;
+            border-bottom: 1px solid #ddd5c4 !important;
+        }
+
+        .t6-isolated .col-label {
+            font-family: 'Source Serif 4', serif !important;
+            font-size: 9px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 2px !important;
+            color: var(--accent-color, #7a2e2e) !important;
+            margin-bottom: 6px !important;
+            border-bottom: 1px solid var(--accent-color, #7a2e2e) !important;
+            display: inline-block !important;
+            padding-bottom: 2px !important;
+        }
+
+        .t6-isolated .col-body div { margin-bottom: 2px !important; font-size: 12px !important; }
+        .t6-isolated .company-name { font-family: 'Playfair Display', serif !important; font-weight: 700 !important; font-size: 15px !important; margin-bottom: 4px !important; }
+
+        .t6-isolated .logo-wrap { margin-bottom: 8px !important; }
+
+        /* ======= ITEMS TABLE ======= */
+        .t6-isolated .items-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-bottom: 22px !important;
+            font-size: 12px !important;
+        }
+
+        .t6-isolated .items-table thead th {
+            font-family: 'Source Serif 4', serif !important;
+            font-weight: 600 !important;
+            text-align: left !important;
+            padding: 8px 8px !important;
+            border-top: 2px solid var(--accent-color, #7a2e2e) !important;
+            border-bottom: 1px solid var(--accent-color, #7a2e2e) !important;
+            color: #23201c !important;
+            text-transform: uppercase !important;
+            font-size: 10px !important;
+            letter-spacing: 1px !important;
+        }
+
+        .t6-isolated .items-table td {
+            padding: 9px 8px !important;
+            border-bottom: 1px solid #e6e0d2 !important;
+            vertical-align: top !important;
+        }
+
+        .t6-isolated .text-right { text-align: right !important; }
+
+        /* ======= TOTALS ======= */
+        .t6-isolated .total-section {
+            width: 260px !important;
+            margin-left: auto !important;
+            margin-bottom: 24px !important;
+            font-size: 12px !important;
+        }
+
+        .t6-isolated .total-line {
+            display: flex !important;
+            justify-content: space-between !important;
+            padding: 4px 0 !important;
+            border-bottom: 1px solid #e6e0d2 !important;
+        }
+
+        .t6-isolated .grand-total {
+            font-family: 'Playfair Display', serif !important;
+            font-weight: 700 !important;
+            font-size: 16px !important;
+            color: var(--accent-color, #7a2e2e) !important;
+            border-top: 1px solid var(--accent-color, #7a2e2e) !important;
+            border-bottom: none !important;
+            margin-top: 6px !important;
+            padding-top: 8px !important;
+        }
+
+        /* ======= PULL QUOTE (termos / observações) ======= */
+        .t6-isolated .pull-quote {
+            border-left: 5px solid var(--accent-color, #7a2e2e) !important;
+            padding: 10px 0 10px 16px !important;
+            font-style: italic !important;
+            font-size: 13px !important;
+            color: #3a362f !important;
+            margin-bottom: 20px !important;
+            font-family: 'Source Serif 4', serif !important;
+        }
+
+        .t6-isolated .pull-quote-label {
+            font-style: normal !important;
+            font-size: 9px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 2px !important;
+            color: var(--accent-color, #7a2e2e) !important;
+            display: block !important;
+            margin-bottom: 4px !important;
+        }
+
+        /* ======= FOOTER / PAGE NUMBER STRIP ======= */
+        .t6-isolated .editorial-footer {
+            position: absolute !important;
+            bottom: 14mm !important;
+            left: 16mm !important;
+            right: 16mm !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            font-size: 9px !important;
+            letter-spacing: 1px !important;
+            text-transform: uppercase !important;
+            color: #948d7c !important;
+            border-top: 1px solid #ddd5c4 !important;
+            padding-top: 6px !important;
+        }
+
+        .t6-isolated .payment-info { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 18px !important; margin-bottom: 18px !important; font-size: 12px !important; }
+    </style>
+</head>
+<body>
+    <div class="t6-isolated">
+        <div class="invoice-container">
+
+            <div class="masthead">
+                <div class="kicker">Documento Comercial &middot; Edição Proposta</div>
+                <h1 class="documento-titulo titulo-documento">COTAÇÃO</h1>
+                <div class="byline">por <span id="emitente-nomeEmpresa">Empresa Exemplo Lda</span> &mdash; emitido em <span id="data-documento-display">Data: 06/07/2026</span></div>
+                <div class="masthead-rule">
+                    <span id="cotacao-numero-display">Nº: COT-2026-001</span>
+                    <span>Validade até: <span id="data-vencimento">06/08/2026</span></span>
+                </div>
+                <div class="validez-strip">Proposta válida por <span id="validez-cotacao">30 dias</span></div>
+            </div>
+
+            <div class="editorial-columns">
+                <div class="col">
+                    <div class="col-label">Emitente</div>
+                    <div class="col-body">
+                        <div id="emitente-logo-wrapper" class="logo-wrap" style="display:none; margin-bottom:8px;">
+                            <img id="emitente-logo" src="" alt="Logo" style="max-height:60px; max-width:150px; object-fit:contain;" />
+                        </div>
+                        <div id="emitente-bairro">Av. Central, 123</div>
+                        <div id="emitente-Cidade-pais">Maputo - Moçambique</div>
+                        <div id="emitente-documento">NUIT: 123456789</div>
+                        <div id="emitente-contato">Tel: +258 84 000 0000</div>
+                        <div id="emitente-email">contato@empresa.co.mz</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="col-label">Destinatário</div>
+                    <div class="col-body">
+                        <div id="destinatario-nomeCompleto" class="company-name" style="font-size:13px;">Cliente Exemplo</div>
+                        <div id="destinatario-bairro">Rua das Flores, 45</div>
+                        <div id="destinatario-endereco">Beira - Moçambique</div>
+                        <div id="destinatario-documento">DOC: 000000000</div>
+                        <div id="destinatario-contato">Tel: (00) 0000-0000</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="col-label">Notas</div>
+                    <div class="col-body">
+                        <div>Ordem de Compra:</div>
+                        <div id="ordem-compra">OC-2026-0456</div>
+                        <div style="margin-top:6px;">Moeda:</div>
+                        <div id="moeda-pagamento">MZN</div>
+                    </div>
+                </div>
+            </div>
+
+            <table class="items-table">
+                <thead>
+                    <tr><th>Qtd</th><th>Descrição</th><th class="text-right">Preço Unitário</th><th class="text-right">Taxas</th><th class="text-right">Preço Total</th></tr>
+                </thead>
+                <tbody id="items-tbody">
+                    <tr><td>1</td><td>Consultoria editorial e redação de conteúdo</td><td class="text-right">1.000,00 MT</td><td class="text-right">0,00</td><td class="text-right">1.000,00 MT</td></tr>
+                </tbody>
+            </table>
+
+            <div class="total-section">
+                <div class="total-line"><span>Subtotal</span><span id="subtotal">1.000,00 MT</span></div>
+                <div class="total-line"><span>Impostos</span><span id="taxas-total">0,00 MT</span></div>
+                <div class="total-line"><span>Desconto</span><span id="desconto">0,00 MT</span></div>
+                <div class="total-line grand-total"><span>Total</span><span id="total-final-balance">1.000,00 MT</span></div>
+            </div>
+
+            <div class="pull-quote">
+                <span class="pull-quote-label">Termos de Pagamento</span>
+                <span id="termos-pagamento">Proposta sujeita a aceitação formal. Pagamento em 30 dias após aprovação.</span>
+            </div>
+
+            <div class="payment-info">
+                <div>
+                    <div class="col-label">Método de Pagamento</div>
+                    <div id="metodo-pagamento" style="white-space:pre-line;">Transferência bancária</div>
+                </div>
+            </div>
+
+            <div class="editorial-footer">
+                <span id="emitente-pais">Moçambique</span>
+                <span>Página I</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

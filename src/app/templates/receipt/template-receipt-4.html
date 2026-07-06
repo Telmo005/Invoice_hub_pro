@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Recibo Térmico Boutique</title>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --roll-width: 80mm;
+      --font-primary: 'Quicksand', 'Nunito', 'Segoe UI', sans-serif;
+      --accent-color: #f6a6b2;
+      --accent-contrast: #ffffff;
+      --secondary-color: #7fd8c9;
+      --text-color: #5a4a48;
+      --text-light: #a08c8a;
+      --bg-soft: #fff7f8;
+      --border-soft: #f5dde1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      background: #f2e9e4;
+      font-family: var(--font-primary);
+      color: var(--text-color);
+      line-height: 1.5;
+    }
+
+    .receipt-container {
+      width: var(--roll-width);
+      margin: 24px auto;
+      background: #fffdfc;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 6px 16px -4px rgba(90, 74, 72, 0.25);
+      border: 1px solid var(--border-soft);
+    }
+
+    .receipt-header {
+      background: var(--accent-color, #f6a6b2);
+      color: var(--accent-contrast, #ffffff);
+      padding: 22px 14px 16px;
+      text-align: center;
+      border-radius: 0 0 24px 24px;
+    }
+
+    .logo-wrapper-inner {
+      margin-bottom: 10px;
+    }
+
+    .company-name {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .company-details {
+      font-size: 10px;
+      opacity: 0.95;
+      line-height: 1.5;
+    }
+
+    .document-type {
+      text-align: center;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--accent-color, #f6a6b2);
+      margin-top: 14px;
+    }
+
+    .receipt-body {
+      padding: 6px 16px 16px;
+    }
+
+    .document-meta {
+      background: var(--bg-soft);
+      border: 1px solid var(--border-soft);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      font-size: 11px;
+    }
+    .meta-row:last-child { margin-bottom: 0; }
+
+    .meta-label {
+      color: var(--text-light);
+      font-weight: 600;
+    }
+
+    .meta-value {
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .client-info {
+      background: #f2fbf8;
+      border: 1px solid #d6f0e8;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+
+    .client-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--secondary-color);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .divider {
+      height: 2px;
+      background: repeating-linear-gradient(to right, var(--border-soft) 0, var(--border-soft) 4px, transparent 4px, transparent 8px);
+      margin: 14px 0;
+      border-radius: 2px;
+    }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+      table-layout: fixed;
+    }
+    .items-table col:nth-child(1) { width: 15%; }
+    .items-table col:nth-child(2) { width: 55%; }
+    .items-table col:nth-child(3) { width: 30%; }
+    .items-table thead th {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-light);
+      border-bottom: 2px solid var(--border-soft);
+      padding: 6px 0;
+    }
+    #items-tbody tr { font-size: 10px; }
+    #items-tbody td { padding: 5px 0; vertical-align: top; border-bottom: 1px dashed var(--border-soft); }
+    #items-tbody td:nth-child(1) { text-align: center; }
+    #items-tbody td:nth-child(2) { text-align: left; overflow-wrap: break-word; font-weight: 600; }
+    #items-tbody td:nth-child(3) { text-align: right; font-weight: 700; }
+
+    .totals-section {
+      background: var(--bg-soft);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin: 14px 0;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+    .total-row:last-child { margin-bottom: 0; }
+
+    .total-final {
+      border-top: 2px dashed var(--border-soft);
+      padding-top: 8px;
+      margin-top: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent-color, #f6a6b2);
+    }
+
+    .payment-info {
+      background: #fdf3f4;
+      border: 1px solid var(--border-soft);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+
+    .payment-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent-color, #f6a6b2);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .payment-details .detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      font-size: 10.5px;
+    }
+    .payment-details .detail-row:last-child { margin-bottom: 0; }
+
+    .receipt-footer {
+      text-align: center;
+      padding: 16px 14px 20px;
+    }
+
+    .thanks-message {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-color, #f6a6b2);
+      margin-bottom: 4px;
+    }
+
+    .legal-notice {
+      font-size: 9px;
+      color: var(--text-light);
+      line-height: 1.4;
+    }
+
+    .cut-line {
+      text-align: center;
+      color: #c9b6b3;
+      font-size: 10px;
+      margin: 12px 0;
+    }
+
+    .cut-line::before {
+      content: "✂ · · · · · · · · · · · · · · · · · · · · · · · · ✂";
+      letter-spacing: 1px;
+    }
+
+    @media print {
+      body {
+        background: white;
+        margin: 0;
+        padding: 0;
+      }
+      .receipt-container {
+        width: 80mm;
+        margin: 0;
+        box-shadow: none;
+        border: none;
+        border-radius: 0;
+      }
+      .receipt-header {
+        border-radius: 0;
+      }
+      .cut-line {
+        display: none;
+      }
+      .receipt-header, .document-type {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-container">
+    <div class="receipt-header">
+      <div id="emitente-logo-wrapper" class="logo-wrapper-inner" style="display:none; text-align:center;">
+        <img id="emitente-logo" src="" alt="Logo" style="max-height:56px; max-width:130px; object-fit:contain; border-radius:12px;" />
+      </div>
+      <div class="company-name" id="emitente-nomeEmpresa">Flor & Canela Ateliê</div>
+      <div class="company-details">
+        <div id="emitente-documento">NUIT: 401987654</div>
+        <div id="emitente-endereco">Rua das Acácias, 12, Maputo</div>
+        <div id="emitente-contato">Tel: +258 84 222 3344 · @florecanela</div>
+      </div>
+    </div>
+
+    <div class="document-type" id="documento-titulo">Recibo</div>
+
+    <div class="receipt-body">
+      <div class="document-meta">
+        <div class="meta-row">
+          <span class="meta-label">Nº do Recibo:</span>
+          <span class="meta-value" id="recibo-numero">REC/2026/0087</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Data:</span>
+          <span class="meta-value" id="data-recebimento">06/07/2026</span>
+        </div>
+      </div>
+
+      <div class="client-info">
+        <div class="client-title">Cliente</div>
+        <div class="meta-row">
+          <span class="meta-label">Nome:</span>
+          <span class="meta-value" id="destinatario-nomeCompleto">Sofia Alexandra Matos</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Documento:</span>
+          <span class="meta-value" id="destinatario-documento">NUIT: 108765432</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Contacto:</span>
+          <span class="meta-value" id="destinatario-contato">+258 87 654 3210</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <table class="items-table">
+        <colgroup><col/><col/><col/></colgroup>
+        <thead>
+          <tr>
+            <th style="text-align:center;">Qtd</th>
+            <th style="text-align:left;">Descrição</th>
+            <th style="text-align:right;">Total</th>
+          </tr>
+        </thead>
+        <tbody id="items-tbody" data-compact="true"></tbody>
+      </table>
+
+      <div class="totals-section">
+        <div class="total-row">
+          <span>Subtotal:</span>
+          <span id="subtotal">980,00</span>
+        </div>
+        <div class="total-row">
+          <span>Taxas:</span>
+          <span id="taxas-total">0,00</span>
+        </div>
+        <div class="total-row total-final">
+          <span>Total:</span>
+          <span id="total-final">980,00</span>
+        </div>
+      </div>
+
+      <div class="payment-info">
+        <div class="payment-title">Pagamento</div>
+        <div class="payment-details">
+          <div class="detail-row">
+            <span>Forma:</span>
+            <span id="forma-pagamento">Cartão de Débito</span>
+          </div>
+          <div class="detail-row">
+            <span>Referência:</span>
+            <span id="referencia-recebimento">POS-00456</span>
+          </div>
+          <div class="detail-row">
+            <span>Doc. Ref.:</span>
+            <span id="documento-referencia">—</span>
+          </div>
+          <div class="detail-row">
+            <span>Moeda:</span>
+            <span id="moeda-pagamento">MZN</span>
+          </div>
+          <div class="detail-row">
+            <span>Data Pgto:</span>
+            <span id="data-pagamento">06/07/2026</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="receipt-footer">
+      <div class="thanks-message">Obrigada pela sua visita! ✿</div>
+      <div class="legal-notice">Volte sempre — feito com carinho para si.</div>
+    </div>
+  </div>
+
+  <div class="cut-line"></div>
+</body>
+</html>

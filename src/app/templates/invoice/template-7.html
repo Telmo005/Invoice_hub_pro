@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fatura Comercial - Geométrico Bold</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --accent-color: #ff5a1f; --accent-contrast: #ffffff; }
+        * { margin: 0; padding: 0; }
+        html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; background: white !important; }
+
+        .t7-isolated {
+            all: initial;
+            display: block !important;
+            width: 210mm !important; min-width: 210mm !important; max-width: 210mm !important;
+            height: 297mm !important; min-height: 297mm !important; max-height: 297mm !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            box-shadow: 0 0 8px rgba(0,0,0,0.08) !important;
+            overflow: visible !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+            page-break-inside: avoid !important;
+            font-family: 'Poppins', sans-serif !important;
+            font-size: 12px !important;
+            line-height: 1.45 !important;
+            color: #1c1c1e !important;
+        }
+
+        .t7-isolated * { box-sizing: border-box !important; }
+
+        .t7-isolated .invoice-container {
+            width: 100% !important;
+            height: 100% !important;
+            padding: 0 0 15mm 0 !important;
+            box-sizing: border-box !important;
+            background: white !important;
+            position: relative !important;
+        }
+
+        @media print {
+            html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; background: white !important; }
+            .t7-isolated {
+                width: 210mm !important; height: 297mm !important; margin: 0 !important; padding: 0 !important;
+                box-shadow: none !important; page-break-after: avoid !important; page-break-inside: avoid !important;
+                position: absolute !important; left: 0 !important; top: 0 !important;
+            }
+            body > *:not(.t7-isolated) { display: none !important; }
+        }
+
+        /* ======= HERO GEOMÉTRICO ======= */
+        .t7-isolated .hero {
+            position: relative !important;
+            background: var(--accent-color, #ff5a1f) !important;
+            color: var(--accent-contrast, #fff) !important;
+            padding: 14mm 16mm 20mm 16mm !important;
+            clip-path: polygon(0 0, 100% 0, 100% 82%, 0 100%) !important;
+            margin-bottom: -8mm !important;
+        }
+
+        .t7-isolated .hero-inner {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: flex-start !important;
+        }
+
+        .t7-isolated .documento-titulo,
+        .t7-isolated .titulo-documento {
+            font-family: 'Poppins', sans-serif !important;
+            font-weight: 700 !important;
+            font-size: 38px !important;
+            letter-spacing: 1px !important;
+            color: var(--accent-contrast, #fff) !important;
+            line-height: 1 !important;
+        }
+
+        .t7-isolated .hero-meta { font-size: 12px !important; margin-top: 8px !important; opacity: 0.95 !important; font-weight: 500 !important; }
+        .t7-isolated .hero-meta div { margin-bottom: 2px !important; }
+
+        .t7-isolated .hero-company { text-align: right !important; }
+        .t7-isolated .company-name { font-weight: 700 !important; font-size: 15px !important; margin-bottom: 4px !important; }
+        .t7-isolated .hero-company div { font-size: 11px !important; margin-bottom: 2px !important; }
+
+        .t7-isolated .logo-wrap { margin-bottom: 8px !important; display: flex !important; justify-content: flex-end !important; }
+        .t7-isolated .logo-wrap img { background: #fff !important; padding: 4px !important; border-radius: 4px !important; }
+
+        /* ======= BODY ======= */
+        .t7-isolated .body-content { padding: 0 16mm !important; position: relative !important; z-index: 2 !important; }
+
+        .t7-isolated .parties {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 14px !important;
+            margin-bottom: 22px !important;
+        }
+
+        .t7-isolated .party-card {
+            background: #f7f7f9 !important;
+            border-radius: 8px !important;
+            padding: 12px 14px !important;
+            border-left: 5px solid var(--accent-color, #ff5a1f) !important;
+        }
+
+        .t7-isolated .party-label {
+            font-size: 9px !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1.5px !important;
+            color: var(--accent-color, #ff5a1f) !important;
+            margin-bottom: 6px !important;
+        }
+
+        .t7-isolated .party-card div.line { font-size: 11.5px !important; margin-bottom: 2px !important; }
+
+        /* ======= TABLE ======= */
+        .t7-isolated .items-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-bottom: 20px !important;
+            font-size: 11.5px !important;
+        }
+
+        .t7-isolated .items-table th {
+            background: var(--accent-color, #ff5a1f) !important;
+            color: var(--accent-contrast, #fff) !important;
+            font-weight: 600 !important;
+            text-align: left !important;
+            padding: 10px 10px !important;
+            text-transform: uppercase !important;
+            font-size: 10px !important;
+            letter-spacing: 0.5px !important;
+        }
+
+        .t7-isolated .items-table th:first-child { border-radius: 6px 0 0 6px !important; }
+        .t7-isolated .items-table th:last-child { border-radius: 0 6px 6px 0 !important; }
+
+        .t7-isolated .items-table td {
+            padding: 9px 10px !important;
+            border-bottom: 1px solid #ececef !important;
+        }
+
+        .t7-isolated .text-right { text-align: right !important; }
+
+        /* ======= TOTALS ======= */
+        .t7-isolated .totals-wrap {
+            display: flex !important;
+            justify-content: flex-end !important;
+            margin-bottom: 22px !important;
+        }
+
+        .t7-isolated .total-section { width: 270px !important; font-size: 12px !important; }
+
+        .t7-isolated .total-line {
+            display: flex !important;
+            justify-content: space-between !important;
+            padding: 5px 4px !important;
+        }
+
+        .t7-isolated .grand-total {
+            font-weight: 700 !important;
+            font-size: 16px !important;
+            background: var(--accent-color, #ff5a1f) !important;
+            color: var(--accent-contrast, #fff) !important;
+            border-radius: 8px !important;
+            padding: 12px 14px !important;
+            margin-top: 6px !important;
+        }
+
+        /* ======= FOOTER BLOCKS ======= */
+        .t7-isolated .footer-blocks {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 14px !important;
+        }
+
+        .t7-isolated .block {
+            background: #f7f7f9 !important;
+            border-radius: 8px !important;
+            padding: 12px 14px !important;
+        }
+
+        .t7-isolated .block-label {
+            font-size: 9px !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1.5px !important;
+            color: var(--accent-color, #ff5a1f) !important;
+            margin-bottom: 6px !important;
+        }
+
+        .t7-isolated .shape-tag {
+            position: absolute !important;
+            top: 10mm !important;
+            right: 16mm !important;
+            background: var(--accent-contrast, #fff) !important;
+            color: var(--accent-color, #ff5a1f) !important;
+            font-weight: 700 !important;
+            font-size: 10px !important;
+            padding: 4px 12px !important;
+            border-radius: 20px !important;
+            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%) !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="t7-isolated">
+        <div class="invoice-container">
+
+            <div class="hero">
+                <div class="hero-inner">
+                    <div>
+                        <h1 class="documento-titulo titulo-documento">FATURA</h1>
+                        <div class="hero-meta">
+                            <div id="fatura-numero-display">Nº: FAT-2026-001</div>
+                            <div id="data-documento-display">Data: 06/07/2026</div>
+                            <div>Vencimento: <span id="data-vencimento">06/08/2026</span></div>
+                        </div>
+                    </div>
+                    <div class="hero-company">
+                        <div id="emitente-logo-wrapper" class="logo-wrap" style="display:none;">
+                            <img id="emitente-logo" src="" alt="Logo" style="max-height:55px; max-width:140px; object-fit:contain;" />
+                        </div>
+                        <div id="emitente-nomeEmpresa" class="company-name">Empresa Exemplo Lda</div>
+                        <div id="emitente-bairro">Av. Central, 123</div>
+                        <div id="emitente-Cidade-pais">Maputo - Moçambique</div>
+                        <div id="emitente-documento">NUIT: 123456789</div>
+                        <div id="emitente-contato">+258 84 000 0000</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="body-content">
+                <div class="parties">
+                    <div class="party-card">
+                        <div class="party-label">Cliente</div>
+                        <div class="line" id="destinatario-nomeCompleto"><strong>Cliente Exemplo</strong></div>
+                        <div class="line" id="destinatario-bairro">Rua das Flores, 45</div>
+                        <div class="line" id="destinatario-endereco">Beira - Moçambique</div>
+                        <div class="line" id="destinatario-documento">DOC: 000000000</div>
+                        <div class="line" id="destinatario-contato">(00) 0000-0000</div>
+                    </div>
+                    <div class="party-card">
+                        <div class="party-label">Informações Adicionais</div>
+                        <div class="line">Ordem de Compra: <span id="ordem-compra">OC-2026-0456</span></div>
+                        <div class="line">Moeda: <span id="moeda-pagamento">MZN</span></div>
+                        <div class="line">Email: <span id="emitente-email">contato@empresa.co.mz</span></div>
+                    </div>
+                </div>
+
+                <table class="items-table">
+                    <thead>
+                        <tr><th>Qtd</th><th>Descrição</th><th class="text-right">Preço Unitário</th><th class="text-right">Taxas</th><th class="text-right">Preço Total</th></tr>
+                    </thead>
+                    <tbody id="items-tbody">
+                        <tr><td>1</td><td>Desenvolvimento de identidade visual</td><td class="text-right">1.000,00 MT</td><td class="text-right">0,00</td><td class="text-right">1.000,00 MT</td></tr>
+                    </tbody>
+                </table>
+
+                <div class="totals-wrap">
+                    <div class="total-section">
+                        <div class="total-line"><span>Subtotal</span><span id="subtotal">1.000,00 MT</span></div>
+                        <div class="total-line"><span>Impostos</span><span id="taxas-total">0,00 MT</span></div>
+                        <div class="total-line"><span>Desconto</span><span id="desconto">0,00 MT</span></div>
+                        <div class="total-line grand-total"><span>TOTAL</span><span id="total-final-balance">1.000,00 MT</span></div>
+                    </div>
+                </div>
+
+                <div class="footer-blocks">
+                    <div class="block">
+                        <div class="block-label">Método de Pagamento</div>
+                        <div id="metodo-pagamento" style="white-space:pre-line;">Transferência bancária</div>
+                    </div>
+                    <div class="block">
+                        <div class="block-label">Termos de Pagamento</div>
+                        <div id="termos-pagamento">Pagamento em 30 dias após a emissão desta fatura.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

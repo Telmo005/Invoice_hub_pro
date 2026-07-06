@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Recibo Meia-Folha Profissional</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent-color: #1e3a8a;
+      --accent-contrast: #ffffff;
+    }
+
+    @page { size: A5 portrait; margin: 8mm; }
+
+    @media print {
+      body.rcb-body {
+        width: 148mm !important;
+        min-height: 210mm !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: #fff !important;
+      }
+      .rcb-container {
+        width: 100% !important;
+        padding: 8mm !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
+
+    .rcb-root * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body.rcb-body {
+      font-family: 'Inter', Arial, sans-serif;
+      background: #f5f7fa;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      color: #1a202c;
+      line-height: 1.35;
+    }
+
+    .rcb-container {
+      width: 148mm;
+      min-height: 210mm;
+      background: #fff;
+      padding: 10mm 9mm;
+      position: relative;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+
+    .rcb-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--accent-color, #1e3a8a);
+    }
+
+    .rcb-emit-block { max-width: 60%; }
+
+    .rcb-logo-wrapper { margin-bottom: 4px; }
+
+    .rcb-company-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent-color, #1e3a8a);
+    }
+
+    .rcb-company-meta {
+      font-size: 8px;
+      color: #4a5568;
+      margin-top: 2px;
+    }
+
+    .rcb-doc-info {
+      background: var(--accent-color, #1e3a8a);
+      color: var(--accent-contrast, #fff);
+      padding: 8px 12px;
+      border-radius: 6px;
+      text-align: center;
+      min-width: 40%;
+    }
+
+    .rcb-doc-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 3px;
+    }
+
+    .rcb-doc-meta-row {
+      font-size: 9px;
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .rcb-section-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--accent-color, #1e3a8a);
+      margin: 10px 0 4px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 2px;
+    }
+
+    .rcb-client-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      padding: 6px 8px;
+      font-size: 9px;
+    }
+
+    .rcb-client-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+
+    .rcb-client-row:last-child { margin-bottom: 0; }
+
+    .rcb-client-label { color: #718096; font-weight: 500; }
+
+    table.rcb-items {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9px;
+      margin-top: 4px;
+      table-layout: fixed;
+    }
+
+    table.rcb-items thead th {
+      background: var(--accent-color, #1e3a8a);
+      color: var(--accent-contrast, #fff);
+      padding: 5px 6px;
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    table.rcb-items thead th:nth-child(1) { width: 15%; text-align: center; }
+    table.rcb-items thead th:nth-child(2) { width: 55%; text-align: left; }
+    table.rcb-items thead th:nth-child(3) { width: 30%; text-align: right; }
+
+    #items-tbody tr:nth-child(even) { background: #f8fafc; }
+    #items-tbody td { padding: 5px 6px; border-bottom: 1px solid #edf2f7; vertical-align: top; }
+    #items-tbody td:nth-child(1) { text-align: center; width: 15%; }
+    #items-tbody td:nth-child(2) { text-align: left; width: 55%; overflow-wrap: break-word; }
+    #items-tbody td:nth-child(3) { text-align: right; width: 30%; font-weight: 600; }
+
+    .rcb-totals {
+      margin-top: 8px;
+      width: 55%;
+      margin-left: auto;
+    }
+
+    .rcb-total-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      padding: 3px 6px;
+    }
+
+    .rcb-total-final {
+      background: var(--accent-color, #1e3a8a);
+      color: var(--accent-contrast, #fff);
+      font-weight: 700;
+      font-size: 10px;
+      border-radius: 4px;
+      padding: 6px 8px;
+      margin-top: 4px;
+    }
+
+    .rcb-payment-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      padding: 6px 8px;
+      font-size: 9px;
+      margin-top: 4px;
+    }
+
+    .rcb-payment-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+
+    .rcb-payment-row:last-child { margin-bottom: 0; }
+
+    .rcb-signature {
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .rcb-signature-line {
+      width: 55%;
+      border-top: 1px solid #a0aec0;
+      padding-top: 4px;
+      text-align: center;
+      font-size: 8px;
+      color: #718096;
+    }
+
+    .rcb-footer-note {
+      margin-top: 10px;
+      font-size: 7px;
+      color: #a0aec0;
+      text-align: center;
+    }
+  </style>
+</head>
+<body class="rcb-body rcb-root">
+  <div class="rcb-container">
+    <div class="rcb-header">
+      <div class="rcb-emit-block">
+        <div id="emitente-logo-wrapper" class="rcb-logo-wrapper" style="display:none;"><img id="emitente-logo" src="" alt="Logo" style="max-height:44px; max-width:130px; object-fit:contain;" /></div>
+        <div class="rcb-company-name" id="emitente-nomeEmpresa">Empresa Exemplo Lda</div>
+        <div class="rcb-company-meta" id="emitente-documento">NUIT: 123456789</div>
+        <div class="rcb-company-meta" id="emitente-endereco">Av. 25 de Setembro, Maputo</div>
+        <div class="rcb-company-meta" id="emitente-contato">Tel: +258 84 000 0000 · info@empresa.co.mz</div>
+      </div>
+      <div class="rcb-doc-info">
+        <div class="rcb-doc-title" id="titulo-documento">RECIBO</div>
+        <div class="rcb-doc-meta-row"><span>No:</span><span id="recibo-numero">REC-001</span></div>
+        <div class="rcb-doc-meta-row"><span>Data:</span><span id="data-recebimento">06/07/2026</span></div>
+      </div>
+    </div>
+    <div id="documento-titulo" style="display:none;">RECIBO</div>
+
+    <div class="rcb-section-title">Cliente</div>
+    <div class="rcb-client-box">
+      <div class="rcb-client-row"><span class="rcb-client-label">Nome:</span><span id="destinatario-nomeCompleto">Joao Carlos Silva</span></div>
+      <div class="rcb-client-row"><span class="rcb-client-label">Documento:</span><span id="destinatario-documento">ID: 123456789012</span></div>
+      <div class="rcb-client-row"><span class="rcb-client-label">Contacto:</span><span id="destinatario-contato">+258 82 987 6543</span></div>
+    </div>
+
+    <div class="rcb-section-title">Itens</div>
+    <table class="rcb-items">
+      <thead>
+        <tr><th>Qtd</th><th>Descricao</th><th>Total</th></tr>
+      </thead>
+      <tbody id="items-tbody" data-compact="true"></tbody>
+    </table>
+
+    <div class="rcb-totals">
+      <div class="rcb-total-row"><span>Subtotal</span><span id="subtotal">22.500,00</span></div>
+      <div class="rcb-total-row"><span>Taxas</span><span id="taxas-total">0,00</span></div>
+      <div class="rcb-total-row rcb-total-final"><span>TOTAL</span><span id="total-final">22.500,00</span></div>
+    </div>
+
+    <div class="rcb-section-title">Pagamento</div>
+    <div class="rcb-payment-box">
+      <div class="rcb-payment-row"><span>Forma de Pagamento:</span><span id="forma-pagamento">Transferencia Bancaria</span></div>
+      <div class="rcb-payment-row"><span>Referencia:</span><span id="referencia-recebimento">REF-2026-001</span></div>
+      <div class="rcb-payment-row"><span>Documento Ref.:</span><span id="documento-referencia">-</span></div>
+      <div class="rcb-payment-row"><span>Moeda:</span><span id="moeda-pagamento">MZN (Meticais)</span></div>
+      <div class="rcb-payment-row"><span>Motivo:</span><span id="motivo-pagamento">-</span></div>
+      <div class="rcb-payment-row"><span>Data do Pagamento:</span><span id="data-pagamento">-</span></div>
+    </div>
+
+    <div class="rcb-signature">
+      <div class="rcb-signature-line">Assinatura do Responsavel</div>
+    </div>
+
+    <div class="rcb-footer-note">Documento gerado eletronicamente - Invoice Hub Pro</div>
+  </div>
+</body>
+</html>

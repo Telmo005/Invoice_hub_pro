@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recibo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root { --accent-color: #7a1f2b; --accent-contrast: #ffffff; }
+    @page { size: A4 portrait; margin: 10mm; }
+    @media print {
+      body.rcb-body { width: 210mm !important; min-height: 297mm !important; margin: 0 auto !important; padding: 0 !important; background: #ffffff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .rcb-container { width: 100% !important; min-height: auto !important; padding: 10mm !important; margin: 0 !important; box-shadow: none !important; page-break-after: avoid; overflow: visible !important; }
+      .rcb-frame { padding: 14mm 14mm 16mm !important; }
+      .rcb-watermark { display: block !important; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .rcb-header, .rcb-totals, .rcb-payment, .rcb-signatures { page-break-inside: avoid; }
+      body.rcb-body { display: block !important; }
+      html, body { height: auto !important; }
+    }
+    .rcb-root * { box-sizing: border-box; margin: 0; padding: 0; }
+    body.rcb-body { font-family: Inter, sans-serif; background: #f5f7fa; padding: 10px; display: flex; justify-content: center; align-items: flex-start; }
+    .rcb-container { width: 210mm; background: #fff; padding: 10mm; position: relative; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .rcb-frame { border: 2px solid var(--accent-color, #7a1f2b); padding: 16mm 14mm 18mm; position: relative; min-height: 260mm; }
+    .rcb-frame::before { content: ""; position: absolute; inset: 6px; border: 1px solid var(--accent-color, #7a1f2b); pointer-events: none; }
+    .rcb-seal { position: absolute; top: 14mm; right: 14mm; width: 74px; height: 74px; border-radius: 50%; border: 2px solid var(--accent-color, #7a1f2b); display: flex; align-items: center; justify-content: center; flex-direction: column; color: var(--accent-color, #7a1f2b); z-index: 1; }
+    .rcb-seal span.initials { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; line-height: 1; }
+    .rcb-seal span.tag { font-size: 7px; letter-spacing: 1px; margin-top: 2px; text-transform: uppercase; }
+    .rcb-watermark { position: absolute; top: 45%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-family: 'Playfair Display', serif; font-size: 90px; font-weight: 700; color: #7a1f2b0d; pointer-events: none; z-index: 0; white-space: nowrap; }
+    .rcb-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; position: relative; z-index: 1; padding-right: 90px; }
+    .rcb-logo { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--accent-color, #7a1f2b); }
+    .rcb-header-meta { font-size: 11px; color: #64748b; margin-top: 3px; }
+    .rcb-title-block { text-align: center; margin: 10px 0 18px; position: relative; z-index: 1; }
+    .rcb-title-block h1 { font-family: 'Playfair Display', serif; font-size: 26px; color: var(--accent-color, #7a1f2b); letter-spacing: 3px; }
+    .rcb-title-block .sub { font-size: 11px; color: #64748b; margin-top: 4px; letter-spacing: 1px; }
+    .rcb-info-strip { display: flex; justify-content: space-around; margin: 14px 0; padding: 10px 0; border-top: 1px solid var(--accent-color, #7a1f2b); border-bottom: 1px solid var(--accent-color, #7a1f2b); font-size: 11px; position: relative; z-index: 1; }
+    .rcb-info-strip div { text-align: center; }
+    .rcb-info-strip strong { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 3px; }
+    .rcb-motivo { margin: 16px 0; padding: 12px 16px; background: #fbf5f5; border: 1px dashed var(--accent-color, #7a1f2b); position: relative; z-index: 1; }
+    .rcb-motivo h3 { font-size: 12px; margin-bottom: 6px; color: var(--accent-color, #7a1f2b); }
+    .rcb-motivo p { font-size: 11px; }
+    table.rcb-items { width: 100%; border-collapse: collapse; font-size: 11px; position: relative; z-index: 1; }
+    table.rcb-items thead th { background: var(--accent-color, #7a1f2b); color: var(--accent-contrast, #fff); padding: 8px 6px; font-weight: 600; }
+    table.rcb-items tbody td { padding: 8px 6px; border-top: 1px solid #e8d9da; }
+    .rcb-totals { margin-top: 15px; max-width: 280px; margin-left: auto; position: relative; z-index: 1; }
+    .rcb-totals .rcb-row { display: flex; justify-content: space-between; padding: 5px 8px; font-size: 12px; }
+    .rcb-totals .rcb-total-final { background: var(--accent-color, #7a1f2b); color: var(--accent-contrast, #fff); font-weight: 600; }
+    .rcb-payment { margin-top: 15px; border: 1px solid var(--accent-color, #7a1f2b); padding: 12px; position: relative; z-index: 1; }
+    .rcb-payment h3 { font-size: 12px; color: var(--accent-color, #7a1f2b); margin-bottom: 8px; }
+    .rcb-payment p { font-size: 11px; display: flex; justify-content: space-between; padding: 2px 0; }
+    .rcb-signatures { margin-top: 34px; display: flex; gap: 40px; position: relative; z-index: 1; }
+    .rcb-signature { flex: 1; text-align: center; }
+    .rcb-signature .line { border-top: 1px solid var(--accent-color, #7a1f2b); padding-top: 8px; font-size: 11px; color: #64748b; }
+    .rcb-signature .role { font-size: 10px; font-weight: 600; color: var(--accent-color, #7a1f2b); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  </style>
+</head>
+<body class="rcb-body rcb-root">
+  <div class="rcb-container">
+    <div class="rcb-frame">
+      <div class="rcb-watermark" id="documento-titulo">RECIBO</div>
+      <div class="rcb-seal">
+        <span class="initials">EE</span>
+        <span class="tag">Oficial</span>
+      </div>
+      <div class="rcb-header">
+        <div>
+          <div id="emitente-logo-wrapper" style="display:none; margin-bottom:8px;"><img id="emitente-logo" src="" alt="Logo" style="max-height:70px; max-width:180px; object-fit:contain;" /></div>
+          <div class="rcb-logo" id="emitente-nomeEmpresa">Empresa Exemplo Lda</div>
+          <div class="rcb-header-meta" id="emitente-documento">NUIT: 123456789</div>
+          <div class="rcb-header-meta" id="emitente-contato">Tel: +258 84 000 0000</div>
+          <div class="rcb-header-meta" id="emitente-endereco">Av. Julius Nyerere, 1234, Maputo</div>
+        </div>
+      </div>
+      <div class="rcb-title-block">
+        <h1 id="titulo-documento">RECIBO</h1>
+        <div class="sub">Documento comprovativo de pagamento</div>
+      </div>
+      <div class="rcb-info-strip">
+        <div><strong>Número</strong><span id="recibo-numero">REC-2026-001</span></div>
+        <div><strong>Data</strong><span id="data-recebimento">06/07/2026</span></div>
+        <div><strong>Referência</strong><span id="documento-referencia-header">FAT-2026-014</span></div>
+      </div>
+      <div style="margin:14px 0; font-size:11px; position:relative; z-index:1;">
+        <span><strong>Cliente:</strong> <span id="destinatario-nomeCompleto">Cliente Exemplo</span></span> &nbsp;|&nbsp;
+        <span><strong>Documento:</strong> <span id="destinatario-documento">000000000</span></span> &nbsp;|&nbsp;
+        <span><strong>Contacto:</strong> <span id="destinatario-contato">84 000 0000</span></span>
+      </div>
+      <div class="rcb-motivo">
+        <h3>Motivo do Recebimento</h3>
+        <p id="motivo-pagamento">Pagamento de serviços prestados</p>
+      </div>
+      <table class="rcb-items">
+        <thead><tr><th style="width:15%;">Qtd</th><th style="width:55%; text-align:left;">Descrição</th><th style="width:30%; text-align:right;">Total</th></tr></thead>
+        <tbody id="items-tbody" data-compact="true"></tbody>
+      </table>
+      <div class="rcb-totals">
+        <div class="rcb-row"><strong>Subtotal</strong><span id="subtotal">1.000,00</span></div>
+        <div class="rcb-row"><strong>Taxas</strong><span id="taxas-total">0,00</span></div>
+        <div class="rcb-row rcb-total-final"><strong>Total</strong><span id="total-final">1.000,00</span></div>
+        <div class="rcb-row rcb-total-final"><strong>Valor Recebido</strong><span id="valor-recebido">1.000,00</span></div>
+      </div>
+      <div class="rcb-payment">
+        <h3>Detalhes do Pagamento</h3>
+        <p><span>Forma:</span><span id="forma-pagamento">Transferência Bancária</span></p>
+        <p><span>Referência:</span><span id="referencia-recebimento">REF-001</span></p>
+        <p><span>Doc. Ref.:</span><span id="documento-referencia">FAT-2026-014</span></p>
+        <p><span>Data Pagamento:</span><span id="data-pagamento">06/07/2026</span></p>
+        <p><span>Moeda:</span><span id="moeda-pagamento">MZN</span></p>
+      </div>
+      <div class="rcb-signatures">
+        <div class="rcb-signature"><div class="line">Assinatura</div><div class="role">Emitente</div></div>
+        <div class="rcb-signature"><div class="line">Assinatura</div><div class="role">Cliente</div></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
