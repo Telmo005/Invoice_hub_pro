@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import MainLayout from '@/app/components/layout/MainLayout';
 import Footer from '@/app/components/layout/sections/Footer';
 
@@ -8,9 +9,15 @@ import Footer from '@/app/components/layout/sections/Footer';
 // substitui aconselhamento jurídico -- recomenda-se revisão por um
 // advogado antes de tratar isto como documento legal definitivo.
 
+export const metadata: Metadata = {
+  title: 'Política de Privacidade',
+  description: 'Política de privacidade do Invoice Hub Pro: que dados recolhemos, onde ficam guardados e como são usados.',
+  alternates: { canonical: '/politica-de-privacidade' },
+};
+
 export default function PoliticaDePrivacidadePage() {
   return (
-    <MainLayout title="Política de Privacidade - Invoice Hub Pro" description="Política de privacidade da Invoice Hub Pro">
+    <MainLayout>
       <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-32 pb-20 text-gray-700">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Política de Privacidade</h1>
         <p className="text-sm text-gray-400 mb-10">Última atualização: julho de 2026</p>

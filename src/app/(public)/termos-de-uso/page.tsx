@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import MainLayout from '@/app/components/layout/MainLayout';
 import Footer from '@/app/components/layout/sections/Footer';
 
@@ -7,9 +8,15 @@ import Footer from '@/app/components/layout/sections/Footer';
 // substitui aconselhamento jurídico -- recomenda-se revisão por um
 // advogado antes de tratar isto como documento legal definitivo.
 
+export const metadata: Metadata = {
+  title: 'Termos de Uso',
+  description: 'Termos de uso do Invoice Hub Pro: planos, pagamentos, responsabilidade pelo conteúdo dos documentos e disponibilidade do serviço.',
+  alternates: { canonical: '/termos-de-uso' },
+};
+
 export default function TermosDeUsoPage() {
   return (
-    <MainLayout title="Termos de Uso - Invoice Hub Pro" description="Termos de uso da Invoice Hub Pro">
+    <MainLayout>
       <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-32 pb-20 text-gray-700">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Termos de Uso</h1>
         <p className="text-sm text-gray-400 mb-10">Última atualização: julho de 2026</p>

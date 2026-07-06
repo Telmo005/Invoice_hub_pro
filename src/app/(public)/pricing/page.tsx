@@ -34,7 +34,7 @@ export default function PricingPage() {
   };
 
   return (
-    <MainLayout title="Preços - Invoice Hub Pro" description="Planos e preços da Invoice Hub Pro">
+    <MainLayout>
       <section className="relative min-h-screen bg-slate-950 text-white pt-32 pb-20 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto text-center mb-14">
           <div className="inline-flex items-center bg-slate-850 border border-slate-700 rounded-full px-4 py-2 mb-6 backdrop-blur-sm">
