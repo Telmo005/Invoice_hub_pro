@@ -9,9 +9,30 @@ import { Inter } from 'next/font/google';
 import  AuthProvider  from '@/app/providers/AuthProvider';
 
 
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://invoice-hub-pro.vercel.app';
+
 export const metadata: Metadata = {
-  title: 'Invoice Hub PRO',
-  description: 'Sistema profissional de gestão de faturas',
+  metadataBase: new URL(baseUrl),
+  title: {
+    default: 'Invoice Hub Pro | Faturas, Cotações e Recibos Profissionais',
+    template: '%s | Invoice Hub Pro',
+  },
+  description: 'Crie faturas, cotações e recibos profissionais em minutos, com modelos premium e pagamentos via M-Pesa e PaySuite. Feito para pequenas empresas em Moçambique.',
+  keywords: ['faturas online', 'gerar fatura', 'cotações', 'recibos', 'software de faturação', 'Moçambique', 'M-Pesa', 'gestão de faturas'],
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: 'website',
+    locale: 'pt_MZ',
+    siteName: 'Invoice Hub Pro',
+    title: 'Invoice Hub Pro | Faturas, Cotações e Recibos Profissionais',
+    description: 'Crie faturas, cotações e recibos profissionais em minutos, com modelos premium e pagamentos via M-Pesa e PaySuite.',
+    url: baseUrl,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Invoice Hub Pro | Faturas, Cotações e Recibos Profissionais',
+    description: 'Crie faturas, cotações e recibos profissionais em minutos, com modelos premium e pagamentos via M-Pesa e PaySuite.',
+  },
 }
 
 const inter = Inter({ subsets: ['latin'] });
