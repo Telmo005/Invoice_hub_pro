@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { FiMinimize2, FiMaximize2, FiZoomIn, FiZoomOut } from 'react-icons/fi';
 
 interface PreviewPanelProps {
@@ -31,22 +31,6 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     isZoomOutDisabled
 }) => {
     const contentRef = useRef<HTMLDivElement>(null);
-
-    // Post-process template HTML to prevent styles from locking scroll/movement
-    useEffect(() => {
-        if (contentRef.current && renderedHtml) {
-            // Find template containers and neutralize any overflow/positioning constraints
-            const templates = contentRef.current.querySelectorAll('.t1-isolated, .invoice-template-isolated, .t3-isolated, .invoice-template');
-            templates.forEach((template) => {
-                const el = template as HTMLElement;
-                // Allow natural scroll and positioning
-                el.style.overflow = 'visible !important';
-                el.style.position = 'relative !important';
-                el.style.maxHeight = 'none !important';
-                el.style.width = 'auto !important';
-            });
-        }
-    }, [renderedHtml]);
 
     return (
         <div className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col h-full">
@@ -109,7 +93,13 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                         <p className="text-sm">{error}</p>
                     </div>
                 ) : (
-                    <div className="flex justify-center items-start">
+                    // Nota (bug mobile 2026-07-06): NÃO usar `flex justify-center` aqui.
+                    // O documento (~793px, largura A4) é mais largo que o ecrã em
+                    // mobile -- com flex+justify-content:center, o overflow do lado
+                    // esquerdo fica fora do alcance do scroll (confirmado com teste:
+                    // bounding box com x negativo, conteúdo inacessível). `margin:auto`
+                    // num container em bloco simples centra sem esse problema.
+                    <div>
                         {/* Template container with zoom applied directly */}
                         <div
                             ref={contentRef}
@@ -120,7 +110,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                                 willChange: 'auto', // Better performance
                                 transition: 'none',
                             }}
-                            className="bg-white rounded-lg overflow-visible"
+                            className="bg-white rounded-lg overflow-visible mx-auto"
                         >
                             <div 
                                 dangerouslySetInnerHTML={{ __html: renderedHtml }} 

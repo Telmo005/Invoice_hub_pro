@@ -87,7 +87,7 @@ export class TemplateService {
         description: 'Elegância corporativa em azul-marinho e dourado',
         thumbnail: 'bg-gradient-to-br from-slate-800 to-yellow-600',
         templateType: 'detailed',
-        imageUrl: '/invoice4.JPG',
+        imageUrl: '/invoice4.jpg',
         backendId: 'template-4',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -97,7 +97,7 @@ export class TemplateService {
         description: 'Preto e branco, sem distrações, só o essencial',
         thumbnail: 'bg-gradient-to-br from-gray-100 to-gray-300',
         templateType: 'minimal',
-        imageUrl: '/invoice5.JPG',
+        imageUrl: '/invoice5.jpg',
         backendId: 'template-5',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -107,7 +107,7 @@ export class TemplateService {
         description: 'Layout de revista com tipografia serif refinada',
         thumbnail: 'bg-gradient-to-br from-amber-50 to-orange-100',
         templateType: 'detailed',
-        imageUrl: '/invoice6.JPG',
+        imageUrl: '/invoice6.jpg',
         backendId: 'template-6',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -118,7 +118,7 @@ export class TemplateService {
         premium: true,
         thumbnail: 'bg-gradient-to-br from-fuchsia-100 to-purple-200',
         templateType: 'detailed',
-        imageUrl: '/invoice7.JPG',
+        imageUrl: '/invoice7.jpg',
         backendId: 'template-7',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -128,7 +128,7 @@ export class TemplateService {
         description: 'Visual moderno de produto digital, com gradiente suave',
         thumbnail: 'bg-gradient-to-br from-sky-100 to-indigo-100',
         templateType: 'default',
-        imageUrl: '/invoice8.JPG',
+        imageUrl: '/invoice8.jpg',
         backendId: 'template-8',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -138,7 +138,7 @@ export class TemplateService {
         description: 'Livro-razão tradicional, sóbrio e confiável',
         thumbnail: 'bg-gradient-to-br from-yellow-50 to-amber-100',
         templateType: 'detailed',
-        imageUrl: '/invoice9.JPG',
+        imageUrl: '/invoice9.jpg',
         backendId: 'template-9',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -149,7 +149,7 @@ export class TemplateService {
         premium: true,
         thumbnail: 'bg-gradient-to-br from-indigo-100 to-blue-200',
         templateType: 'detailed',
-        imageUrl: '/invoice10.JPG',
+        imageUrl: '/invoice10.jpg',
         backendId: 'template-10',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -160,7 +160,7 @@ export class TemplateService {
         premium: true,
         thumbnail: 'bg-gradient-to-br from-neutral-800 to-yellow-700',
         templateType: 'detailed',
-        imageUrl: '/invoice11.JPG',
+        imageUrl: '/invoice11.jpg',
         backendId: 'template-11',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -170,7 +170,7 @@ export class TemplateService {
         description: 'Tons pastel e cantos arredondados, acolhedor',
         thumbnail: 'bg-gradient-to-br from-pink-50 to-rose-100',
         templateType: 'default',
-        imageUrl: '/invoice12.JPG',
+        imageUrl: '/invoice12.jpg',
         backendId: 'template-12',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -180,7 +180,7 @@ export class TemplateService {
         description: 'Barra lateral com identidade da marca',
         thumbnail: 'bg-gradient-to-br from-teal-100 to-cyan-200',
         templateType: 'detailed',
-        imageUrl: '/invoice13.JPG',
+        imageUrl: '/invoice13.jpg',
         backendId: 'template-13',
         supportedTypes: ['invoice', 'quotation']
       },
@@ -211,7 +211,7 @@ export class TemplateService {
         description: 'Talão 80mm monoespaçado, estilo caixa registadora',
         thumbnail: 'bg-gradient-to-br from-gray-100 to-gray-300',
         templateType: 'minimal',
-        imageUrl: '/receipt3.JPG',
+        imageUrl: '/receipt3.jpg',
         backendId: 'template-receipt-3',
         supportedTypes: ['receipt']
       },
@@ -221,7 +221,7 @@ export class TemplateService {
         description: 'Talão 80mm arredondado em tons pastel',
         thumbnail: 'bg-gradient-to-br from-pink-50 to-teal-100',
         templateType: 'default',
-        imageUrl: '/receipt4.JPG',
+        imageUrl: '/receipt4.jpg',
         backendId: 'template-receipt-4',
         supportedTypes: ['receipt']
       },
@@ -231,7 +231,7 @@ export class TemplateService {
         description: 'Talão 80mm denso, ideal para alto volume',
         thumbnail: 'bg-gradient-to-br from-stone-100 to-stone-300',
         templateType: 'minimal',
-        imageUrl: '/receipt5.JPG',
+        imageUrl: '/receipt5.jpg',
         backendId: 'template-receipt-5',
         supportedTypes: ['receipt']
       },
@@ -241,7 +241,7 @@ export class TemplateService {
         description: 'Talão 58mm ultra-compacto para impressoras pequenas',
         thumbnail: 'bg-gradient-to-br from-gray-50 to-gray-200',
         templateType: 'minimal',
-        imageUrl: '/receipt6.JPG',
+        imageUrl: '/receipt6.jpg',
         backendId: 'template-receipt-6',
         supportedTypes: ['receipt']
       },
@@ -251,7 +251,7 @@ export class TemplateService {
         description: 'Talão 58mm com cabeçalho colorido',
         thumbnail: 'bg-gradient-to-br from-emerald-50 to-teal-100',
         templateType: 'default',
-        imageUrl: '/receipt7.JPG',
+        imageUrl: '/receipt7.jpg',
         backendId: 'template-receipt-7',
         supportedTypes: ['receipt']
       },
@@ -261,7 +261,7 @@ export class TemplateService {
         description: 'Recibo A5 formal, tipo mini-fatura',
         thumbnail: 'bg-gradient-to-br from-blue-50 to-indigo-100',
         templateType: 'detailed',
-        imageUrl: '/receipt8.JPG',
+        imageUrl: '/receipt8.jpg',
         backendId: 'template-receipt-8',
         supportedTypes: ['receipt']
       },
@@ -271,7 +271,7 @@ export class TemplateService {
         description: 'Recibo A5 com cabeçalho arredondado moderno',
         thumbnail: 'bg-gradient-to-br from-violet-100 to-purple-200',
         templateType: 'default',
-        imageUrl: '/receipt9.JPG',
+        imageUrl: '/receipt9.jpg',
         backendId: 'template-receipt-9',
         supportedTypes: ['receipt']
       },
@@ -281,7 +281,7 @@ export class TemplateService {
         description: 'Recibo A4 completo em navy e dourado',
         thumbnail: 'bg-gradient-to-br from-blue-100 to-yellow-100',
         templateType: 'detailed',
-        imageUrl: '/receipt10.JPG',
+        imageUrl: '/receipt10.jpg',
         backendId: 'template-receipt-10',
         supportedTypes: ['receipt']
       },
@@ -292,7 +292,7 @@ export class TemplateService {
         premium: true,
         thumbnail: 'bg-gradient-to-br from-amber-100 to-yellow-200',
         templateType: 'detailed',
-        imageUrl: '/receipt11.JPG',
+        imageUrl: '/receipt11.jpg',
         backendId: 'template-receipt-11',
         supportedTypes: ['receipt']
       },
@@ -302,7 +302,7 @@ export class TemplateService {
         description: 'Recibo A4 limpo, sem ornamentos',
         thumbnail: 'bg-gradient-to-br from-teal-50 to-emerald-100',
         templateType: 'minimal',
-        imageUrl: '/receipt12.JPG',
+        imageUrl: '/receipt12.jpg',
         backendId: 'template-receipt-12',
         supportedTypes: ['receipt']
       }

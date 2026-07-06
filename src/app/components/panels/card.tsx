@@ -46,6 +46,8 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
                     src={template.imageUrl}
                     alt={`Template ${template.name}`}
                     className="w-100 h-100 object-cover rounded"
+                    loading="lazy"
+                    decoding="async"
                     onError={handleImageError}
                 />
             </div>
