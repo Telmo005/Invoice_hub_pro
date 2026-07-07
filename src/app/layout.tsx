@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   description: 'Crie faturas, cotações e recibos profissionais em minutos, com modelos premium e pagamentos via M-Pesa e PaySuite. Feito para pequenas empresas em Moçambique.',
   keywords: ['faturas online', 'gerar fatura', 'cotações', 'recibos', 'software de faturação', 'Moçambique', 'M-Pesa', 'gestão de faturas'],
   robots: { index: true, follow: true },
+  verification: {
+    google: '7ROyJ_3XX1JASj6c3TEPmRg9hwrewUB_KvgDRAKgsVc',
+  },
   openGraph: {
     type: 'website',
     locale: 'pt_MZ',
