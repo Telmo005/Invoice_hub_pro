@@ -34,6 +34,8 @@
     table.rcb-items { width: 100%; border-collapse: collapse; font-size: 11px; position: relative; z-index: 1; }
     table.rcb-items thead th { background: var(--accent-color, #1e3a5f); color: var(--accent-contrast, #fff); padding: 8px 6px; font-weight: 600; border-bottom: 2px solid #c9a227; }
     table.rcb-items tbody td { padding: 8px 6px; border-top: 1px solid #e2e8f0; }
+    table.rcb-items .text-center { text-align: center; }
+    table.rcb-items .text-right { text-align: right; }
     .rcb-totals { margin-top: 15px; max-width: 280px; margin-left: auto; position: relative; z-index: 1; }
     .rcb-totals .rcb-row { display: flex; justify-content: space-between; padding: 5px 8px; font-size: 12px; }
     .rcb-totals .rcb-total-final { background: var(--accent-color, #1e3a5f); color: var(--accent-contrast, #fff); font-weight: 600; border: 1px solid #c9a227; }
@@ -74,7 +76,7 @@
       <p id="motivo-pagamento">Pagamento de serviços prestados</p>
     </div>
     <table class="rcb-items">
-      <thead><tr><th style="width:15%;">Qtd</th><th style="width:55%; text-align:left;">Descrição</th><th style="width:30%; text-align:right;">Total</th></tr></thead>
+      <thead><tr><th class="text-center" style="width:15%;">Qtd</th><th style="width:55%; text-align:left;">Descrição</th><th style="width:30%; text-align:right;">Total</th></tr></thead>
       <tbody id="items-tbody" data-compact="true"></tbody>
     </table>
     <div class="rcb-totals">

@@ -131,6 +131,9 @@
         .t4-isolated .party-block div { font-size: 12.5px !important; color: #333 !important; margin-bottom: 2px !important; }
 
         .t4-isolated .text-right { text-align: right !important; }
+        .t4-isolated .text-center { text-align: center !important; }
+        .t4-isolated .items-table thead th.text-right { text-align: right !important; }
+        .t4-isolated .items-table thead th.text-center { text-align: center !important; }
 
         /* ======= TABELA DE ITENS ======= */
         .t4-isolated .items-table {
@@ -262,11 +265,11 @@
                 <table class="items-table">
                     <thead>
                         <tr>
-                            <th>Qtd</th>
+                            <th class="text-center">Qtd</th>
                             <th>Descrição</th>
-                            <th>Preço Unitário</th>
-                            <th>Taxas</th>
-                            <th>Preço Total</th>
+                            <th class="text-right">Preço Unitário</th>
+                            <th class="text-right">Taxas</th>
+                            <th class="text-right">Preço Total</th>
                         </tr>
                     </thead>
                     <tbody id="items-tbody">
