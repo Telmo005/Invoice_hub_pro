@@ -165,13 +165,23 @@
 
         .invoice-container table.inventory th {
             font-weight: bold;
-            text-align: center;
             background: var(--accent-color, #34495e);
             color: var(--accent-contrast, white);
         }
 
+        .invoice-container table.inventory th:nth-child(1) {
+            text-align: center;
+        }
+
+        .invoice-container table.inventory th:nth-child(3),
+        .invoice-container table.inventory th:nth-child(4),
+        .invoice-container table.inventory th:nth-child(5) {
+            text-align: right;
+        }
+
         .invoice-container table.inventory td:nth-child(1) {
             width: 10%;
+            text-align: center;
         }
 
         .invoice-container table.inventory td:nth-child(2) {

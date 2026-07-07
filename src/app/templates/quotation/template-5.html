@@ -121,6 +121,9 @@
         .t5-isolated .party-block div { font-size: 12px !important; color: #333333 !important; margin-bottom: 2px !important; font-weight: 300 !important; }
 
         .t5-isolated .text-right { text-align: right !important; }
+        .t5-isolated .text-center { text-align: center !important; }
+        .t5-isolated .items-table thead th.text-right { text-align: right !important; }
+        .t5-isolated .items-table thead th.text-center { text-align: center !important; }
 
         /* ======= TABELA DE ITENS - sem preenchimento de cor, só linha inferior fina de cor ======= */
         .t5-isolated .items-table {
@@ -238,11 +241,11 @@
             <table class="items-table">
                 <thead>
                     <tr>
-                        <th>Qtd</th>
+                        <th class="text-center">Qtd</th>
                         <th>Descrição</th>
-                        <th>Preço Unitário</th>
-                        <th>Taxas</th>
-                        <th>Preço Total</th>
+                        <th class="text-right">Preço Unitário</th>
+                        <th class="text-right">Taxas</th>
+                        <th class="text-right">Preço Total</th>
                     </tr>
                 </thead>
                 <tbody id="items-tbody">
