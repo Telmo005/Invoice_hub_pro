@@ -1,5 +1,5 @@
 // app/hooks/forms/useNewDocumentWizzardForm.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FormDataFatura, ItemFatura, TotaisFatura, TaxaItem, InvoiceData, TipoDocumento } from '@/types/invoice-types';
 import { isValidDocumentoFiscal } from '@/lib/validation';
 
@@ -155,6 +155,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
   });
   const [isGeneratingNumber, setIsGeneratingNumber] = useState(false);
   const [logo, setLogo] = useState<string | null>(null);
+  const termosAutoGeradosRef = useRef<string>(defaultFormData.termos);
 
   const atualizarTermosAutomaticamente = useCallback((currentFormData: FormDataFatura) => {
     const dias = currentFormData.tipo === 'cotacao'
@@ -201,16 +202,24 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
       }
     }
 
+    // Só atualiza os termos automaticamente enquanto o texto ainda for o
+    // último valor auto-gerado (ou seja, o usuário ainda não digitou nada
+    // próprio nesse campo). Assim que o usuário editar manualmente, paramos
+    // de sobrescrever o que ele escreveu (ex.: dados bancários).
     const novosTermos = atualizarTermosAutomaticamente(formData);
-    if (formData.termos !== novosTermos) {
-      updates.termos = novosTermos;
-      shouldUpdate = true;
+    const termosAindaAutomaticos = formData.termos === termosAutoGeradosRef.current;
+    if (termosAindaAutomaticos) {
+      termosAutoGeradosRef.current = novosTermos;
+      if (formData.termos !== novosTermos) {
+        updates.termos = novosTermos;
+        shouldUpdate = true;
+      }
     }
 
     if (shouldUpdate) {
       setFormData(prev => ({ ...prev, ...updates }));
     }
-  }, [formData.dataFatura, formData.dataVencimento, formData.validezCotacao, formData.validezFatura, formData.tipo, formData.termos, atualizarTermosAutomaticamente, formData]); // CORRIGIDO: adicionado formData como dependência
+  }, [formData.dataFatura, formData.dataVencimento, formData.validezCotacao, formData.validezFatura, formData.tipo, formData.termos, atualizarTermosAutomaticamente, formData]);
 
   const verificarModificacoesEmpresa = useCallback((empresaOriginal: Empresa, dadosAtuais: FormDataFatura['emitente']) => {
     const camposModificados: Record<string, { original: string; atual: string }> = {};
@@ -640,6 +649,7 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
 
   const limparFormulario = () => {
     setFormData(defaultFormData);
+    termosAutoGeradosRef.current = defaultFormData.termos;
     setItems([{ ...defaultItem }]);
     setTotais({ subtotal: 0, totalTaxas: 0, totalFinal: 0, taxasDetalhadas: [], desconto: 0 });
     setErrors({});
