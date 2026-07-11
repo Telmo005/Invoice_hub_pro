@@ -121,7 +121,7 @@ export const POST = withApiGuard(async (request: NextRequest) => {
     .from('pagamentos')
     .select('*')
     .eq('external_id', event.providerPaymentId)
-    .eq('gateway', 'paygate')
+    .eq('gateway', 'paysuite')
     .maybeSingle();
 
   if (findError || !pagamento) {
