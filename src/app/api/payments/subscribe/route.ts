@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { withApiGuard } from '@/lib/api/guard';
 import { logger } from '@/lib/logger';
-import { PaySuiteProvider } from '@/lib/payments/providers/PaySuiteProvider';
+import { PayGateProvider } from '@/lib/payments/providers/PayGateProvider';
 import { PLANS } from '@/lib/payments/config';
 import { PaymentMethod } from '@/lib/payments/PaymentProvider';
 import { generatePaymentReference } from '@/lib/payments/generateReference';
@@ -28,13 +28,14 @@ const ERROR_CODES = {
   INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
 
-function getProvider(): PaySuiteProvider {
-  const apiToken = process.env.PAYSUITE_API_TOKEN;
-  const webhookSecret = process.env.PAYSUITE_WEBHOOK_SECRET;
-  if (!apiToken || !webhookSecret) {
-    throw new Error('PAYSUITE_API_TOKEN/PAYSUITE_WEBHOOK_SECRET não configurados');
+function getProvider(): PayGateProvider {
+  const baseUrl = process.env.PAYGATE_BASE_URL;
+  const apiKey = process.env.PAYGATE_API_KEY;
+  const callbackSecret = process.env.PAYGATE_CALLBACK_SECRET;
+  if (!baseUrl || !apiKey || !callbackSecret) {
+    throw new Error('PAYGATE_BASE_URL/PAYGATE_API_KEY/PAYGATE_CALLBACK_SECRET não configurados');
   }
-  return new PaySuiteProvider(apiToken, webhookSecret);
+  return new PayGateProvider(baseUrl, apiKey, callbackSecret);
 }
 
 const VALID_METHODS: PaymentMethod[] = ['mpesa', 'emola', 'credit_card'];
@@ -103,7 +104,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
 
     const reference = generatePaymentReference('SUB');
 
-    let provider: PaySuiteProvider;
+    let provider: PayGateProvider;
     try {
       provider = getProvider();
     } catch (e) {
@@ -122,8 +123,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
         reference,
         description: 'Assinatura mensal - Invoice Hub Pro',
         method: body.method,
-        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/pages/subscription?pagamento=concluido`,
-        callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook/paysuite`
+        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/pages/subscription?pagamento=concluido`
       });
     } catch (e) {
       // Aguardado (não a fila normal) -- ver a mesma nota em
@@ -147,7 +147,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
         tipo_documento: 'assinatura',
         external_id: charge.providerPaymentId,
         metodo: body.method,
-        gateway: 'paysuite',
+        gateway: 'paygate',
         status: 'aguardando_documento',
         valor: PLANS.mensal.valor,
         moeda: PLANS.mensal.moeda,
