@@ -205,7 +205,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
         tipo_documento: body.tipo,
         external_id: charge.providerPaymentId,
         metodo: body.method,
-        gateway: 'paygate',
+        gateway: 'paysuite',
         status: 'aguardando_documento',
         valor: amount,
         moeda: PLANS.pay_per_documento.moeda,
