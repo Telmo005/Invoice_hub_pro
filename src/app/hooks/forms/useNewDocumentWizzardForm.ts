@@ -709,9 +709,10 @@ const useInvoiceForm = (tipoInicial: TipoDocumento = 'fatura') => {
     };
   };
 
-  return { 
-    formData, 
-    items, 
+  return {
+    formData,
+    setFormData,
+    items,
     totais, 
     errors, 
     touched, 

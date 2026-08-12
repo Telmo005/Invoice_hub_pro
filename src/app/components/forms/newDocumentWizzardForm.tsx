@@ -1,7 +1,9 @@
 import React, { useState, useCallback, memo, useEffect } from 'react';
 import { Roboto } from 'next/font/google';
-import { FaPlus, FaExclamationTriangle, FaArrowRight, FaArrowLeft, FaCheck, FaSpinner, FaTimes, FaSync, FaMagnet } from 'react-icons/fa';
+import { FaPlus, FaExclamationTriangle, FaArrowRight, FaArrowLeft, FaCheck, FaSpinner, FaTimes, FaSync, FaMagnet, FaHistory } from 'react-icons/fa';
 import useInvoiceForm from '@/app/hooks/forms/useNewDocumentWizzardForm';
+import { useDocumentDraft } from '@/app/hooks/forms/useDocumentDraft';
+import { useAuth } from '@/app/providers/AuthProvider';
 import TemplateSlider from '@/app/components/panels/slider';
 import FinalizeStep from '@/app/components/forms/FinalizeStep';
 import { formatCurrency } from '@/lib/formatUtils';
@@ -1225,7 +1227,8 @@ const StepsList = memo(({ currentStep, onStepClick, validateAllPreviousSteps, is
 StepsList.displayName = 'StepsList';
 
 const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) => {
-  const { formData, items, errors, handleChange, handleBlur, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, updateFormData, empresaModificacoes, verificarModificacoesEmpresa, registrarEmpresaOriginal, limparModificacoesEmpresa, isGeneratingNumber, validateForm, generateDocumentNumber, setItems, logo, setLogo } = useInvoiceForm(tipo);
+  const { formData, setFormData, items, errors, handleChange, handleBlur, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, updateFormData, empresaModificacoes, verificarModificacoesEmpresa, registrarEmpresaOriginal, limparModificacoesEmpresa, isGeneratingNumber, validateForm, generateDocumentNumber, setItems, logo, setLogo } = useInvoiceForm(tipo);
+  const { user } = useAuth();
   const { empresas, loading: empresasLoading, error: empresasError, refetch: refetchEmpresas } = useListarEmissores();
   const { empresaPadrao, loading: empresaPadraoLoading, error: empresaPadraoError, refetch: refetchEmpresaPadrao } = useEmpresaPadrao();
   const [currentStep, setCurrentStep] = useState(0);
@@ -1243,6 +1246,21 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
   const [isTemplateRendering, setIsTemplateRendering] = useState(false);
   const loading = empresasLoading || empresaPadraoLoading;
   const error = empresasError || empresaPadraoError;
+
+  const { pendingDraft, restoreDraft, discardDraft, clearOnSuccess } = useDocumentDraft({
+    tipo,
+    userId: user?.id,
+    data: { formData, items, logo, currentStep }
+  });
+
+  const handleRestoreDraft = useCallback(() => {
+    const restored = restoreDraft() as { formData: typeof formData; items: typeof items; logo: typeof logo; currentStep: number } | null;
+    if (!restored) return;
+    setFormData(restored.formData);
+    setItems(restored.items);
+    setLogo(restored.logo ?? null);
+    setCurrentStep(restored.currentStep || 0);
+  }, [restoreDraft, setFormData, setItems, setLogo]);
 
   // Prefill cloning via sessionStorage (sobrevive navegação)
   useEffect(() => {
@@ -1554,10 +1572,10 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
       1: <DestinatarioStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} />,
       2: <ItensStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} items={items} adicionarItem={adicionarItem} removerItem={removerItem} atualizarItem={atualizarItem} adicionarTaxa={adicionarTaxa} removerTaxa={removerTaxa} onItemBlur={handleItemBlur} isGeneratingNumber={isGeneratingNumber} generateDocumentNumber={generateDocumentNumber} />,
       3: <PreviewStep invoiceData={prepareInvoiceData()} tipo={tipo} isFullscreen={isTemplateFullscreen} onToggleFullscreen={toggleTemplateFullscreen} onHtmlRendered={handleHtmlRendered} onRenderingChange={setIsTemplateRendering} />,
-      4: <FinalizeStep invoiceData={prepareDocumentData()} renderedHtml={renderedHtml} />
+      4: <FinalizeStep invoiceData={prepareDocumentData()} renderedHtml={renderedHtml} onInvoiceCreated={clearOnSuccess} />
     };
     return stepComponents[currentStep as keyof typeof stepComponents] || null;
-  }, [currentStep, formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, isTemplateFullscreen, toggleTemplateFullscreen, handleHtmlRendered, renderedHtml, handleItemBlur, empresas, selectedEmpresa, handleEmpresaChange, loading, prepareDocumentData, tipo, isGeneratingNumber, generateDocumentNumber, logo, setLogo]);
+  }, [currentStep, formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, isTemplateFullscreen, toggleTemplateFullscreen, handleHtmlRendered, renderedHtml, handleItemBlur, empresas, selectedEmpresa, handleEmpresaChange, loading, prepareDocumentData, tipo, isGeneratingNumber, generateDocumentNumber, logo, setLogo, clearOnSuccess]);
 
   if (loading && empresas.length === 0) return (<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><FaSpinner className="animate-spin text-blue-500 text-4xl mb-4 mx-auto" /><p className="text-gray-600">Carregando dados das empresas...</p></div></div>);
   if (error && empresas.length === 0) return (<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md"><p className="font-bold">Erro ao carregar empresas</p><p className="text-sm">{error}</p><button onClick={refreshData} className="mt-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm">Tentar Novamente</button></div></div></div>);
@@ -1598,6 +1616,21 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
             </div>
           </div>
         </header>
+        {pendingDraft && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 md:p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <FaHistory className="text-amber-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">Encontrámos um rascunho não finalizado</p>
+                <p className="text-xs text-amber-700">Deseja continuar de onde parou ou começar um documento novo?</p>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <button type="button" className="px-3 py-1.5 text-xs md:text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-md font-medium transition-colors" onClick={handleRestoreDraft}>Continuar rascunho</button>
+              <button type="button" className="px-3 py-1.5 text-xs md:text-sm bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded-md font-medium transition-colors" onClick={discardDraft}>Começar novo</button>
+            </div>
+          </div>
+        )}
         <div className="bg-white rounded-lg border border-gray-200 p-3 md:p-4 mb-4 overflow-x-auto">
           <div className="flex items-center space-x-2 md:space-x-4 text-xs md:text-sm min-w-max">
             {STEPS.map((step, index) => (<React.Fragment key={index}><div className="flex items-center"><div className={`rounded-full p-1 w-5 h-5 md:w-6 md:h-6 flex items-center justify-center mr-1 md:mr-2 ${index <= currentStep ? 'bg-blue-600' : 'bg-gray-300'}`}><span className={`text-xs font-bold ${index <= currentStep ? 'text-white' : 'text-gray-600'}`}>{index + 1}</span></div><span className={`hidden md:inline ${index <= currentStep ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>{step.title}</span><span className={`md:hidden ${index <= currentStep ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>{step.icon}</span></div>{index < STEPS.length - 1 && <div className="text-gray-300">›</div>}</React.Fragment>))}
