@@ -292,13 +292,6 @@ export default function Navbar() {
 
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-4">
-          <NavLink
-            href={ROUTES.PRICING}
-            icon="faTag"
-            label="Preços"
-            onClick={() => handleNavigate(ROUTES.PRICING, 'Preços')}
-            isLoading={isNavigating === 'Preços'}
-          />
           {!user ? (
             <button
               onClick={handleNavigateToLogin}
@@ -459,13 +452,6 @@ export default function Navbar() {
 
           {mobileDropdownOpen && (
             <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 animate-fade-in">
-              <MobileDropdownLink
-                href={ROUTES.PRICING}
-                icon="faTag"
-                label="Preços"
-                onClick={() => handleNavigate(ROUTES.PRICING, 'Preços')}
-                isLoading={isNavigating === 'Preços'}
-              />
               {!user ? (
                 <button
                   onClick={handleNavigateToLogin}

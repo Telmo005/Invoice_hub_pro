@@ -8,6 +8,13 @@ import {
   PaymentProviderError
 } from '../PaymentProvider';
 
+// `fetch` has no default timeout — an unreachable/misconfigured gateway
+// base URL, or the gateway itself hanging, would otherwise leave a charge
+// request pending indefinitely instead of failing fast (confirmed in
+// production on a sibling app using the same PayGate SDK: a payment
+// attempt that never returned).
+const REQUEST_TIMEOUT_MS = 15_000;
+
 // Implementação PayGate da abstração PaymentProvider — substitui a chamada
 // direta ao PaySuite. O PayGate é o dono exclusivo da relação com o PaySuite
 // (token, webhook secret) e reenvia os eventos já assinados com o
@@ -37,7 +44,8 @@ export class PayGateProvider implements PaymentProvider {
         currency: params.currency,
         description: params.description,
         return_url: params.returnUrl
-      })
+      }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
 
     const json = await response.json().catch(() => null);
@@ -59,7 +67,8 @@ export class PayGateProvider implements PaymentProvider {
 
   async getStatus(providerPaymentId: string): Promise<ChargeResult> {
     const response = await fetch(`${this.baseUrl}/api/v1/charges/${providerPaymentId}`, {
-      headers: { Authorization: `Bearer ${this.apiKey}` }
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
 
     const json = await response.json().catch(() => null);

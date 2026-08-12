@@ -9,6 +9,12 @@ import {
 } from '../PaymentProvider';
 import { PAYSUITE_BASE_URL } from '../config';
 
+// `fetch` has no default timeout — if PaySuite itself hangs (as opposed to
+// responding with an error), this call would stay open indefinitely
+// instead of failing fast. Same fix applied to the PayGate path
+// (PayGateProvider.ts) and to the gateway's own PaySuite client.
+const REQUEST_TIMEOUT_MS = 15_000;
+
 // Fase 4 (docs/auditoria-inicial.md): implementação PaySuite da abstração
 // PaymentProvider. Documentação: https://paysuite.tech/docs/
 //
@@ -50,7 +56,8 @@ export class PaySuiteProvider implements PaymentProvider {
         description: params.description,
         return_url: params.returnUrl,
         callback_url: params.callbackUrl
-      })
+      }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
 
     const json = await response.json().catch(() => null);
@@ -72,7 +79,8 @@ export class PaySuiteProvider implements PaymentProvider {
 
   async getStatus(providerPaymentId: string): Promise<ChargeResult> {
     const response = await fetch(`${this.baseUrl}/payments/${providerPaymentId}`, {
-      headers: { Authorization: `Bearer ${this.apiToken}` }
+      headers: { Authorization: `Bearer ${this.apiToken}` },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
 
     const json = await response.json().catch(() => null);
