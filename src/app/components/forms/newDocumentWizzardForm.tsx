@@ -3,7 +3,7 @@ import { Roboto } from 'next/font/google';
 import { FaPlus, FaExclamationTriangle, FaArrowRight, FaArrowLeft, FaCheck, FaSpinner, FaTimes, FaSync, FaMagnet } from 'react-icons/fa';
 import useInvoiceForm from '@/app/hooks/forms/useNewDocumentWizzardForm';
 import TemplateSlider from '@/app/components/panels/slider';
-import Payment from '@/app/components/forms/PaymentForm';
+import FinalizeStep from '@/app/components/forms/FinalizeStep';
 import { formatCurrency } from '@/lib/formatUtils';
 import { Empresa } from '@/types/emissor-type';
 import { useListarEmissores } from '@/app/hooks/emitters/useListarEmissores';
@@ -1554,7 +1554,7 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
       1: <DestinatarioStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} />,
       2: <ItensStep formData={formData} errors={errors} handleChange={handleChange} handleBlur={handleBlur} items={items} adicionarItem={adicionarItem} removerItem={removerItem} atualizarItem={atualizarItem} adicionarTaxa={adicionarTaxa} removerTaxa={removerTaxa} onItemBlur={handleItemBlur} isGeneratingNumber={isGeneratingNumber} generateDocumentNumber={generateDocumentNumber} />,
       3: <PreviewStep invoiceData={prepareInvoiceData()} tipo={tipo} isFullscreen={isTemplateFullscreen} onToggleFullscreen={toggleTemplateFullscreen} onHtmlRendered={handleHtmlRendered} onRenderingChange={setIsTemplateRendering} />,
-      4: <Payment invoiceData={prepareDocumentData()} renderedHtml={renderedHtml} />
+      4: <FinalizeStep invoiceData={prepareDocumentData()} renderedHtml={renderedHtml} />
     };
     return stepComponents[currentStep as keyof typeof stepComponents] || null;
   }, [currentStep, formData, errors, handleChange, handleBlur, items, adicionarItem, removerItem, atualizarItem, adicionarTaxa, removerTaxa, prepareInvoiceData, isTemplateFullscreen, toggleTemplateFullscreen, handleHtmlRendered, renderedHtml, handleItemBlur, empresas, selectedEmpresa, handleEmpresaChange, loading, prepareDocumentData, tipo, isGeneratingNumber, generateDocumentNumber, logo, setLogo]);

@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import { sendPush } from './messaging-client';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'audit';
 export type LogAction = 
@@ -91,6 +92,15 @@ export class SystemLogger {
       const context = await this.getRequestContext();
 
       const level = logData.level || this.getDefaultLevel(logData.action);
+
+      // Antes disto, um erro real (falha de pagamento, PaySuite em baixo,
+      // etc.) só ficava visível no digest diário por email (ver
+      // src/app/api/cron/error-alert/route.ts) — nada em tempo real.
+      // sendPush nunca lança (ver messaging-client.ts), por isso não
+      // precisa de try/catch aqui nem arrisca mascarar o log em si.
+      if (level === 'error') {
+        await sendPush(`Erro: ${logData.action}`, logData.message);
+      }
 
       if (process.env.NODE_ENV === 'production' && level === 'debug') {
         return;
