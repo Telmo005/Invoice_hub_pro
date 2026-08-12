@@ -24,6 +24,17 @@ const STEPS = [
   { title: 'Finalizar', icon: '🏆' },
 ];
 
+const formatSavedAt = (savedAt: number): string => {
+  const diffMs = Date.now() - savedAt;
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'agora mesmo';
+  if (diffMin < 60) return `há ${diffMin} ${diffMin === 1 ? 'minuto' : 'minutos'}`;
+  const diffHoras = Math.floor(diffMin / 60);
+  if (diffHoras < 24) return `há ${diffHoras} ${diffHoras === 1 ? 'hora' : 'horas'}`;
+  const diffDias = Math.floor(diffHoras / 24);
+  return `há ${diffDias} ${diffDias === 1 ? 'dia' : 'dias'}`;
+};
+
 type TaxLine = { id?: number; nome: string; tipo: 'percent' | 'fixed'; valor: number };
 type DocumentItem = { id: number; descricao: string; quantidade: number; precoUnitario: number; taxas: TaxLine[] };
 type ExtendedFormData = FormDataFatura & {
@@ -1607,6 +1618,26 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
           </div>
         </div>
       )}
+      {pendingDraft && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center mb-4">
+              <FaHistory className="text-amber-500 text-xl mr-3" />
+              <h3 className="text-lg font-semibold">Rascunho não finalizado</h3>
+            </div>
+            <div className="mb-6">
+              <p className="text-gray-600 text-sm">
+                Encontrámos {isCotacao ? 'uma cotação' : (isRecibo ? 'um recibo' : 'uma fatura')} que ficou por terminar{formatSavedAt(pendingDraft.savedAt) ? ` (guardado ${formatSavedAt(pendingDraft.savedAt)})` : ''}.
+                Deseja continuar de onde parou ou começar um documento novo?
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button type="button" className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50" onClick={discardDraft}>Começar novo</button>
+              <button type="button" className="px-4 py-2 bg-amber-500 text-white rounded hover:bg-amber-600 flex items-center" onClick={handleRestoreDraft}><FaHistory className="mr-2" />Continuar rascunho</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-6xl mx-auto">
         <header className="mb-4 md:mb-6 text-center">
           <div className="bg-white rounded-lg border border-gray-200 p-2 mb-4">
@@ -1616,21 +1647,6 @@ const NewDocumentForm: React.FC<NewDocumentFormProps> = ({ tipo = 'fatura' }) =>
             </div>
           </div>
         </header>
-        {pendingDraft && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 md:p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-start gap-2">
-              <FaHistory className="text-amber-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-amber-800">Encontrámos um rascunho não finalizado</p>
-                <p className="text-xs text-amber-700">Deseja continuar de onde parou ou começar um documento novo?</p>
-              </div>
-            </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <button type="button" className="px-3 py-1.5 text-xs md:text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-md font-medium transition-colors" onClick={handleRestoreDraft}>Continuar rascunho</button>
-              <button type="button" className="px-3 py-1.5 text-xs md:text-sm bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded-md font-medium transition-colors" onClick={discardDraft}>Começar novo</button>
-            </div>
-          </div>
-        )}
         <div className="bg-white rounded-lg border border-gray-200 p-3 md:p-4 mb-4 overflow-x-auto">
           <div className="flex items-center space-x-2 md:space-x-4 text-xs md:text-sm min-w-max">
             {STEPS.map((step, index) => (<React.Fragment key={index}><div className="flex items-center"><div className={`rounded-full p-1 w-5 h-5 md:w-6 md:h-6 flex items-center justify-center mr-1 md:mr-2 ${index <= currentStep ? 'bg-blue-600' : 'bg-gray-300'}`}><span className={`text-xs font-bold ${index <= currentStep ? 'text-white' : 'text-gray-600'}`}>{index + 1}</span></div><span className={`hidden md:inline ${index <= currentStep ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>{step.title}</span><span className={`md:hidden ${index <= currentStep ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>{step.icon}</span></div>{index < STEPS.length - 1 && <div className="text-gray-300">›</div>}</React.Fragment>))}
