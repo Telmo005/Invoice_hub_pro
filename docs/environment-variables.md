@@ -11,7 +11,7 @@ Crie um `.env.local` (nunca comitado) com estas chaves preenchidas.
 | `NEXT_PUBLIC_SUPABASE_URL` | cliente + servidor | Project Settings > API no Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | cliente + servidor | idem |
 | `SUPABASE_SERVICE_ROLE_KEY` | rotas server-side (`supabaseAdmin`) | nunca expor ao cliente |
-| `NEXT_PUBLIC_APP_URL` | links de email, redirects de checkout PaySuite | ex: `https://invoicehubpro.com` |
+| `NEXT_PUBLIC_APP_URL` | links de email, redirects de checkout PaySuite | ex: `https://invoice-hub-pro.vercel.app` |
 | `ALLOWED_ORIGIN` | CORS das rotas de API | origem exata permitida |
 | `GMAIL_USER` | `email-service.ts` | conta Gmail usada para envio |
 | `GMAIL_APP_PASSWORD` | `email-service.ts` | App Password do Gmail, não a password da conta |

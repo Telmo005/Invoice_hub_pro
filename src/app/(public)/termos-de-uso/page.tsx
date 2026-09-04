@@ -19,11 +19,20 @@ export default function TermosDeUsoPage() {
     <MainLayout>
       <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-32 pb-20 text-gray-700">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Termos de Uso</h1>
-        <p className="text-sm text-gray-400 mb-10">Última atualização: julho de 2026</p>
+        <p className="text-sm text-gray-400 mb-10">Última atualização: setembro de 2026</p>
 
         <div className="space-y-8 text-sm leading-relaxed">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">1. O serviço</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">1. Quem opera este serviço</h2>
+            <p>
+              O Invoice Hub Pro é operado por <strong>Telmo Augusto Sigauque Junior</strong>, pessoa
+              individual (freelancer) sediada em Moçambique -- não é uma empresa registada. Mais
+              detalhes na página <a href="/about" className="text-indigo-600 hover:underline">Sobre</a>.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">2. O serviço</h2>
             <p>
               A Invoice Hub Pro é uma aplicação para criar e gerir faturas, cotações e
               recibos. Está disponível em dois modelos: pagamento por documento (10 MT por
@@ -33,7 +42,7 @@ export default function TermosDeUsoPage() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">2. A tua conta</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">3. A tua conta</h2>
             <p>
               O acesso é feito através de login com a tua conta Google. És responsável por
               manter o acesso a essa conta seguro -- qualquer pessoa com acesso à tua conta
@@ -42,7 +51,7 @@ export default function TermosDeUsoPage() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">3. Responsabilidade pelo conteúdo</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">4. Responsabilidade pelo conteúdo</h2>
             <p>
               És responsável pela exatidão dos dados que introduzes nos teus documentos
               (dados fiscais, valores, impostos). A aplicação ajuda a gerar e organizar os
@@ -52,7 +61,7 @@ export default function TermosDeUsoPage() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">4. Pagamentos e subscrição</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">5. Pagamentos e subscrição</h2>
             <p>
               Os pagamentos são processados pela PaySuite (M-Pesa, e-Mola ou cartão). Na
               subscrição mensal, a renovação não é automática -- enviamos um lembrete antes da
@@ -63,7 +72,7 @@ export default function TermosDeUsoPage() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">5. Disponibilidade do serviço</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">6. Disponibilidade do serviço</h2>
             <p>
               Fazemos o possível para manter a aplicação disponível, mas não garantimos
               disponibilidade ininterrupta. Recomendamos guardar cópias dos teus documentos
@@ -72,15 +81,19 @@ export default function TermosDeUsoPage() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">6. Suporte e contacto</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">7. Suporte e contacto</h2>
             <p>
               Para dúvidas, problemas técnicos ou pedidos relacionados com a tua conta, usa a
-              opção de contacto/suporte disponível na aplicação.
+              opção de contacto/suporte disponível na aplicação, ou escreve diretamente para{' '}
+              <a href="mailto:telmo.sigauquejr@gmail.com" className="text-indigo-600 hover:underline">
+                telmo.sigauquejr@gmail.com
+              </a>
+              .
             </p>
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">7. Alterações a estes termos</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">8. Alterações a estes termos</h2>
             <p>
               Estes termos podem ser atualizados à medida que o serviço evolui. Vamos indicar
               sempre a data da última atualização no topo desta página.

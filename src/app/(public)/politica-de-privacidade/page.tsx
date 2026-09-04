@@ -20,11 +20,24 @@ export default function PoliticaDePrivacidadePage() {
     <MainLayout>
       <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-32 pb-20 text-gray-700">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Política de Privacidade</h1>
-        <p className="text-sm text-gray-400 mb-10">Última atualização: julho de 2026</p>
+        <p className="text-sm text-gray-400 mb-10">Última atualização: setembro de 2026</p>
 
         <div className="space-y-8 text-sm leading-relaxed">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">1. Que dados recolhemos</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">1. Responsável pelo tratamento dos dados</h2>
+            <p>
+              O Invoice Hub Pro é operado por <strong>Telmo Augusto Sigauque Junior</strong>, pessoa
+              individual (freelancer) sediada em Moçambique, responsável pelos dados tratados através
+              desta aplicação. Contacto direto:{' '}
+              <a href="mailto:telmo.sigauquejr@gmail.com" className="text-indigo-600 hover:underline">
+                telmo.sigauquejr@gmail.com
+              </a>
+              . Mais detalhes na página <a href="/about" className="text-indigo-600 hover:underline">Sobre</a>.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">2. Que dados recolhemos</h2>
             <p>
               Ao iniciares sessão através da tua conta Google, recebemos o teu nome, email e
               foto de perfil associados a essa conta. Ao usares a aplicação, guardamos os
@@ -35,7 +48,7 @@ export default function PoliticaDePrivacidadePage() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">2. Onde os dados ficam guardados</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">3. Onde os dados ficam guardados</h2>
             <p>
               Os teus dados são guardados numa base de dados Supabase (PostgreSQL), com
               controlo de acesso ao nível da base de dados (Row Level Security) para que só
@@ -44,7 +57,7 @@ export default function PoliticaDePrivacidadePage() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">3. Pagamentos</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">4. Pagamentos</h2>
             <p>
               Os pagamentos (M-Pesa, e-Mola ou cartão) são processados pela PaySuite, um
               gateway de pagamentos terceiro. Não guardamos dados de cartão nem números de
@@ -54,7 +67,7 @@ export default function PoliticaDePrivacidadePage() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">4. Links de documentos partilhados</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">5. Links de documentos partilhados</h2>
             <p>
               Quando envias uma fatura, cotação ou recibo a um cliente por email, geramos um
               link de visualização público (sem necessidade de login) para que o teu cliente
@@ -65,7 +78,7 @@ export default function PoliticaDePrivacidadePage() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">5. Emails</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">6. Emails</h2>
             <p>
               Usamos email para enviar documentos aos teus clientes, lembretes de subscrição,
               e para receber mensagens de contacto/suporte que envies através da aplicação.
@@ -73,16 +86,20 @@ export default function PoliticaDePrivacidadePage() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">6. Os teus direitos</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">7. Os teus direitos</h2>
             <p>
               Podes pedir a eliminação da tua conta e dos dados associados, ou esclarecer
               qualquer dúvida sobre os teus dados, contactando-nos através da página de
-              contacto/suporte da aplicação.
+              contacto/suporte da aplicação ou diretamente por{' '}
+              <a href="mailto:telmo.sigauquejr@gmail.com" className="text-indigo-600 hover:underline">
+                telmo.sigauquejr@gmail.com
+              </a>
+              .
             </p>
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">7. Alterações a esta política</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">8. Alterações a esta política</h2>
             <p>
               Esta política pode ser atualizada à medida que a aplicação evolui. Vamos
               indicar sempre a data da última atualização no topo desta página.
