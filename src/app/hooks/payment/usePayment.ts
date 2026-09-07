@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { InvoiceData, TipoDocumento } from '@/types/invoice-types';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { MOBILE_MONEY_METHODS, normalizeMozambiquePhone } from '@/lib/payments/phone';
 
 interface PaymentMethod {
   id: string;
@@ -38,14 +39,12 @@ interface UsePaymentReturn {
   dynamicDocumentData: any;
 }
 
-// Fase 4 (docs/auditoria-inicial.md): valores do "id" batem certo com o
-// campo `method` esperado pelo PaySuite (mpesa|emola|credit_card) -- ver
+// Migração PayGate -> Debito Pay: valores do "id" batem certo com o campo
+// `method` esperado pelo gateway (mpesa|emola|mkesh|visa_mastercard) -- ver
 // src/lib/payments/PaymentProvider.ts -- para não precisar de mapear entre
-// um id interno e o valor real da API.
-// 'credit_card' temporariamente oculto (2026-07-05): a PaySuite rejeita este
-// método com HTTP 422 "The selected method is invalid" para esta conta --
-// não é um bug nosso, precisa de ser resolvido do lado da PaySuite antes de
-// voltar a expor a opção. Repor bastar reintroduzir a entrada abaixo.
+// um id interno e o valor real da API. 'credit_card' passou a
+// 'visa_mastercard' e volta a ficar disponível (o bloqueio HTTP 422 era
+// específico da conta PaySuite antiga).
 const PAYMENT_METHODS: PaymentMethod[] = [
   {
     id: 'mpesa',
@@ -55,7 +54,17 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   {
     id: 'emola',
     name: 'e-Mola',
-    description: 'Confirmação instantânea'
+    description: 'Confirmação em alguns segundos'
+  },
+  {
+    id: 'mkesh',
+    name: 'mKesh',
+    description: 'Confirmação em alguns segundos'
+  },
+  {
+    id: 'visa_mastercard',
+    name: 'Visa / Mastercard',
+    description: 'Pagamento com cartão, até 1-2 dias úteis'
   }
 ];
 
@@ -161,17 +170,20 @@ const getDocumentDisplayInfo = (documentType: TipoDocumento) => {
 
 // Fase 4 (docs/auditoria-inicial.md): inicia a cobrança via PaySuite.
 // Devolve um checkout_url para onde o utilizador é enviado para completar
-// o pagamento (M-Pesa/e-Mola/cartão) -- o documento só é criado depois do
-// webhook confirmar o pagamento, nunca aqui.
+// o pagamento (M-Pesa/e-Mola/mKesh/cartão) -- o documento só é criado depois
+// do webhook confirmar o pagamento, nunca aqui.
+// checkout_url só vem preenchido para visa_mastercard (Hosted Checkout) --
+// mpesa/emola/mkesh não têm página de checkout, confirmam no telemóvel.
 type CheckoutResult =
-  | { direct?: false; payment_id: string; checkout_url: string }
+  | { direct?: false; payment_id: string; checkout_url: string | null }
   | { direct: true; document_id: string; numero: string | null };
 
 const initiateCheckout = async (
   tipo: TipoDocumento,
   documentData: InvoiceData,
   method: string,
-  htmlContent: string
+  htmlContent: string,
+  payerPhone?: string
 ): Promise<CheckoutResult> => {
   const csrfToken = await fetchCsrfToken();
   const response = await fetch('/api/payments/checkout', {
@@ -184,7 +196,8 @@ const initiateCheckout = async (
     body: JSON.stringify({
       tipo,
       documentData: { ...documentData, htmlContent },
-      method
+      method,
+      payerPhone
     }),
   });
 
@@ -413,6 +426,15 @@ export const usePayment = ({
       return;
     }
 
+    let normalizedPhone: string | undefined;
+    if ((MOBILE_MONEY_METHODS as string[]).includes(selectedMethod)) {
+      normalizedPhone = normalizeMozambiquePhone(contactNumber) ?? undefined;
+      if (!normalizedPhone) {
+        setErrorMessage('Indique um número de telefone válido (formato 84XXXXXXX)');
+        return;
+      }
+    }
+
     // Reset do estado
     isProcessingRef.current = true;
     setPaymentStatus('processing');
@@ -441,7 +463,8 @@ export const usePayment = ({
         documentType,
         documentDataWithHtml,
         selectedMethod,
-        renderedHtml
+        renderedHtml,
+        normalizedPhone
       );
 
       // Subscrição mensal ativa: o servidor já criou o documento diretamente
@@ -485,19 +508,27 @@ export const usePayment = ({
 
       const { payment_id, checkout_url } = checkoutResult;
 
-      // 3. Tentativa automática de abrir numa nova aba -- funciona em muitos
-      // navegadores mesmo depois de um await, mas não é garantido (alguns
-      // tratam qualquer atraso desde o clique como "já não é gesto do
-      // utilizador" e bloqueiam sem avisar). Por isso guardamos sempre o
-      // link também, para o ecrã mostrar um botão "Abrir pagamento" -- um
-      // clique direto num link é sempre permitido, ao contrário de
-      // window.open() chamado por script.
-      setCheckoutUrl(checkout_url);
-      try { window.open(checkout_url, '_blank', 'noopener,noreferrer'); } catch { /* ignore */ }
+      // 3. Só visa_mastercard tem checkout_url (Hosted Checkout) -- tentativa
+      // automática de abrir numa nova aba, funciona em muitos navegadores
+      // mesmo depois de um await, mas não é garantido (alguns tratam
+      // qualquer atraso desde o clique como "já não é gesto do utilizador" e
+      // bloqueiam sem avisar). Por isso guardamos sempre o link também, para
+      // o ecrã mostrar um botão "Abrir pagamento" -- um clique direto num
+      // link é sempre permitido, ao contrário de window.open() por script.
+      // mpesa/emola/mkesh não têm checkout_url -- confirmam no telemóvel do
+      // número indicado, sem nova aba.
+      if (checkout_url) {
+        setCheckoutUrl(checkout_url);
+        try { window.open(checkout_url, '_blank', 'noopener,noreferrer'); } catch { /* ignore */ }
+      }
 
       // 4. Poll até o webhook confirmar o pagamento (ou até esgotar as
       // tentativas -- cartão pode legitimamente demorar 1-2 dias úteis).
-      setSuccessMessage('Se a aba de pagamento não abriu sozinha, use o botão abaixo. Aguardando confirmação do pagamento...');
+      setSuccessMessage(
+        checkout_url
+          ? 'Se a aba de pagamento não abriu sozinha, use o botão abaixo. Aguardando confirmação do pagamento...'
+          : 'Confirme o pagamento no seu telemóvel. Aguardando confirmação...'
+      );
 
       let resolved = false;
       // O PaySuite confirmou já ter entregado um payment.failed prematuro
@@ -592,6 +623,7 @@ export const usePayment = ({
     isDocumentValid,
     documentValidationErrors,
     selectedMethod,
+    contactNumber,
     validateDocumentNumber,
     invoiceData,
     documentType,

@@ -59,13 +59,13 @@ export const useSubscription = () => {
     refetch();
   }, [refetch]);
 
-  const subscribe = useCallback(async (method: 'mpesa' | 'emola' | 'credit_card') => {
+  const subscribe = useCallback(async (method: 'mpesa' | 'emola' | 'mkesh' | 'visa_mastercard', payerPhone?: string) => {
     setIsSubscribing(true);
     setErrorMessage(null);
     // Feedback imediato -- sem isto, o utilizador só via o botão mudar para
     // "Processando..." e mais nada durante o tempo de resposta do CSRF +
     // /api/payments/subscribe (que pode demorar alguns segundos por chamar
-    // a PaySuite), dando a sensação de que o clique não fez nada.
+    // o gateway), dando a sensação de que o clique não fez nada.
     setSuccessMessage('A iniciar pagamento...');
     setCheckoutUrl(null);
 
@@ -75,7 +75,7 @@ export const useSubscription = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
         credentials: 'include',
-        body: JSON.stringify({ method })
+        body: JSON.stringify({ method, payerPhone })
       });
       const data = await res.json();
 
@@ -85,14 +85,22 @@ export const useSubscription = () => {
 
       const { payment_id, checkout_url } = data.data;
 
-      // Tentativa automática -- funciona em muitos navegadores mesmo depois
-      // de um await, mas não é garantido. checkoutUrl fica sempre disponível
-      // para um botão "Abrir pagamento" (link clicado diretamente, sempre
-      // permitido) -- mesmo ajuste feito em usePayment.ts.
-      setCheckoutUrl(checkout_url);
-      try { window.open(checkout_url, '_blank', 'noopener,noreferrer'); } catch { /* ignore */ }
+      // Só visa_mastercard tem checkout_url (Hosted Checkout) -- mpesa/
+      // emola/mkesh confirmam no telemóvel do número indicado, sem nova aba.
+      // Tentativa automática de abrir -- funciona em muitos navegadores
+      // mesmo depois de um await, mas não é garantido. checkoutUrl fica
+      // sempre disponível para um botão "Abrir pagamento" (link clicado
+      // diretamente, sempre permitido) -- mesmo ajuste feito em usePayment.ts.
+      if (checkout_url) {
+        setCheckoutUrl(checkout_url);
+        try { window.open(checkout_url, '_blank', 'noopener,noreferrer'); } catch { /* ignore */ }
+      }
 
-      setSuccessMessage('Se a aba de pagamento não abriu sozinha, use o botão abaixo. Aguardando confirmação do pagamento...');
+      setSuccessMessage(
+        checkout_url
+          ? 'Se a aba de pagamento não abriu sozinha, use o botão abaixo. Aguardando confirmação do pagamento...'
+          : 'Confirme o pagamento no seu telemóvel. Aguardando confirmação...'
+      );
 
       // O PaySuite pode entregar um payment.failed prematuro antes do
       // payment.success real para o mesmo pagamento -- um único "falhado"

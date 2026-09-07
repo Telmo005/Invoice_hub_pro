@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { PayGateProvider } from '@/lib/payments/providers/PayGateProvider';
 import { PLANS } from '@/lib/payments/config';
 import { PaymentMethod } from '@/lib/payments/PaymentProvider';
+import { ALL_PAYMENT_METHODS, MOBILE_MONEY_METHODS, normalizeMozambiquePhone } from '@/lib/payments/phone';
 import { generatePaymentReference } from '@/lib/payments/generateReference';
 
 // Fase 4 bloco 4e: inicia (ou renova) a assinatura mensal (250 MT) via
@@ -20,6 +21,8 @@ import { generatePaymentReference } from '@/lib/payments/generateReference';
 
 interface SubscribeBody {
   method: PaymentMethod;
+  /** Obrigatório para mpesa/emola/mkesh -- quem vai pagar, formato E.164 (+258...) */
+  payerPhone?: string;
 }
 
 const ERROR_CODES = {
@@ -38,8 +41,6 @@ function getProvider(): PayGateProvider {
   return new PayGateProvider(baseUrl, apiKey, callbackSecret);
 }
 
-const VALID_METHODS: PaymentMethod[] = ['mpesa', 'emola', 'credit_card'];
-
 export const POST = withApiGuard(async (request: NextRequest, { user }) => {
   const startTime = Date.now();
 
@@ -56,11 +57,22 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       }, { status: 400 });
     }
 
-    if (!body?.method || !VALID_METHODS.includes(body.method)) {
+    if (!body?.method || !ALL_PAYMENT_METHODS.includes(body.method)) {
       return NextResponse.json({
         success: false,
-        error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'method é obrigatório (mpesa|emola|credit_card)' }
+        error: { code: ERROR_CODES.VALIDATION_ERROR, message: `method inválido (${ALL_PAYMENT_METHODS.join('|')})` }
       }, { status: 400 });
+    }
+
+    let payerPhone: string | undefined;
+    if (MOBILE_MONEY_METHODS.includes(body.method)) {
+      payerPhone = normalizeMozambiquePhone(body.payerPhone || '') ?? undefined;
+      if (!payerPhone) {
+        return NextResponse.json({
+          success: false,
+          error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'payerPhone inválido (use o formato 84XXXXXXX) -- obrigatório para mpesa/emola/mkesh' }
+        }, { status: 400 });
+      }
     }
 
     // Upsert manual da linha de subscriptions (não pode usar UPSERT nativo
@@ -123,7 +135,10 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
         reference,
         description: 'Assinatura mensal - Invoice Hub Pro',
         method: body.method,
-        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/pages/subscription?pagamento=concluido`
+        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/pages/subscription?pagamento=concluido`,
+        payerPhone,
+        payerName: user.user_metadata?.full_name || user.email,
+        payerEmail: user.email
       });
     } catch (e) {
       // Aguardado (não a fila normal) -- ver a mesma nota em

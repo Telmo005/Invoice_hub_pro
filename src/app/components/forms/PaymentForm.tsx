@@ -19,6 +19,7 @@ import {
 } from 'react-icons/fa';
 import { usePayment } from '@/app/hooks/payment/usePayment';
 import { PaymentMethodPicker } from '@/app/components/payment/PaymentMethodPicker';
+import { MOBILE_MONEY_METHODS } from '@/lib/payments/phone';
 
 const roboto = Roboto({
   weight: ['300', '400', '700'],
@@ -144,6 +145,8 @@ const PaymentMethodSelector: React.FC<{
   paymentMethods: any[];
   selectedMethod: string | null;
   onMethodSelect: (method: string) => void;
+  contactNumber: string;
+  onContactNumberChange: (value: string) => void;
   errorMessage?: string;
   successMessage?: string;
   isProcessing: boolean;
@@ -157,6 +160,8 @@ const PaymentMethodSelector: React.FC<{
   paymentMethods,
   selectedMethod,
   onMethodSelect,
+  contactNumber,
+  onContactNumberChange,
   errorMessage,
   successMessage,
   isProcessing,
@@ -168,6 +173,7 @@ const PaymentMethodSelector: React.FC<{
   checkoutUrl
 }) => {
     const selectedMethodData = paymentMethods.find(method => method.id === selectedMethod);
+    const needsPhone = selectedMethod ? (MOBILE_MONEY_METHODS as string[]).includes(selectedMethod) : false;
 
     return (
       <div className="bg-white rounded-2xl shadow-sm p-6">
@@ -185,13 +191,28 @@ const PaymentMethodSelector: React.FC<{
 
         {selectedMethodData && (
           <div className="space-y-4">
+            {needsPhone && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                  Número a debitar
+                </label>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="84XXXXXXX"
+                  value={contactNumber}
+                  onChange={(e) => onContactNumberChange(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                />
+              </div>
+            )}
+
             <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
               <FaExternalLinkAlt className="text-blue-400 mt-0.5 flex-shrink-0" />
               <p className="text-sm text-blue-700">
-                Vai abrir uma nova aba para concluir o pagamento com segurança.
-                {selectedMethodData.id === 'credit_card'
-                  ? ' Pagamentos com cartão Visa ou Mastercard podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
-                  : ' Confirme o pagamento no seu telemóvel quando for solicitado.'}
+                {selectedMethodData.id === 'visa_mastercard'
+                  ? 'Vai abrir uma nova aba para concluir o pagamento com segurança. Pagamentos com cartão Visa ou Mastercard podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
+                  : `Vamos enviar um pedido de confirmação para ${contactNumber || 'o número indicado'}. Confirme o pagamento no seu telemóvel quando for solicitado.`}
               </p>
             </div>
 
@@ -303,6 +324,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
   const {
     selectedMethod,
     paymentStatus,
+    contactNumber,
+    setContactNumber,
     errorMessage,
     successMessage,
     documentSaveResult,
@@ -379,6 +402,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({
               paymentMethods={paymentMethods}
               selectedMethod={selectedMethod}
               onMethodSelect={setSelectedMethod}
+              contactNumber={contactNumber}
+              onContactNumberChange={setContactNumber}
               errorMessage={errorMessage ?? undefined}
               successMessage={successMessage ?? undefined}
               isProcessing={isProcessing}
