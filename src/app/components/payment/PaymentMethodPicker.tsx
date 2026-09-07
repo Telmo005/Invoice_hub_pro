@@ -1,6 +1,6 @@
 'use client';
 
-import { FaCheck, FaMobileAlt, FaWallet } from 'react-icons/fa';
+import { FaCheck, FaMobileAlt, FaWallet, FaQrcode } from 'react-icons/fa';
 import { SiVisa, SiMastercard } from 'react-icons/si';
 
 export interface PaymentMethodOption {
@@ -13,14 +13,15 @@ export interface PaymentMethodOption {
 // (PaymentForm.tsx) e a página de assinatura (/pages/subscription) para não
 // haver duas versões a divergir. Cartão usa os ícones reais da Visa/
 // Mastercard (react-icons/si -- uso padrão em checkouts para indicar redes
-// aceites). Não há ícone de marca disponível para M-Pesa nem e-Mola nesta
+// aceites). Não há ícone de marca disponível para M-Pesa/e-Mola/mKesh nesta
 // biblioteca (nem temos assets licenciados delas), por isso usamos um ícone
 // genérico com a cor aproximada de cada marca (M-Pesa vermelho, e-Mola verde
-// #00A651 da Movitel) em vez de reproduzir um logótipo que não é o correto.
+// #00A651 da Movitel, mKesh laranja) em vez de reproduzir um logótipo errado.
 const METHOD_VISUALS: Record<string, { renderIcon: () => React.ReactNode }> = {
   mpesa: { renderIcon: () => <FaMobileAlt className="text-xl text-red-500" /> },
   emola: { renderIcon: () => <FaWallet className="text-xl" style={{ color: '#00A651' }} /> },
-  credit_card: {
+  mkesh: { renderIcon: () => <FaQrcode className="text-xl" style={{ color: '#F7941D' }} /> },
+  visa_mastercard: {
     renderIcon: () => (
       <div className="flex items-center gap-1">
         <SiVisa className="text-lg" color="#1A1F71" />
@@ -30,7 +31,7 @@ const METHOD_VISUALS: Record<string, { renderIcon: () => React.ReactNode }> = {
   }
 };
 
-const DEFAULT_VISUAL = METHOD_VISUALS.credit_card;
+const DEFAULT_VISUAL = METHOD_VISUALS.visa_mastercard;
 
 export const PaymentMethodPicker: React.FC<{
   methods: PaymentMethodOption[];

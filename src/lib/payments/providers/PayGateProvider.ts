@@ -43,7 +43,10 @@ export class PayGateProvider implements PaymentProvider {
         method: params.method,
         currency: params.currency,
         description: params.description,
-        return_url: params.returnUrl
+        return_url: params.returnUrl,
+        payer_phone: params.payerPhone,
+        payer_name: params.payerName,
+        payer_email: params.payerEmail
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });

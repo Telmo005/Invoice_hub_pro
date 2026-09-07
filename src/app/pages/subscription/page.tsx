@@ -6,18 +6,41 @@ import { PaymentMethodPicker } from '@/app/components/payment/PaymentMethodPicke
 import { FiCheckCircle, FiAlertTriangle, FiInfo, FiExternalLink, FiArrowRight } from 'react-icons/fi';
 import { FaSpinner, FaCheck, FaExclamationTriangle, FaExternalLinkAlt } from 'react-icons/fa';
 import React, { useState } from 'react';
+import { MOBILE_MONEY_METHODS, normalizeMozambiquePhone } from '@/lib/payments/phone';
 
-// 'credit_card' temporariamente oculto (2026-07-05): PaySuite rejeita este
-// método (HTTP 422 "The selected method is invalid") para esta conta -- ver
-// mesma nota em usePayment.ts.
+// Migração PayGate -> Debito Pay: 'credit_card' passou a 'visa_mastercard' e
+// volta a ficar disponível (o bloqueio 422 era específico da conta PaySuite
+// antiga) -- ver mesma nota em usePayment.ts. mKesh é novo.
 const METHOD_OPTIONS = [
   { id: 'mpesa', name: 'M-Pesa', description: 'Confirmação instantânea' },
-  { id: 'emola', name: 'e-Mola', description: 'Confirmação instantânea' }
+  { id: 'emola', name: 'e-Mola', description: 'Confirmação em alguns segundos' },
+  { id: 'mkesh', name: 'mKesh', description: 'Confirmação em alguns segundos' },
+  { id: 'visa_mastercard', name: 'Visa / Mastercard', description: 'Pagamento com cartão, até 1-2 dias úteis' }
 ];
 
 export default function SubscriptionPage() {
   const { subscription, isLoading, isSubscribing, errorMessage, successMessage, checkoutUrl, subscribe } = useSubscription();
   const [selectedMethod, setSelectedMethod] = useState<string | null>('mpesa');
+  const [contactNumber, setContactNumber] = useState('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const needsPhone = selectedMethod ? (MOBILE_MONEY_METHODS as string[]).includes(selectedMethod) : false;
+
+  const handleSubscribeClick = () => {
+    if (!selectedMethod) return;
+    setPhoneError(null);
+
+    if (needsPhone) {
+      const normalized = normalizeMozambiquePhone(contactNumber);
+      if (!normalized) {
+        setPhoneError('Número de telefone inválido (use o formato 84XXXXXXX)');
+        return;
+      }
+      subscribe(selectedMethod as 'mpesa' | 'emola' | 'mkesh', normalized);
+      return;
+    }
+
+    subscribe(selectedMethod as 'visa_mastercard');
+  };
 
   const isMensal = subscription?.plano === 'mensal';
   const isAtiva = isMensal && subscription?.status === 'ativa';
@@ -129,13 +152,29 @@ export default function SubscriptionPage() {
                 </div>
 
                 <div className="space-y-4">
+                  {needsPhone && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                        Número a debitar
+                      </label>
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        placeholder="84XXXXXXX"
+                        value={contactNumber}
+                        onChange={(e) => setContactNumber(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                      />
+                      {phoneError && <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>}
+                    </div>
+                  )}
+
                   <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
                     <FiExternalLink className="text-blue-400 mt-0.5 flex-shrink-0" />
                     <p className="text-sm text-blue-700">
-                      Vai abrir uma nova aba para concluir o pagamento com segurança.
-                      {selectedMethod === 'credit_card'
-                        ? ' Pagamentos com cartão Visa ou Mastercard podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
-                        : ' Confirme o pagamento no seu telemóvel quando for solicitado.'}
+                      {selectedMethod === 'visa_mastercard'
+                        ? 'Vai abrir uma nova aba para concluir o pagamento com segurança. Pagamentos com cartão Visa ou Mastercard podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
+                        : `Vamos enviar um pedido de confirmação para ${contactNumber || 'o número indicado'}. Confirme o pagamento no seu telemóvel quando for solicitado.`}
                     </p>
                   </div>
 
@@ -154,7 +193,7 @@ export default function SubscriptionPage() {
                   )}
 
                   <button
-                    onClick={() => selectedMethod && subscribe(selectedMethod as 'mpesa' | 'emola' | 'credit_card')}
+                    onClick={handleSubscribeClick}
                     disabled={isSubscribing || !selectedMethod}
                     className="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 px-4 rounded-xl font-semibold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 text-base transition-all duration-200 shadow-lg shadow-green-500/25 hover:-translate-y-0.5"
                   >

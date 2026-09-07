@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { PayGateProvider } from '@/lib/payments/providers/PayGateProvider';
 import { PLANS } from '@/lib/payments/config';
 import { PaymentMethod } from '@/lib/payments/PaymentProvider';
+import { ALL_PAYMENT_METHODS, MOBILE_MONEY_METHODS, normalizeMozambiquePhone } from '@/lib/payments/phone';
 import { generatePaymentReference } from '@/lib/payments/generateReference';
 import { hasActiveSubscription } from '@/lib/payments/hasActiveSubscription';
 import { ensureEmitenteId, ensureDestinatarioId } from '@/lib/document/party';
@@ -29,6 +30,8 @@ interface CheckoutBody {
   tipo: 'fatura' | 'cotacao' | 'recibo';
   documentData: unknown;
   method: PaymentMethod;
+  /** Obrigatório para mpesa/emola/mkesh -- quem vai pagar, formato E.164 (+258...) */
+  payerPhone?: string;
 }
 
 const ERROR_CODES = {
@@ -81,6 +84,24 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
         success: false,
         error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'tipo, documentData e method são obrigatórios' }
       }, { status: 400 });
+    }
+
+    if (!ALL_PAYMENT_METHODS.includes(body.method)) {
+      return NextResponse.json({
+        success: false,
+        error: { code: ERROR_CODES.VALIDATION_ERROR, message: `method inválido (${ALL_PAYMENT_METHODS.join('|')})` }
+      }, { status: 400 });
+    }
+
+    let payerPhone: string | undefined;
+    if (MOBILE_MONEY_METHODS.includes(body.method)) {
+      payerPhone = normalizeMozambiquePhone(body.payerPhone || '') ?? undefined;
+      if (!payerPhone) {
+        return NextResponse.json({
+          success: false,
+          error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'payerPhone inválido (use o formato 84XXXXXXX) -- obrigatório para mpesa/emola/mkesh' }
+        }, { status: 400 });
+      }
     }
 
     const validation = validateByTipo(body.tipo, body.documentData);
@@ -179,7 +200,10 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
         reference,
         description: `Documento ${numero || body.tipo} - Invoice Hub Pro`,
         method: body.method,
-        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/pages/payments/success?payment_id=${pagamentoId}`
+        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/pages/payments/success?payment_id=${pagamentoId}`,
+        payerPhone,
+        payerName: user.user_metadata?.full_name || formData?.emitente?.nomeEmpresa || user.email,
+        payerEmail: user.email
       });
     } catch (e) {
       // Aguardado (não a fila normal) -- uma falha real ao chamar o
