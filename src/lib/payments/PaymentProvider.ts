@@ -4,9 +4,9 @@
 
 // Migração PayGate -> Debito Pay: 'credit_card' passou a 'visa_mastercard'
 // (nome exigido pelo provider) e há dois métodos novos, 'mkesh' e
-// 'visa_mastercard' -- 'payfast' fica de fora porque exige currency ZAR e
-// este app só tem preços em MZN (ver src/lib/payments/config.ts).
-export type PaymentMethod = 'mpesa' | 'emola' | 'mkesh' | 'visa_mastercard';
+// 'visa_mastercard'. 'payfast' exige currency ZAR -- os preços em MZN são
+// convertidos com MZN_TO_ZAR_RATE (ver src/lib/payments/config.ts).
+export type PaymentMethod = 'mpesa' | 'emola' | 'mkesh' | 'visa_mastercard' | 'payfast';
 export type ChargeStatus = 'pending' | 'success' | 'failed';
 export type WebhookEventType = 'payment.success' | 'payment.failed';
 

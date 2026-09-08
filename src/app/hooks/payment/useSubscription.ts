@@ -10,8 +10,8 @@ export interface SubscriptionData {
   data_proxima_cobranca: string | null;
   bloqueado_em: string | null;
   precos: {
-    mensal: { valor: number; moeda: string; label: string; descricao: string };
-    pay_per_documento: { valor: number; moeda: string; label: string; descricao: string };
+    mensal: { valor: number; moeda: string; valorZar: number; label: string; descricao: string };
+    pay_per_documento: { valor: number; moeda: string; valorZar: number; label: string; descricao: string };
   };
 }
 
@@ -59,7 +59,7 @@ export const useSubscription = () => {
     refetch();
   }, [refetch]);
 
-  const subscribe = useCallback(async (method: 'mpesa' | 'emola' | 'mkesh' | 'visa_mastercard', payerPhone?: string) => {
+  const subscribe = useCallback(async (method: 'mpesa' | 'emola' | 'mkesh' | 'visa_mastercard' | 'payfast', payerPhone?: string) => {
     setIsSubscribing(true);
     setErrorMessage(null);
     // Feedback imediato -- sem isto, o utilizador só via o botão mudar para

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import MainLayout from '@/app/components/layout/MainLayout';
 import Footer from '@/app/components/layout/sections/Footer';
+import { PLANS } from '@/lib/payments/config';
 
 // Página criada para corrigir o 404 nos links do Footer -- conteúdo
 // descreve fielmente o modelo de negócio atual (planos, pagamentos via
@@ -35,8 +36,8 @@ export default function TermosDeUsoPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-2">2. O serviço</h2>
             <p>
               A Invoice Hub Pro é uma aplicação para criar e gerir faturas, cotações e
-              recibos. Está disponível em dois modelos: pagamento por documento (10 MT por
-              documento) ou subscrição mensal (250 MT/mês, documentos ilimitados). Os preços
+              recibos. Está disponível em dois modelos: pagamento por documento ({PLANS.pay_per_documento.valor} MT por
+              documento) ou subscrição mensal ({PLANS.mensal.valor} MT/mês, documentos ilimitados). Os preços
               atuais estão sempre visíveis na página de Preços.
             </p>
           </div>

@@ -1,5 +1,6 @@
 // src/services/email-service.ts
 import nodemailer from 'nodemailer';
+import { PLANS } from '@/lib/payments/config';
 
 export interface EmailDocumentData {
   documentId: string;
@@ -166,7 +167,7 @@ export class EmailService {
     try {
       const html = this.createSimpleEmailTemplate(
         'A sua assinatura expirou',
-        'A sua assinatura mensal da Invoice Hub Pro expirou e a criação direta de novos documentos foi bloqueada. Renove a assinatura para recuperar o acesso, ou continue a usar a app pagando 10 MT por documento.',
+        `A sua assinatura mensal da Invoice Hub Pro expirou e a criação direta de novos documentos foi bloqueada. Renove a assinatura para recuperar o acesso, ou continue a usar a app pagando ${PLANS.pay_per_documento.valor} MT por documento.`,
         'Renovar assinatura',
         renewLink
       );

@@ -2,18 +2,37 @@
 // regras de negócio de cobrança. Valores fixos aqui (não numa tabela de BD)
 // porque são decisões de produto raramente alteradas, não dados de utilizador.
 
+// Taxa de conversão MZN -> ZAR para o método payfast (a Debito Pay só aceita
+// payfast em ZAR; os preços deste app são definidos em MZN). Fixada
+// manualmente, não é uma taxa em tempo real -- fonte: xe.com, 13/09/2026
+// (1 MZN ~= 0.253 ZAR). Revê de vez em quando; um desvio de cêntimos não é
+// crítico, mas não deixes isto parado durante anos.
+export const MZN_TO_ZAR_RATE = 0.253;
+
+// A Debito Pay exige um mínimo de 5 ZAR por transação em payfast -- a taxa de
+// liberação de documento (15 MZN ~= 3.80 ZAR) fica abaixo disso, por isso
+// aplicamos este piso só para não a cobrança ser recusada.
+const PAYFAST_MIN_ZAR = 5;
+
+function toZar(mznValue: number): number {
+  const converted = Math.round(mznValue * MZN_TO_ZAR_RATE * 100) / 100;
+  return Math.max(converted, PAYFAST_MIN_ZAR);
+}
+
 export const PLANS = {
   mensal: {
     valor: 250,
     moeda: 'MZN',
+    valorZar: toZar(250),
     label: 'Assinatura Mensal',
     descricao: 'Acesso ilimitado à geração de faturas, cotações e recibos.'
   },
   pay_per_documento: {
-    valor: 10,
+    valor: 15,
     moeda: 'MZN',
+    valorZar: toZar(15),
     label: 'Pagar por Documento',
-    descricao: 'Sem mensalidade -- paga 10 MT sempre que gerar um documento.'
+    descricao: 'Sem mensalidade -- paga 15 MT sempre que gerar um documento.'
   }
 } as const;
 

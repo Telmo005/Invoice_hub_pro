@@ -32,6 +32,7 @@ interface FindInvoiceResponse {
       metodo: string;
       status: string;
       valor: number;
+      moeda?: string;
       created_at?: string;
     };
   };
@@ -219,7 +220,7 @@ export async function POST(request: NextRequest) {
       // Obter último pagamento (se existir)
       const { data: pagamentoRow } = await supabase
         .from('pagamentos')
-        .select('metodo, status, valor, created_at')
+        .select('metodo, status, valor, moeda, created_at')
         .eq('documento_id', viewRow.id)
         .eq('tipo_documento', 'fatura')
         .order('created_at', { ascending: false })
@@ -231,6 +232,11 @@ export async function POST(request: NextRequest) {
           metodo: pagamentoRow.metodo,
           status: pagamentoRow.status,
           valor: pagamentoRow.valor,
+          // Desde a migração para Debito Pay, payfast cobra em ZAR -- os
+          // restantes métodos continuam em MZN. Sem isto, um futuro consumidor
+          // deste endpoint que formate `valor` assumindo sempre MZN mostra o
+          // valor errado para pagamentos payfast.
+          moeda: pagamentoRow.moeda,
           created_at: pagamentoRow.created_at
         };
       }

@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 import { PayGateProvider } from '@/lib/payments/providers/PayGateProvider';
 import { PLANS } from '@/lib/payments/config';
 import { PaymentMethod } from '@/lib/payments/PaymentProvider';
-import { ALL_PAYMENT_METHODS, MOBILE_MONEY_METHODS, normalizeMozambiquePhone } from '@/lib/payments/phone';
+import { ALL_PAYMENT_METHODS, MOBILE_MONEY_METHODS, resolveChargeAmount, normalizeMozambiquePhone } from '@/lib/payments/phone';
 import { generatePaymentReference } from '@/lib/payments/generateReference';
 import { hasActiveSubscription } from '@/lib/payments/hasActiveSubscription';
 import { ensureEmitenteId, ensureDestinatarioId } from '@/lib/document/party';
@@ -19,7 +19,8 @@ import {
 } from '@/lib/validation/documentSchemas';
 
 // Fase 4 (docs/auditoria-inicial.md): inicia a cobrança pay-per-documento
-// (10 MT) via PaySuite. Nunca gera o documento aqui -- só depois do webhook
+// (ver PLANS.pay_per_documento em lib/payments/config.ts) via Debito Pay.
+// Nunca gera o documento aqui -- só depois do webhook
 // confirmar o pagamento (ver /api/payments/webhook/paysuite). Guarda o
 // payload de criação em pagamentos.metadata.document_payload (dados em
 // bruto, não IDs já resolvidos) para o webhook fazer ensureEmitenteId/
@@ -93,16 +94,10 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       }, { status: 400 });
     }
 
-    let payerPhone: string | undefined;
-    if (MOBILE_MONEY_METHODS.includes(body.method)) {
-      payerPhone = normalizeMozambiquePhone(body.payerPhone || '') ?? undefined;
-      if (!payerPhone) {
-        return NextResponse.json({
-          success: false,
-          error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'payerPhone inválido (use o formato 84XXXXXXX) -- obrigatório para mpesa/emola/mkesh' }
-        }, { status: 400 });
-      }
-    }
+    // payerPhone só é validado mais abaixo, DEPOIS de confirmar que o
+    // utilizador não tem subscrição ativa -- um subscritor não é cobrado
+    // (cria o documento direto, ver hasActiveSubscription abaixo) e não deve
+    // ser bloqueado a indicar um número que nunca seria usado.
 
     const validation = validateByTipo(body.tipo, body.documentData);
     if (!validation.ok) {
@@ -172,7 +167,19 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       });
     }
 
-    const amount = PLANS.pay_per_documento.valor;
+    // Só a partir daqui é que vai mesmo haver cobrança (sem subscrição ativa).
+    let payerPhone: string | undefined;
+    if (MOBILE_MONEY_METHODS.includes(body.method)) {
+      payerPhone = normalizeMozambiquePhone(body.payerPhone || '') ?? undefined;
+      if (!payerPhone) {
+        return NextResponse.json({
+          success: false,
+          error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'payerPhone inválido (use o formato 84XXXXXXX) -- obrigatório para mpesa/emola/mkesh' }
+        }, { status: 400 });
+      }
+    }
+
+    const { amount, currency } = resolveChargeAmount(PLANS.pay_per_documento, body.method);
     const reference = generatePaymentReference(body.tipo.slice(0, 3));
 
     // Gerado antes de chamar o PaySuite (não depois de inserir o registo)
@@ -196,7 +203,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
     try {
       charge = await provider.charge({
         amount,
-        currency: PLANS.pay_per_documento.moeda,
+        currency,
         reference,
         description: `Documento ${numero || body.tipo} - Invoice Hub Pro`,
         method: body.method,
@@ -232,7 +239,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
         gateway: 'paysuite',
         status: 'aguardando_documento',
         valor: amount,
-        moeda: PLANS.pay_per_documento.moeda,
+        moeda: currency,
         metadata: {
           document_payload: { tipo: body.tipo, formData, items, totais, logo, assinatura, html_content: htmlContent },
           reference

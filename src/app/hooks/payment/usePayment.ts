@@ -2,7 +2,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { InvoiceData, TipoDocumento } from '@/types/invoice-types';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { MOBILE_MONEY_METHODS, normalizeMozambiquePhone } from '@/lib/payments/phone';
+import { MOBILE_MONEY_METHODS, ZAR_METHODS, normalizeMozambiquePhone } from '@/lib/payments/phone';
+import { PLANS } from '@/lib/payments/config';
 
 interface PaymentMethod {
   id: string;
@@ -65,10 +66,17 @@ const PAYMENT_METHODS: PaymentMethod[] = [
     id: 'visa_mastercard',
     name: 'Visa / Mastercard',
     description: 'Pagamento com cartão, até 1-2 dias úteis'
+  },
+  {
+    id: 'payfast',
+    name: 'PayFast (ZAR)',
+    description: `Cartão/EFT em Rand -- R${PLANS.pay_per_documento.valorZar.toFixed(2)}`
   }
 ];
 
-const LIBERATION_FEE = 10;
+// Fonte única do valor -- PLANS.pay_per_documento.valor (config.ts). Manter
+// aqui só para não reescrever todas as referências abaixo.
+const LIBERATION_FEE = PLANS.pay_per_documento.valor;
 const CURRENCY = 'MT';
 const POLL_INTERVAL_MS = 3000;
 // ~5 minutos de polling ativo antes de deixar o utilizador seguir em frente
@@ -172,8 +180,9 @@ const getDocumentDisplayInfo = (documentType: TipoDocumento) => {
 // Devolve um checkout_url para onde o utilizador é enviado para completar
 // o pagamento (M-Pesa/e-Mola/mKesh/cartão) -- o documento só é criado depois
 // do webhook confirmar o pagamento, nunca aqui.
-// checkout_url só vem preenchido para visa_mastercard (Hosted Checkout) --
-// mpesa/emola/mkesh não têm página de checkout, confirmam no telemóvel.
+// checkout_url só vem preenchido para visa_mastercard/payfast (Hosted
+// Checkout) -- mpesa/emola/mkesh não têm página de checkout, confirmam no
+// telemóvel.
 type CheckoutResult =
   | { direct?: false; payment_id: string; checkout_url: string | null }
   | { direct: true; document_id: string; numero: string | null };
@@ -373,14 +382,19 @@ export const usePayment = ({
       ? invoiceData?.formData?.cotacaoNumero || 'N/A'
       : (documentType === 'recibo' ? invoiceData?.formData?.reciboNumero || 'N/A' : invoiceData?.formData?.faturaNumero || 'N/A'),
     client: invoiceData?.formData?.destinatario?.nomeCompleto || 'Cliente não definido',
-    amount: `${LIBERATION_FEE.toFixed(2)} ${CURRENCY}`,
+    // payfast cobra em ZAR (PLANS.pay_per_documento.valorZar) -- mostrar
+    // sempre "10.00 MT" enganaria quem escolhe payfast, que é debitado num
+    // valor e moeda diferentes (ver resolveChargeAmount em lib/payments/phone.ts).
+    amount: (selectedMethod && (ZAR_METHODS as string[]).includes(selectedMethod))
+      ? `R${PLANS.pay_per_documento.valorZar.toFixed(2)}`
+      : `${LIBERATION_FEE.toFixed(2)} ${CURRENCY}`,
     date: formatDate(invoiceData?.formData?.dataFatura || invoiceData?.formData?.dataRecebimento),
     totalItems: invoiceData?.items?.length || 0,
     totalValue: invoiceData?.totais?.totalFinal || 0,
     currency: invoiceData?.formData?.moeda || 'MT',
     thirdPartyReference: thirdPartyReference,
     ...documentInfo
-  }), [invoiceData, thirdPartyReference, documentInfo, isCotacao]);
+  }), [invoiceData, thirdPartyReference, documentInfo, isCotacao, selectedMethod]);
 
   // Só confirma que o campo foi preenchido -- NÃO verifica mais se o número
   // "já existe" na BD. Esse número é só uma pré-visualização (gerada uma vez
@@ -426,14 +440,15 @@ export const usePayment = ({
       return;
     }
 
-    let normalizedPhone: string | undefined;
-    if ((MOBILE_MONEY_METHODS as string[]).includes(selectedMethod)) {
-      normalizedPhone = normalizeMozambiquePhone(contactNumber) ?? undefined;
-      if (!normalizedPhone) {
-        setErrorMessage('Indique um número de telefone válido (formato 84XXXXXXX)');
-        return;
-      }
-    }
+    // Não bloqueia aqui se vier vazio/inválido: quem tem subscrição ativa
+    // não é cobrado (o servidor cria o documento direto, sem precisar de
+    // telefone nenhum) -- só o servidor sabe isso. Para quem vai mesmo ser
+    // cobrado, o servidor responde com um erro claro que aparece em
+    // errorMessage na mesma. Aqui só normalizamos o que foi escrito, para dar
+    // feedback imediato de formato a quem já sabe que vai pagar.
+    const normalizedPhone = (MOBILE_MONEY_METHODS as string[]).includes(selectedMethod)
+      ? normalizeMozambiquePhone(contactNumber) ?? undefined
+      : undefined;
 
     // Reset do estado
     isProcessingRef.current = true;
