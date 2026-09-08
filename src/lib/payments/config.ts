@@ -10,7 +10,7 @@
 export const MZN_TO_ZAR_RATE = 0.253;
 
 // A Debito Pay exige um mínimo de 5 ZAR por transação em payfast -- a taxa de
-// liberação de documento (10 MZN ~= 2.53 ZAR) fica abaixo disso, por isso
+// liberação de documento (15 MZN ~= 3.80 ZAR) fica abaixo disso, por isso
 // aplicamos este piso só para não a cobrança ser recusada.
 const PAYFAST_MIN_ZAR = 5;
 
@@ -28,11 +28,11 @@ export const PLANS = {
     descricao: 'Acesso ilimitado à geração de faturas, cotações e recibos.'
   },
   pay_per_documento: {
-    valor: 10,
+    valor: 15,
     moeda: 'MZN',
-    valorZar: toZar(10),
+    valorZar: toZar(15),
     label: 'Pagar por Documento',
-    descricao: 'Sem mensalidade -- paga 10 MT sempre que gerar um documento.'
+    descricao: 'Sem mensalidade -- paga 15 MT sempre que gerar um documento.'
   }
 } as const;
 

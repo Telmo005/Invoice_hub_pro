@@ -19,7 +19,8 @@ import {
 } from '@/lib/validation/documentSchemas';
 
 // Fase 4 (docs/auditoria-inicial.md): inicia a cobrança pay-per-documento
-// (10 MT) via PaySuite. Nunca gera o documento aqui -- só depois do webhook
+// (ver PLANS.pay_per_documento em lib/payments/config.ts) via Debito Pay.
+// Nunca gera o documento aqui -- só depois do webhook
 // confirmar o pagamento (ver /api/payments/webhook/paysuite). Guarda o
 // payload de criação em pagamentos.metadata.document_payload (dados em
 // bruto, não IDs já resolvidos) para o webhook fazer ensureEmitenteId/
