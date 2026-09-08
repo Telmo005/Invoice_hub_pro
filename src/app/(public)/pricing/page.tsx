@@ -70,7 +70,7 @@ export default function PricingPage() {
                 <FiCheck className="text-amber-400 mt-0.5 flex-shrink-0" /> Pague só quando gerar fatura, cotação ou recibo
               </li>
               <li className="flex items-start gap-2 text-sm text-slate-300">
-                <FiCheck className="text-amber-400 mt-0.5 flex-shrink-0" /> M-Pesa ou e-Mola
+                <FiCheck className="text-amber-400 mt-0.5 flex-shrink-0" /> M-Pesa, e-Mola, mKesh, Visa/Mastercard ou PayFast
               </li>
             </ul>
 
@@ -103,7 +103,7 @@ export default function PricingPage() {
                 <FiCheck className="text-amber-400 mt-0.5 flex-shrink-0" /> Sem custo adicional por documento
               </li>
               <li className="flex items-start gap-2 text-sm text-slate-300">
-                <FiCheck className="text-amber-400 mt-0.5 flex-shrink-0" /> M-Pesa ou e-Mola
+                <FiCheck className="text-amber-400 mt-0.5 flex-shrink-0" /> M-Pesa, e-Mola, mKesh, Visa/Mastercard ou PayFast
               </li>
               <li className="flex items-start gap-2 text-sm text-slate-300">
                 <FiCheck className="text-amber-400 mt-0.5 flex-shrink-0" /> Cancele quando quiser
@@ -120,7 +120,7 @@ export default function PricingPage() {
         </div>
 
         <p className="text-center text-slate-500 text-sm mt-10">
-          Pagamentos por cartão podem demorar até 1-2 dias úteis a confirmar. M-Pesa e e-Mola são confirmados na hora.
+          Pagamentos por cartão (Visa/Mastercard) ou PayFast podem demorar até 1-2 dias úteis a confirmar. M-Pesa, e-Mola e mKesh são confirmados na hora.
         </p>
       </section>
       <Footer />

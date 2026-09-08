@@ -7,15 +7,17 @@ import { FiCheckCircle, FiAlertTriangle, FiInfo, FiExternalLink, FiArrowRight } 
 import { FaSpinner, FaCheck, FaExclamationTriangle, FaExternalLinkAlt } from 'react-icons/fa';
 import React, { useState } from 'react';
 import { MOBILE_MONEY_METHODS, normalizeMozambiquePhone } from '@/lib/payments/phone';
+import { PLANS } from '@/lib/payments/config';
 
 // Migração PayGate -> Debito Pay: 'credit_card' passou a 'visa_mastercard' e
 // volta a ficar disponível (o bloqueio 422 era específico da conta PaySuite
-// antiga) -- ver mesma nota em usePayment.ts. mKesh é novo.
+// antiga) -- ver mesma nota em usePayment.ts. mKesh e payfast são novos.
 const METHOD_OPTIONS = [
   { id: 'mpesa', name: 'M-Pesa', description: 'Confirmação instantânea' },
   { id: 'emola', name: 'e-Mola', description: 'Confirmação em alguns segundos' },
   { id: 'mkesh', name: 'mKesh', description: 'Confirmação em alguns segundos' },
-  { id: 'visa_mastercard', name: 'Visa / Mastercard', description: 'Pagamento com cartão, até 1-2 dias úteis' }
+  { id: 'visa_mastercard', name: 'Visa / Mastercard', description: 'Pagamento com cartão, até 1-2 dias úteis' },
+  { id: 'payfast', name: 'PayFast (ZAR)', description: `Cartão/EFT em Rand -- R${PLANS.mensal.valorZar.toFixed(2)}/mês` }
 ];
 
 export default function SubscriptionPage() {
@@ -39,7 +41,7 @@ export default function SubscriptionPage() {
       return;
     }
 
-    subscribe(selectedMethod as 'visa_mastercard');
+    subscribe(selectedMethod as 'visa_mastercard' | 'payfast');
   };
 
   const isMensal = subscription?.plano === 'mensal';
@@ -172,8 +174,8 @@ export default function SubscriptionPage() {
                   <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
                     <FiExternalLink className="text-blue-400 mt-0.5 flex-shrink-0" />
                     <p className="text-sm text-blue-700">
-                      {selectedMethod === 'visa_mastercard'
-                        ? 'Vai abrir uma nova aba para concluir o pagamento com segurança. Pagamentos com cartão Visa ou Mastercard podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
+                      {selectedMethod === 'visa_mastercard' || selectedMethod === 'payfast'
+                        ? 'Vai abrir uma nova aba para concluir o pagamento com segurança. Pode demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
                         : `Vamos enviar um pedido de confirmação para ${contactNumber || 'o número indicado'}. Confirme o pagamento no seu telemóvel quando for solicitado.`}
                     </p>
                   </div>
@@ -204,7 +206,11 @@ export default function SubscriptionPage() {
                       </>
                     ) : (
                       <>
-                        {isVencida ? 'Renovar' : 'Assinar'} ({subscription?.precos.mensal.valor} {subscription?.precos.mensal.moeda}/mês)
+                        {isVencida ? 'Renovar' : 'Assinar'} (
+                        {selectedMethod === 'payfast'
+                          ? `R${subscription?.precos.mensal.valorZar.toFixed(2)}`
+                          : `${subscription?.precos.mensal.valor} ${subscription?.precos.mensal.moeda}`}
+                        /mês)
                         <FiArrowRight className="ml-2" />
                       </>
                     )}

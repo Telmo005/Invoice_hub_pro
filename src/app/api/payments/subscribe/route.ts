@@ -5,7 +5,7 @@ import { logger } from '@/lib/logger';
 import { PayGateProvider } from '@/lib/payments/providers/PayGateProvider';
 import { PLANS } from '@/lib/payments/config';
 import { PaymentMethod } from '@/lib/payments/PaymentProvider';
-import { ALL_PAYMENT_METHODS, MOBILE_MONEY_METHODS, normalizeMozambiquePhone } from '@/lib/payments/phone';
+import { ALL_PAYMENT_METHODS, MOBILE_MONEY_METHODS, resolveChargeAmount, normalizeMozambiquePhone } from '@/lib/payments/phone';
 import { generatePaymentReference } from '@/lib/payments/generateReference';
 
 // Fase 4 bloco 4e: inicia (ou renova) a assinatura mensal (250 MT) via
@@ -114,6 +114,7 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       subscriptionId = created.id;
     }
 
+    const { amount, currency } = resolveChargeAmount(PLANS.mensal, body.method);
     const reference = generatePaymentReference('SUB');
 
     let provider: PayGateProvider;
@@ -130,8 +131,8 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
     let charge;
     try {
       charge = await provider.charge({
-        amount: PLANS.mensal.valor,
-        currency: PLANS.mensal.moeda,
+        amount,
+        currency,
         reference,
         description: 'Assinatura mensal - Invoice Hub Pro',
         method: body.method,
@@ -164,8 +165,8 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
         metodo: body.method,
         gateway: 'paysuite',
         status: 'aguardando_documento',
-        valor: PLANS.mensal.valor,
-        moeda: PLANS.mensal.moeda,
+        valor: amount,
+        moeda: currency,
         metadata: { subscription_id: subscriptionId, reference }
       })
       .select('id')

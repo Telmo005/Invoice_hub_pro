@@ -210,8 +210,8 @@ const PaymentMethodSelector: React.FC<{
             <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
               <FaExternalLinkAlt className="text-blue-400 mt-0.5 flex-shrink-0" />
               <p className="text-sm text-blue-700">
-                {selectedMethodData.id === 'visa_mastercard'
-                  ? 'Vai abrir uma nova aba para concluir o pagamento com segurança. Pagamentos com cartão Visa ou Mastercard podem demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
+                {selectedMethodData.id === 'visa_mastercard' || selectedMethodData.id === 'payfast'
+                  ? 'Vai abrir uma nova aba para concluir o pagamento com segurança. Pode demorar até 1-2 dias úteis a confirmar -- vai receber um email assim que estiver pronto.'
                   : `Vamos enviar um pedido de confirmação para ${contactNumber || 'o número indicado'}. Confirme o pagamento no seu telemóvel quando for solicitado.`}
               </p>
             </div>

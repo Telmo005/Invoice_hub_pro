@@ -1,6 +1,6 @@
 'use client';
 
-import { FaCheck, FaMobileAlt, FaWallet, FaQrcode } from 'react-icons/fa';
+import { FaCheck, FaMobileAlt, FaWallet, FaQrcode, FaUniversity } from 'react-icons/fa';
 import { SiVisa, SiMastercard } from 'react-icons/si';
 
 export interface PaymentMethodOption {
@@ -28,7 +28,8 @@ const METHOD_VISUALS: Record<string, { renderIcon: () => React.ReactNode }> = {
         <SiMastercard className="text-lg" color="#EB001B" />
       </div>
     )
-  }
+  },
+  payfast: { renderIcon: () => <FaUniversity className="text-xl" style={{ color: '#0C1B33' }} /> }
 };
 
 const DEFAULT_VISUAL = METHOD_VISUALS.visa_mastercard;
