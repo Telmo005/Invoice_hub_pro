@@ -9,10 +9,12 @@
 // crítico, mas não deixes isto parado durante anos.
 export const MZN_TO_ZAR_RATE = 0.253;
 
-// A Debito Pay exige um mínimo de 5 ZAR por transação em payfast -- a taxa de
-// liberação de documento (15 MZN ~= 3.80 ZAR) fica abaixo disso, por isso
-// aplicamos este piso só para não a cobrança ser recusada.
-const PAYFAST_MIN_ZAR = 5;
+// A Debito Pay exige um mínimo de 10 ZAR por transação em payfast (corrigido
+// em 2026-09-10 -- a doc oficial dizia 5, mas produção rejeitava com "Valor
+// mínimo PayFast: ZAR 10.00") -- a taxa de liberação de documento
+// (15 MZN ~= 3.80 ZAR) fica bem abaixo disso, por isso aplicamos este piso
+// só para não a cobrança ser recusada.
+const PAYFAST_MIN_ZAR = 10;
 
 function toZar(mznValue: number): number {
   const converted = Math.round(mznValue * MZN_TO_ZAR_RATE * 100) / 100;
