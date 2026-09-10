@@ -132,6 +132,13 @@ function PaymentSuccessContent() {
                   <FiDownload className="mr-2" /> Imprimir / Guardar PDF
                 </a>
               </div>
+
+              <p className="text-xs text-gray-500 mb-4">
+                Pode ver este documento a qualquer momento na página de{' '}
+                <Link href={ROUTES.QUOTES_INVOICES} className="text-blue-600 hover:text-blue-800 font-medium">
+                  Registos
+                </Link>.
+              </p>
             </>
           )}
 
