@@ -2,6 +2,8 @@
 'use client';
 
 import { Roboto } from 'next/font/google';
+import Link from 'next/link';
+import { ROUTES } from '@/config/routes';
 import {
   FaCheck,
   FaSpinner,
@@ -131,11 +133,18 @@ const SuccessScreen: React.FC<{
           </div>
 
           <button
-            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-3 rounded-md font-medium text-sm transition-colors"
+            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-3 rounded-md font-medium text-sm transition-colors mb-3"
             onClick={() => window.location.reload()}
           >
             Criar Nova {dynamicDocumentData.typeDisplay}
           </button>
+
+          <p className="text-xs text-gray-500">
+            Pode ver este documento a qualquer momento na página de{' '}
+            <Link href={ROUTES.QUOTES_INVOICES} className="text-blue-600 hover:text-blue-800 font-medium">
+              Registos
+            </Link>.
+          </p>
         </div>
       </div>
     );
