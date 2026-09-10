@@ -2,7 +2,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { InvoiceData, TipoDocumento } from '@/types/invoice-types';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { MOBILE_MONEY_METHODS, ZAR_METHODS, normalizeMozambiquePhone } from '@/lib/payments/phone';
+import { MOBILE_MONEY_METHODS, ZAR_METHODS, methodsAvailableFor, normalizeMozambiquePhone } from '@/lib/payments/phone';
 import { PLANS } from '@/lib/payments/config';
 
 interface PaymentMethod {
@@ -46,7 +46,7 @@ interface UsePaymentReturn {
 // um id interno e o valor real da API. 'credit_card' passou a
 // 'visa_mastercard' e volta a ficar disponível (o bloqueio HTTP 422 era
 // específico da conta PaySuite antiga).
-const PAYMENT_METHODS: PaymentMethod[] = [
+const ALL_METHOD_DEFS: PaymentMethod[] = [
   {
     id: 'mpesa',
     name: 'M-Pesa',
@@ -73,6 +73,12 @@ const PAYMENT_METHODS: PaymentMethod[] = [
     description: `Cartão/EFT em Rand -- R${PLANS.pay_per_documento.valorZar.toFixed(2)}`
   }
 ];
+
+// e-Mola e Visa/Mastercard exigem mínimo 50 MZN na Debito Pay -- a taxa de
+// 15 MT/documento nunca os atinge, por isso nem aparecem aqui como opção
+// (ver methodsAvailableFor em lib/payments/phone.ts).
+const availableIds = new Set(methodsAvailableFor(PLANS.pay_per_documento.valor));
+const PAYMENT_METHODS: PaymentMethod[] = ALL_METHOD_DEFS.filter((m) => availableIds.has(m.id as any));
 
 // Fonte única do valor -- PLANS.pay_per_documento.valor (config.ts). Manter
 // aqui só para não reescrever todas as referências abaixo.

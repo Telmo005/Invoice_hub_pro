@@ -70,7 +70,7 @@ export default function PricingPage() {
                 <FiCheck className="text-amber-400 mt-0.5 flex-shrink-0" /> Pague só quando gerar fatura, cotação ou recibo
               </li>
               <li className="flex items-start gap-2 text-sm text-slate-300">
-                <FiCheck className="text-amber-400 mt-0.5 flex-shrink-0" /> M-Pesa, e-Mola, mKesh, Visa/Mastercard ou PayFast
+                <FiCheck className="text-amber-400 mt-0.5 flex-shrink-0" /> M-Pesa, mKesh ou PayFast
               </li>
             </ul>
 

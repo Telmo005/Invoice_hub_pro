@@ -7,7 +7,7 @@ import { PayGateProvider } from '@/lib/payments/providers/PayGateProvider';
 import { PaymentProviderError } from '@/lib/payments/PaymentProvider';
 import { PLANS } from '@/lib/payments/config';
 import { PaymentMethod } from '@/lib/payments/PaymentProvider';
-import { ALL_PAYMENT_METHODS, MOBILE_MONEY_METHODS, resolveChargeAmount, normalizeMozambiquePhone } from '@/lib/payments/phone';
+import { ALL_PAYMENT_METHODS, MOBILE_MONEY_METHODS, methodsAvailableFor, resolveChargeAmount, normalizeMozambiquePhone } from '@/lib/payments/phone';
 import { generatePaymentReference } from '@/lib/payments/generateReference';
 import { hasActiveSubscription } from '@/lib/payments/hasActiveSubscription';
 import { ensureEmitenteId, ensureDestinatarioId } from '@/lib/document/party';
@@ -92,6 +92,21 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
       return NextResponse.json({
         success: false,
         error: { code: ERROR_CODES.VALIDATION_ERROR, message: `method inválido (${ALL_PAYMENT_METHODS.join('|')})` }
+      }, { status: 400 });
+    }
+
+    // e-Mola e Visa/Mastercard exigem mínimo 50 MZN na Debito Pay -- os
+    // 15 MT/documento nunca atingem isso. A gateway já rejeitaria (400
+    // "Corpo inválido"), mas essa mensagem não diz porquê; a UI já nem
+    // oferece estes métodos aqui (ver usePayment.ts), isto é só rede de
+    // segurança para um cliente desactualizado ou uma chamada directa à API.
+    if (!methodsAvailableFor(PLANS.pay_per_documento.valor).includes(body.method)) {
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: `${body.method} não está disponível para o valor de ${PLANS.pay_per_documento.valor} MT (mínimo mais alto que este método aceita)`
+        }
       }, { status: 400 });
     }
 
