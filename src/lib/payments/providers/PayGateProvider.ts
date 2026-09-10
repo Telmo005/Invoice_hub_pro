@@ -54,7 +54,13 @@ export class PayGateProvider implements PaymentProvider {
     const json = await response.json().catch(() => null);
 
     if (!response.ok || !json?.gateway_payment_id) {
-      throw new PaymentProviderError('Falha ao iniciar pagamento no PayGate', {
+      // O PayGate distingue erros de config internos (nunca chegam aqui em
+      // texto) de motivos de negócio em linguagem natural (pagamento
+      // recusado pelo operador, número não autorizado, valor abaixo do
+      // mínimo) -- json.error.message só traz o segundo tipo, por isso é
+      // seguro e útil propagar como a mensagem do erro em vez do genérico
+      // fixo de antes.
+      throw new PaymentProviderError(json?.error?.message || 'Falha ao iniciar pagamento no PayGate', {
         httpStatus: response.status,
         body: json
       });

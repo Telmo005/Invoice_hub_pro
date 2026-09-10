@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase-server';
 import { withApiGuard } from '@/lib/api/guard';
 import { logger } from '@/lib/logger';
 import { PayGateProvider } from '@/lib/payments/providers/PayGateProvider';
+import { PaymentProviderError } from '@/lib/payments/PaymentProvider';
 import { PLANS } from '@/lib/payments/config';
 import { PaymentMethod } from '@/lib/payments/PaymentProvider';
 import { ALL_PAYMENT_METHODS, MOBILE_MONEY_METHODS, resolveChargeAmount, normalizeMozambiquePhone } from '@/lib/payments/phone';
@@ -221,9 +222,14 @@ export const POST = withApiGuard(async (request: NextRequest, { user }) => {
         reference,
         providerDetails: (e as { details?: unknown })?.details
       });
+      // PaymentProviderError já filtra para só trazer motivos de negócio
+      // seguros (pagamento recusado, número não autorizado, valor abaixo do
+      // mínimo) -- ver PayGateProvider.charge(). Qualquer outro erro
+      // (rede, exceção inesperada) mantém a mensagem genérica.
+      const message = e instanceof PaymentProviderError ? e.message : 'Falha ao iniciar pagamento. Tente novamente.';
       return NextResponse.json({
         success: false,
-        error: { code: ERROR_CODES.PAYMENT_ERROR, message: 'Falha ao iniciar pagamento. Tente novamente.' }
+        error: { code: ERROR_CODES.PAYMENT_ERROR, message }
       }, { status: 502 });
     }
 
